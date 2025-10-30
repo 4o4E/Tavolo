@@ -17,8 +17,8 @@ allprojects {
     version = Versions.VERSION
 
     repositories {
-        mavenLocal()
         mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 
     dependencies {
@@ -42,6 +42,9 @@ subprojects {
 
     kotlin {
         jvmToolchain(11)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
     }
 
     java {
@@ -69,12 +72,6 @@ subprojects {
                     password = nexusPassword
                 }
             }
-        }
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
         }
     }
 }
