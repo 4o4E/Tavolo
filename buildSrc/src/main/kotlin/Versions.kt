@@ -1,6 +1,6 @@
 object Versions {
     const val GROUP = "top.e404.skiko-util"
-    const val VERSION = "1.1.1-SNAPSHOT"
+    const val VERSION = "1.2.0-SNAPSHOT"
     const val KOTLIN = "2.1.21"
     const val KOTLINX_SERIALIZATION = "1.8.1"
     const val SKIKO = "0.9.2"
