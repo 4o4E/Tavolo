@@ -62,7 +62,7 @@ subprojects {
         repositories {
             maven {
                 name = "snapshot"
-                url = uri("http://e404.top:8081/repository/maven-snapshots/")
+                url = uri("https://nexus.e404.top:3443/repository/maven-snapshots/")
                 isAllowInsecureProtocol = true
                 credentials {
                     username = nexusUsername
@@ -70,10 +70,6 @@ subprojects {
                 }
             }
         }
-    }
-
-    tasks.test {
-        enabled = false
     }
 
     kotlin {
