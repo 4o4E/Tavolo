@@ -77,7 +77,7 @@ class Text(private val text: String) : BaseElement() {
     private var lines: List<String> = listOf()
 
     private fun applyModifiers() {
-        var finalColor = Color.BLACK
+        var finalColor = Color.WHITE
         var finalSize = 24f
         var finalTypeface = DefaultTypefaceProvider.default
         modifier.fold(Unit) { _, mod ->
@@ -220,7 +220,7 @@ class Text(private val text: String) : BaseElement() {
     override fun layoutChildren(parentX: Float, parentY: Float) {}
 
     override fun drawContent(canvas: Canvas) {
-        val margin = modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+        // val margin = modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
         val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
         val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
 
@@ -247,8 +247,8 @@ class ImageElement(private val image: Image) : BaseElement() {
 
     override fun measureContent(surface: Surface) {
         // 默认原图尺寸
-        var iw = image.width.toFloat()
-        var ih = image.height.toFloat()
+        val iw = image.width.toFloat()
+        val ih = image.height.toFloat()
 
         val maxSize = modifier.fold(MaxSize()) { acc, m -> if (m is MaxSize) m else acc }
         val overflow = modifier.fold(ImageOverflowStrategy()) { acc, m -> m as? ImageOverflowStrategy ?: acc }

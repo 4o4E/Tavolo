@@ -187,7 +187,7 @@ abstract class BaseElement : UiElement {
     abstract fun drawContent(canvas: Canvas)
 }
 
-fun render(backgroundColor: Int = Color.WHITE, content: Composable): Image {
+fun render(backgroundColor: Int = Color.TRANSPARENT, content: Composable): Image {
     val root = Column().apply(content)
     Surface.makeRasterN32Premul(1, 1).use { root.measure(it) }
     val finalWidth = root.width.toInt()
