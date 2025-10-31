@@ -56,7 +56,7 @@ class TestRender {
                 horizontalAlignment = HorizontalAlignment.Center,
                 verticalAlignment = VerticalAlignment.Center
             ) {
-                box(Modifier.size(60f).margin(right = 10f),
+                box(Modifier.size(60f),
                     horizontalAlignment = HorizontalAlignment.Center,
                     verticalAlignment = VerticalAlignment.Center
                 ) {
@@ -66,7 +66,7 @@ class TestRender {
                             .fontSize(30F)
                     )
                 }
-                box(Modifier.size(60f).margin(right = 10f),
+                box(Modifier.size(60f),
                     horizontalAlignment = HorizontalAlignment.Left,
                     verticalAlignment = VerticalAlignment.Center
                 ) {
@@ -76,7 +76,7 @@ class TestRender {
                             .fontSize(30F)
                     )
                 }
-                box(Modifier.size(60f).margin(right = 10f),
+                box(Modifier.size(60f),
                     horizontalAlignment = HorizontalAlignment.Right,
                     verticalAlignment = VerticalAlignment.Center
                 ) {
