@@ -54,7 +54,10 @@ class Row(private val verticalAlignment: VerticalAlignment = VerticalAlignment.T
     }
 }
 
-class Box : BaseElement() {
+class Box(
+    private val horizontalAlignment: HorizontalAlignment = HorizontalAlignment.Left,
+    private val verticalAlignment: VerticalAlignment = VerticalAlignment.Top
+) : BaseElement() {
     override fun measureContent(surface: Surface) {
         children.forEach { it.measure(surface) }
         contentWidth = children.maxOfOrNull { it.width } ?: 0f
@@ -62,7 +65,27 @@ class Box : BaseElement() {
     }
 
     override fun layoutChildren(parentX: Float, parentY: Float) {
-        children.forEach { it.layout(parentX, parentY) } // 所有子元素都从同一点开始布局
+        val padding = modifier.fold(Padding()) { acc, m -> m as? Padding ?: acc }
+        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> m as? Border ?: acc }
+        val margin = modifier.fold(Margin()) { acc, m -> m as? Margin ?: acc }
+
+        // this.width 当前是整个元素的尺寸，包括 border/padding/margin
+        val availableWidth = this.width - (border.left + border.right + padding.left + padding.right + margin.left + margin.right)
+        val availableHeight = this.height - (border.top + border.bottom + padding.top + padding.bottom + margin.top + margin.bottom)
+
+        children.forEach { child ->
+            val childX = when (horizontalAlignment) {
+                HorizontalAlignment.Left -> parentX
+                HorizontalAlignment.Center -> parentX + (availableWidth - child.width) / 2
+                HorizontalAlignment.Right -> parentX + (availableWidth - child.width)
+            }
+            val childY = when (verticalAlignment) {
+                VerticalAlignment.Top -> parentY
+                VerticalAlignment.Center -> parentY + (availableHeight - child.height) / 2
+                VerticalAlignment.Bottom -> parentY + (availableHeight - child.height)
+            }
+            child.layout(childX, childY)
+        }
     }
 
     override fun drawContent(canvas: Canvas) { /* Box 本身无内容，靠子元素和Modifier绘制 */

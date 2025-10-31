@@ -12,8 +12,38 @@ import java.io.File
 import java.net.URL
 
 class TestRender {
+
+    fun toImage(url: String) = Image.makeFromEncoded(URL(url).readBytes())
+
+    val image1 = toImage("https://i1.hdslb.com/bfs/face/c1733474892caa45952b2c09a89323157df7129a.jpg@64w_64h.jpg")
+    val image2 = toImage("https://i1.hdslb.com/bfs/face/16377ca32f0b4b801bc760862893d8cb986facf3.jpg@64w_64h.jpg")
+    val images = listOf(
+        "https://i1.hdslb.com/bfs/face/e36645536f50dd57382dc625d35dad029af199a8.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/70c8b553e79e42c2ca93084ffbfce20af7a5ac9a.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/fa29937ea0ded3aabcf829f02297f2f2afbc6c46.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/a324cc9783ef6aba742a5c6dbf055eda8372a30f.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/cf77e0afb1bb23b6ab3cbfe52aff3c269cff9a35.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/8e99f38a57020d77cc9e3f6f369104e85583bebb.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/f119348814f30c6bbbcc60bd63c12b8215d19d2f.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/201834c47130b96b2dc207e6042ff4765291d702.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/dcb24f8f5dd29ab819f6e0450663b0d0134e6e1b.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/f864ffb0264cfac8a1ad1364a337006763f15958.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/e9035c3a7089ce7e11d72cb0cf15fa92064b14ef.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/c133da90bbc40d332126353107085f81ba593a11.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/881134664f54e95cab471a314273627a7529a4f8.jpg@64w_64h.jpg",
+        "https://i1.hdslb.com/bfs/face/66ff1b32a6b480279e0c4812f820d247305ac05c.jpg@64w_64h.jpg",
+    ).map { toImage(it) }
+    val names = listOf("Base64", "Sha256", "MD5", "URL Encode", "URL Decode", "HTML Encode", "HTML Decode", "Unicode Encode", "Unicode Decode")
+    val cards = (1..20).map {
+        val name = names.random()
+        Triple(images.random(), name, (0..10).joinToString(" ") { name })
+    }
+
+    init {
+        DefaultTypefaceProvider.default = FontMgr.default.makeFromData(Data.makeFromBytes(File("font/LXGWWenKai-Regular.ttf").readBytes()))!!
+    }
     @UiDsl
-    fun UiElement.profileCard(name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
+    fun UiElement.profileCard(index: Int, name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
         row(
             verticalAlignment = VerticalAlignment.Center,
             modifier = modifier
@@ -21,6 +51,15 @@ class TestRender {
                 // .background(Color.WHITE)
                 .padding(all = 12f)
         ) {
+            // 序号
+            box {
+                box(Modifier.padding(120f))
+                text(
+                    "[${index}]",
+                    Modifier
+                        .fontSize(60F)
+                )
+            }
             image(
                 image = image,
                 modifier = Modifier
@@ -44,34 +83,6 @@ class TestRender {
         }
     }
 
-    fun toImage(url: String) = Image.makeFromEncoded(URL(url).readBytes())
-
-    val image1 = toImage("https://i1.hdslb.com/bfs/face/c1733474892caa45952b2c09a89323157df7129a.jpg@64w_64h.jpg")
-    val image2 = toImage("https://i1.hdslb.com/bfs/face/16377ca32f0b4b801bc760862893d8cb986facf3.jpg@64w_64h.jpg")
-    val images = listOf(
-        "https://i1.hdslb.com/bfs/face/e36645536f50dd57382dc625d35dad029af199a8.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/70c8b553e79e42c2ca93084ffbfce20af7a5ac9a.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/fa29937ea0ded3aabcf829f02297f2f2afbc6c46.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/a324cc9783ef6aba742a5c6dbf055eda8372a30f.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/cf77e0afb1bb23b6ab3cbfe52aff3c269cff9a35.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/8e99f38a57020d77cc9e3f6f369104e85583bebb.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/f119348814f30c6bbbcc60bd63c12b8215d19d2f.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/201834c47130b96b2dc207e6042ff4765291d702.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/dcb24f8f5dd29ab819f6e0450663b0d0134e6e1b.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/f864ffb0264cfac8a1ad1364a337006763f15958.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/e9035c3a7089ce7e11d72cb0cf15fa92064b14ef.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/c133da90bbc40d332126353107085f81ba593a11.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/881134664f54e95cab471a314273627a7529a4f8.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/66ff1b32a6b480279e0c4812f820d247305ac05c.jpg@64w_64h.jpg",
-    ).map { toImage(it) }
-    val cards = (1..10).map {
-        Triple(images[images.size % it], "StormBase", (0..10).joinToString(" ") { "StormBase" })
-    }
-
-    init {
-        DefaultTypefaceProvider.default = FontMgr.default.makeFromData(Data.makeFromBytes(File("font/LXGWWenKai-Regular.ttf").readBytes()))!!
-    }
-
     @UiDsl
     fun UiElement.cards() {
         column(
@@ -79,19 +90,16 @@ class TestRender {
             modifier = Modifier.padding(20f)
                 .background(Colors.BG.argb)
         ) {
-            for ((image, name, desc) in cards) {
-                profileCard(name, desc, image)
+            cards.forEachIndexed { index, (image, name, desc) ->
+                profileCard(index, name, desc, image)
             }
         }
     }
 
     fun testCompose(name: String, content: Composable) {
-        render(Color.WHITE, content).let {
+        render(Color.TRANSPARENT, true, content).let {
             val bytes = it.encodeToData(EncodedImageFormat.PNG)!!.bytes
-            File("out/compose/$name.png").also {
-                it.parentFile.mkdirs()
-                println(it.absolutePath)
-            }.writeBytes(bytes)
+            File("out/compose/$name.png").also { it.parentFile.mkdirs() }.writeBytes(bytes)
         }
     }
 
@@ -102,6 +110,7 @@ class TestRender {
         test3()
         test4()
         test5()
+        test6()
     }
 
     @Test
@@ -110,7 +119,7 @@ class TestRender {
             column(
                 modifier = Modifier
                     .padding(10f)
-                    .background(Color.makeRGB(245, 245, 245))
+                    .background(Colors.BG.argb)
             ) {
                 // --- 演示 Column 的 horizontalAlignment ---
                 text("Column 水平对齐演示", modifier = Modifier.fontSize(28f).margin(10f))
@@ -156,7 +165,8 @@ class TestRender {
                     image(image1)
                     box(
                         modifier = Modifier
-                            .border(50F, 80f, Color.makeARGB(128, 255, 193, 7))
+                            .padding(50F, 80f)
+                            .background(Color.makeARGB(128, 255, 193, 7))
                             .clip(Shape.RoundedRect(15f))
                     )
                 }
@@ -169,7 +179,8 @@ class TestRender {
                     image(image1)
                     box(
                         modifier = Modifier
-                            .border(50F, 80f, Color.makeARGB(128, 255, 193, 7))
+                            .padding(50F, 80f)
+                            .background(Color.makeARGB(128, 255, 193, 7))
                             .clip(Shape.RoundedRect(15f))
                     )
                 }
@@ -182,7 +193,8 @@ class TestRender {
                     image(image1)
                     box(
                         modifier = Modifier
-                            .border(50F, 80f, Color.makeARGB(128, 255, 193, 7))
+                            .padding(50F, 80f)
+                            .background(Color.makeARGB(128, 255, 193, 7))
                             .clip(Shape.RoundedRect(15f))
                     )
                 }
@@ -196,7 +208,7 @@ class TestRender {
             column(
                 horizontalAlignment = HorizontalAlignment.Center,
                 modifier = Modifier.padding(20f)
-                    .background(Color.makeRGB(200, 200, 200))
+                    .background(Colors.BG.argb)
             ) {
                 // --- 演示封装的自定义组件 ---
                 text(
@@ -225,7 +237,7 @@ class TestRender {
         testCompose("padding") {
             column(
                 horizontalAlignment = HorizontalAlignment.Left,
-                modifier = Modifier.padding(20f).background(Color.makeRGB(240, 240, 240))
+                modifier = Modifier.padding(20f).background(Colors.BG.argb)
             ) {
                 // --- 演示分边距 Padding 和 Border ---
                 text("分边距与裁剪演示", modifier = Modifier.fontSize(28f).margin(top = 30f, bottom = 16f))
@@ -248,7 +260,7 @@ class TestRender {
                 horizontalAlignment = HorizontalAlignment.Left,
                 modifier = Modifier
                     .padding(20f)
-                    .background(Color.makeRGB(240, 240, 240))
+                    .background(Colors.BG.argb)
             ) {
                 // --- 演示 Box 布局和圆角裁剪 ---
                 box(
@@ -276,7 +288,7 @@ class TestRender {
             column(
                 modifier = Modifier
                     .padding(15f)
-                    .background(Colors.WHITE.argb)
+                    .background(Colors.BG.argb)
             ) {
                 val longText = "这是一段非常非常非常长的文本，它需要足够的空间来展示，否则就会触发溢出策略。"
                 val imageForOverflow = image2 // 使用一个已加载的图片
@@ -348,6 +360,87 @@ class TestRender {
                                 .border(all = 1f, color = Colors.RED.argb)
                         )
                     }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun test6() {
+        testCompose("box_alignment") {
+            column(modifier = Modifier.padding(10f).background(Colors.BG.argb)) {
+                text("Box 对齐演示 (大框 100x100, 小框 30x30)", modifier = Modifier.fontSize(20f).margin(bottom = 10f))
+
+                // Top Row
+                row(modifier = Modifier.margin(bottom = 10f)) {
+                    // Top-Left
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        horizontalAlignment = HorizontalAlignment.Left,
+                        verticalAlignment = VerticalAlignment.Top
+                    ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+
+                    // Top-Center
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        horizontalAlignment = HorizontalAlignment.Center,
+                        verticalAlignment = VerticalAlignment.Top
+                    ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+
+                    // Top-Right
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                        horizontalAlignment = HorizontalAlignment.Right,
+                        verticalAlignment = VerticalAlignment.Top
+                    ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+                }
+
+                // Center Row
+                row(modifier = Modifier.margin(bottom = 10f)) {
+                    // Center-Left
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        horizontalAlignment = HorizontalAlignment.Left,
+                        verticalAlignment = VerticalAlignment.Center
+                    ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+
+                    // Center-Center
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        horizontalAlignment = HorizontalAlignment.Center,
+                        verticalAlignment = VerticalAlignment.Center
+                    ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+
+                    // Center-Right
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                        horizontalAlignment = HorizontalAlignment.Right,
+                        verticalAlignment = VerticalAlignment.Center
+                    ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+                }
+
+                // Bottom Row
+                row {
+                    // Bottom-Left
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        horizontalAlignment = HorizontalAlignment.Left,
+                        verticalAlignment = VerticalAlignment.Bottom
+                    ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
+
+                    // Bottom-Center
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        horizontalAlignment = HorizontalAlignment.Center,
+                        verticalAlignment = VerticalAlignment.Bottom
+                    ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
+
+                    // Bottom-Right
+                    box(
+                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                        horizontalAlignment = HorizontalAlignment.Right,
+                        verticalAlignment = VerticalAlignment.Bottom
+                    ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
                 }
             }
         }

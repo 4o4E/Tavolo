@@ -51,40 +51,63 @@ abstract class BaseElement : UiElement {
     override val children: MutableList<UiElement> = mutableListOf()
 
     final override fun measure(surface: Surface) {
+        // 步骤 1: 先调用 measureContent，让元素（如 Text, Image）计算出其内容的自然尺寸。
+        // 这一步会填充 this.contentWidth 和 this.contentHeight 的初始值。
         measureContent(surface)
-        width = contentWidth
-        height = contentHeight
+
+        // 步骤 2: 检查是否存在 Modifier.size()。如果存在，用它来覆盖内容的自然尺寸。
+        // 这实现了您的核心要求：“预设size是预设的内容的size”。
         modifier.fold(Unit) { _, mod ->
-            when (mod) {
-                is Border -> {
-                    width += mod.left + mod.right; height += mod.top + mod.bottom
+            if (mod is Size) {
+                if (!mod.width.isNaN()) {
+                    this.contentWidth = mod.width
                 }
-
-                is Padding -> {
-                    width += mod.left + mod.right; height += mod.top + mod.bottom
-                }
-
-                is Margin -> {
-                    width += mod.left + mod.right; height += mod.top + mod.bottom
+                if (!mod.height.isNaN()) {
+                    this.contentHeight = mod.height
                 }
             }
         }
+
+        // 步骤 3: 基于最终确定的 content size，加上 padding 和 border 来计算元素的最终尺寸。
+        // Margin 在这里完全不参与计算，因为它不属于元素自身尺寸的一部分。
+        var finalWidth = this.contentWidth
+        var finalHeight = this.contentHeight
+
+        modifier.fold(Unit) { _, mod ->
+            when (mod) {
+                is Border -> {
+                    finalWidth += mod.left + mod.right
+                    finalHeight += mod.top + mod.bottom
+                }
+                is Padding -> {
+                    finalWidth += mod.left + mod.right
+                    finalHeight += mod.top + mod.bottom
+                }
+
+                is Margin -> {
+                    finalWidth += mod.left + mod.right
+                    finalHeight += mod.top + mod.bottom
+                }
+            }
+        }
+
+        this.width = finalWidth
+        this.height = finalHeight
     }
 
     abstract fun measureContent(surface: Surface)
 
     override fun layout(parentX: Float, parentY: Float) {
-        var currentX = parentX
-        var currentY = parentY
+        // 关键修复：
+        // 父容器在调用 layout 时，已经为 margin 预留了空间。
+        // 因此，子元素自身的 x, y 坐标应该直接等于父容器计算好的坐标，
+        // 而不是在这个基础上再叠加自己的 margin。
+        this.x = parentX
+        this.y = parentY
 
-        modifier.fold(Unit) { _, mod ->
-            if (mod is Margin) {
-                currentX += mod.left; currentY += mod.top
-            }
-        }
-        this.x = currentX
-        this.y = currentY
-
+        // -------------------------------------------------------------------
+        // 以下逻辑保持不变，它负责计算 *内容* 的起始点，是正确的。
+        // 内容的起始点 = 元素的起始点 + border + padding
         var childStartX = this.x
         var childStartY = this.y
 
@@ -187,7 +210,7 @@ abstract class BaseElement : UiElement {
     abstract fun drawContent(canvas: Canvas)
 }
 
-fun render(backgroundColor: Int = Color.TRANSPARENT, content: Composable): Image {
+fun render(backgroundColor: Int = Color.TRANSPARENT, debug: Boolean = false, content: Composable): Image {
     val root = Column().apply(content)
     Surface.makeRasterN32Premul(1, 1).use { root.measure(it) }
     val finalWidth = root.width.toInt()
@@ -201,6 +224,39 @@ fun render(backgroundColor: Int = Color.TRANSPARENT, content: Composable): Image
             root.layout(0f, 0f)
             root.draw(this)
         }
+        if (debug) {
+            buildString {
+                debugBaseElement(0, root, this)
+            }.let {
+                println(it)
+            }
+        }
         surface.makeImageSnapshot()
+    }
+}
+
+fun debugBaseElement(layer: Int, el: UiElement, sb: StringBuilder) {
+    sb.append("  ".repeat(layer).let {
+        if (it.isEmpty()) it
+        else it.removeSuffix("  ") + "- "
+    }).appendLine("type: ${el.javaClass.name}")
+    sb.append("  ".repeat(layer)).appendLine("width: ${el.width}")
+    sb.append("  ".repeat(layer)).appendLine("height: ${el.height}")
+    sb.append("  ".repeat(layer)).appendLine("contentWidth: ${el.contentWidth}")
+    sb.append("  ".repeat(layer)).appendLine("contentHeight: ${el.contentHeight}")
+    sb.append("  ".repeat(layer)).appendLine("x: ${el.x}")
+    sb.append("  ".repeat(layer)).appendLine("y: ${el.y}")
+    val modifiers = el.modifier.toList()
+    if (modifiers.isNotEmpty()) {
+        sb.append("  ".repeat(layer)).appendLine("modifiers:")
+        for (modifier in modifiers) {
+            sb.append("  ".repeat(layer)).append("- ").appendLine("""'${modifier}'""")
+        }
+    }
+    if (el.children.isNotEmpty()) {
+        sb.append("  ".repeat(layer)).appendLine("children:")
+        for (element in el.children) {
+            debugBaseElement(layer + 1, element, sb)
+        }
     }
 }

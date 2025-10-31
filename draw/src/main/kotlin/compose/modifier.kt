@@ -7,6 +7,10 @@ import org.jetbrains.skia.Typeface
 interface Modifier {
     fun then(other: Modifier): Modifier = if (other === Modifier) this else CombinedModifier(this, other)
     fun <R> fold(initial: R, operation: (R, Modifier) -> R): R
+    fun toList() = fold(mutableListOf<Modifier>()) { acc, mod ->
+        acc.add(mod)
+        acc
+    }
 
     companion object : Modifier {
         override fun <R> fold(initial: R, operation: (R, Modifier) -> R): R = initial
@@ -83,6 +87,11 @@ data class AntiAlias(
 data class MaxSize(
     val maxWidth: Float = Float.POSITIVE_INFINITY,
     val maxHeight: Float = Float.POSITIVE_INFINITY
+) : ElementModifier
+
+data class Size(
+    val width: Float = Float.NaN,
+    val height: Float = Float.NaN
 ) : ElementModifier
 
 enum class ImageOverflow { Scale, Crop }

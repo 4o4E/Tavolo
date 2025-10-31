@@ -5,6 +5,11 @@ import org.jetbrains.skia.Typeface
 fun Modifier.maxSize(maxWidth: Float = Float.POSITIVE_INFINITY, maxHeight: Float = Float.POSITIVE_INFINITY): Modifier =
     this.then(MaxSize(maxWidth, maxHeight))
 
+fun Modifier.size(width: Float, height: Float): Modifier = this.then(Size(width, height))
+fun Modifier.size(all: Float): Modifier = this.then(Size(all, all))
+fun Modifier.width(width: Float): Modifier = this.then(Size(width = width))
+fun Modifier.height(height: Float): Modifier = this.then(Size(height = height))
+
 fun Modifier.imageOverflow(strategy: ImageOverflow): Modifier = this.then(ImageOverflowStrategy(strategy))
 fun Modifier.textOverflow(strategy: TextOverflow): Modifier = this.then(TextOverflowStrategy(strategy))
 
@@ -36,4 +41,5 @@ fun Modifier.border(top: Float = 0f, right: Float = 0f, bottom: Float = 0f, left
     this.then(Border(top, right, bottom, left, color))
 
 fun Modifier.antiAlias(enabled: Boolean = true) = this.then(AntiAlias(enabled))
+
 

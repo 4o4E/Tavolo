@@ -24,8 +24,13 @@ fun UiElement.row(
 }
 
 @UiDsl
-fun UiElement.box(modifier: Modifier = Modifier, block: Box.() -> Unit = {}) {
-    add(Box().apply { this.modifier = modifier; block() })
+fun UiElement.box(
+    modifier: Modifier = Modifier,
+    horizontalAlignment: HorizontalAlignment = HorizontalAlignment.Left,
+    verticalAlignment: VerticalAlignment = VerticalAlignment.Top,
+    block: Box.() -> Unit = {}
+) {
+    add(Box(horizontalAlignment, verticalAlignment).apply { this.modifier = modifier; block() })
 }
 
 @UiDsl
