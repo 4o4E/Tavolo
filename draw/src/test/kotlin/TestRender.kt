@@ -12,8 +12,8 @@ import java.io.File
 import java.net.URL
 
 class TestRender {
-    @UiBuilder
-    fun Element.profileCard(name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
+    @UiDsl
+    fun UiElement.profileCard(name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
         row(
             verticalAlignment = VerticalAlignment.Center,
             modifier = modifier
@@ -72,8 +72,8 @@ class TestRender {
         DefaultTypefaceProvider.default = FontMgr.default.makeFromData(Data.makeFromBytes(File("font/LXGWWenKai-Regular.ttf").readBytes()))!!
     }
 
-    @UiBuilder
-    fun Element.cards() {
+    @UiDsl
+    fun UiElement.cards() {
         column(
             horizontalAlignment = HorizontalAlignment.Left,
             modifier = Modifier.padding(20f)

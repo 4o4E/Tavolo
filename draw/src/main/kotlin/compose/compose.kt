@@ -3,12 +3,12 @@ package top.e404.skiko.draw.compose
 import org.jetbrains.skia.*
 
 @DslMarker
-annotation class UiBuilder
+annotation class UiDsl
 
 /**
  * UI 元素的基础接口，定义了所有 UI 组件共有的属性和行为。
  */
-interface Element {
+interface UiElement {
     var width: Float
     var height: Float
     var contentWidth: Float
@@ -16,7 +16,7 @@ interface Element {
     var x: Float
     var y: Float
     var modifier: Modifier
-    val children: MutableList<Element>
+    val children: MutableList<UiElement>
 
     /**
      * 第一阶段：测量尺寸。
@@ -32,7 +32,7 @@ interface Element {
      * 第三阶段：绘制。
      */
     fun draw(canvas: Canvas)
-    fun add(element: Element) {
+    fun add(element: UiElement) {
         children.add(element)
     }
 }
@@ -40,7 +40,7 @@ interface Element {
 /**
  * Element 接口的基础实现类，提供了通用属性的默认实现。
  */
-abstract class BaseElement : Element {
+abstract class BaseElement : UiElement {
     override var width: Float = 0f
     override var height: Float = 0f
     override var contentWidth: Float = 0f
@@ -48,7 +48,7 @@ abstract class BaseElement : Element {
     override var x: Float = 0f
     override var y: Float = 0f
     override var modifier: Modifier = Modifier
-    override val children: MutableList<Element> = mutableListOf()
+    override val children: MutableList<UiElement> = mutableListOf()
 
     final override fun measure(surface: Surface) {
         measureContent(surface)
@@ -133,7 +133,7 @@ abstract class BaseElement : Element {
 
     private fun drawBehind(canvas: Canvas) {
         val margin = modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
-        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> m as? Border ?: acc }
+        // val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> m as? Border ?: acc }
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
 
         val outerWidth = width - (margin.left + margin.right)
@@ -148,8 +148,8 @@ abstract class BaseElement : Element {
 
                 is Border -> if (mod.color != Color.TRANSPARENT) {
                     val paint = Paint().apply {
-                        color = mod.color;
-                        mode = PaintMode.STROKE;
+                        color = mod.color
+                        mode = PaintMode.STROKE
                         isAntiAlias = antiAlias.enabled
                         strokeWidth = 0f
                         mode = PaintMode.FILL
@@ -190,7 +190,7 @@ abstract class BaseElement : Element {
 fun render(backgroundColor: Int = Color.WHITE, content: Composable): Image {
     val root = Column().apply(content)
     Surface.makeRasterN32Premul(1, 1).use { root.measure(it) }
-    val finalWidth = root.width.toInt();
+    val finalWidth = root.width.toInt()
     val finalHeight = root.height.toInt()
     if (finalWidth <= 0 || finalHeight <= 0) {
         error("计算尺寸无效 (width=$finalWidth, height=$finalHeight)，无法生成图片。")
