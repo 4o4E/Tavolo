@@ -52,13 +52,40 @@ class TestRender {
                 .padding(all = 12f)
         ) {
             // 序号
-            box {
-                box(Modifier.padding(120f))
-                text(
-                    "[${index}]",
-                    Modifier
-                        .fontSize(60F)
-                )
+            box(Modifier.size(60f).margin(right = 10f),
+                horizontalAlignment = HorizontalAlignment.Center,
+                verticalAlignment = VerticalAlignment.Center
+            ) {
+                box(Modifier.size(60f).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Center,
+                    verticalAlignment = VerticalAlignment.Center
+                ) {
+                    text(
+                        "$index",
+                        Modifier
+                            .fontSize(30F)
+                    )
+                }
+                box(Modifier.size(60f).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Left,
+                    verticalAlignment = VerticalAlignment.Center
+                ) {
+                    text(
+                        "[",
+                        Modifier
+                            .fontSize(30F)
+                    )
+                }
+                box(Modifier.size(60f).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Right,
+                    verticalAlignment = VerticalAlignment.Center
+                ) {
+                    text(
+                        "]",
+                        Modifier
+                            .fontSize(30F)
+                    )
+                }
             }
             image(
                 image = image,
