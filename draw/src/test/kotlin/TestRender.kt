@@ -124,9 +124,15 @@ class TestRender {
     }
 
     fun testCompose(name: String, content: Composable) {
-        render(Color.TRANSPARENT, true, content).let {
+        val root = Column()
+        render(Color.TRANSPARENT, root, content).let {
             val bytes = it.encodeToData(EncodedImageFormat.PNG)!!.bytes
             File("out/compose/$name.png").also { it.parentFile.mkdirs() }.writeBytes(bytes)
+        }
+        buildString {
+            debugBaseElement(0, root, this)
+        }.let {
+            println(it)
         }
     }
 
@@ -253,7 +259,7 @@ class TestRender {
                         .clip(Shape.RoundedRect(15f))
                         .fontSize(28f)
                         .textColor(Color.WHITE)
-                        .margin(top = 20F, bottom = 16f)
+                        .margin(50F)
                 )
             }
         }

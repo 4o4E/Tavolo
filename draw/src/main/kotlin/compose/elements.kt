@@ -6,52 +6,240 @@ object DefaultTypefaceProvider {
     var default: Typeface = Typeface.makeEmpty()
 }
 
-class Column(private val horizontalAlignment: HorizontalAlignment = HorizontalAlignment.Left) : BaseElement() {
-    override fun measureContent(surface: Surface) {
-        children.forEach { it.measure(surface) }
-        contentWidth = children.maxOfOrNull { it.width } ?: 0f
-        contentHeight = children.sumOf { it.height.toDouble() }.toFloat()
+/**
+ * UI 元素的基础接口，定义了所有 UI 组件共有的属性和行为。
+ */
+interface UiElement {
+    var width: Float
+    var height: Float
+    var contentWidth: Float
+    var contentHeight: Float
+    var x: Float
+    var y: Float
+    var modifier: Modifier
+    val children: MutableList<UiElement>
+
+    /**
+     * 第一阶段：测量尺寸。
+     */
+    fun measure(surface: Surface)
+
+    /**
+     * 第二阶段：布局位置。
+     */
+    fun layout(parentX: Float, parentY: Float)
+
+    /**
+     * 第三阶段：绘制。
+     */
+    fun draw(canvas: Canvas)
+    fun add(element: UiElement) {
+        children.add(element)
+    }
+}
+
+/**
+ * Element 接口的基础实现类，提供了通用属性的默认实现。
+ */
+abstract class BaseElement : UiElement {
+    override var width: Float = 0f
+    override var height: Float = 0f
+    override var contentWidth: Float = 0f
+    override var contentHeight: Float = 0f
+    override var x: Float = 0f
+    override var y: Float = 0f
+    override var modifier: Modifier = Modifier
+    override val children: MutableList<UiElement> = mutableListOf()
+
+    final override fun measure(surface: Surface) {
+        // 步骤 1: 先调用 measureContent，让元素（如 Text, Image）计算出其内容的自然尺寸。
+        measureContent(surface)
+
+        // 步骤 2: 检查是否存在 Modifier.size()。如果存在，用它来覆盖内容的自然尺寸。
+        modifier.fold(Unit) { _, mod ->
+            if (mod is Size) {
+                if (!mod.width.isNaN()) {
+                    this.contentWidth = mod.width
+                }
+                if (!mod.height.isNaN()) {
+                    this.contentHeight = mod.height
+                }
+            }
+        }
+
+        // 步骤 3: 基于最终确定的 content size，加上 padding 和 border 来计算元素的最终尺寸。
+        var finalWidth = this.contentWidth
+        var finalHeight = this.contentHeight
+
+        modifier.fold(Unit) { _, mod ->
+            when (mod) {
+                is Border -> {
+                    finalWidth += mod.left + mod.right
+                    finalHeight += mod.top + mod.bottom
+                }
+                is Padding -> {
+                    finalWidth += mod.left + mod.right
+                    finalHeight += mod.top + mod.bottom
+                }
+            }
+        }
+
+        this.width = finalWidth
+        this.height = finalHeight
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        var currentY = parentY
-        children.forEach { child ->
-            val childX = when (horizontalAlignment) {
-                HorizontalAlignment.Left -> parentX
-                HorizontalAlignment.Center -> parentX + (this.contentWidth - child.width) / 2
-                HorizontalAlignment.Right -> parentX + (this.contentWidth - child.width)
+    abstract fun measureContent(surface: Surface)
+
+    override fun layout(parentX: Float, parentY: Float) {
+        // parentX, parentY 是父容器为我们指定的 margin box 的起始坐标
+        val margin = modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+
+        // 计算并设置我们自己的 border box 的坐标 (this.x, this.y)
+        this.x = parentX + margin.left
+        this.y = parentY + margin.top
+
+        // 计算我们子元素的布局起点，也就是我们 content box 的左上角
+        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
+        val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
+
+        val childStartX = this.x + border.left + padding.left
+        val childStartY = this.y + border.top + padding.top
+
+        layoutChildren(childStartX, childStartY)
+    }
+
+    abstract fun layoutChildren(parentX: Float, parentY: Float)
+
+    final override fun draw(canvas: Canvas) {
+        var clipPath: Path? = null
+        // 应用Clip
+        modifier.fold(Unit) { _, mod ->
+            if (mod is Clip) {
+                // 裁剪是基于 border box 的
+                clipPath = mod.shape.createPath(width, height)
+                    .apply { transform(Matrix33.makeTranslate(x, y)) }
             }
-            child.layout(childX, currentY)
-            currentY += child.height
+        }
+
+        clipPath?.let {
+            canvas.save()
+            canvas.clipPath(it, true)
+        }
+
+        try {
+            drawBehind(canvas)
+            drawContent(canvas)
+            children.forEach { it.draw(canvas) }
+        } finally {
+            clipPath?.let { canvas.restore() }
         }
     }
 
-    override fun drawContent(canvas: Canvas) { /* Column 本身无内容 */
+    private fun drawBehind(canvas: Canvas) {
+        // this.x, y, width, height 直接就是 border box，不再需要计算 margin
+        val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
+
+        modifier.fold(Unit) { _, mod ->
+            when (mod) {
+                is Background -> {
+                    val paint = Paint().apply { color = mod.color; isAntiAlias = antiAlias.enabled }
+                    // 背景直接绘制在整个 border box 区域
+                    canvas.drawRect(Rect.makeXYWH(x, y, width, height), paint)
+                }
+
+                is Border -> if (mod.color != Color.TRANSPARENT) {
+                    val paint = Paint().apply {
+                        color = mod.color
+                        mode = PaintMode.FILL
+                        isAntiAlias = antiAlias.enabled
+                    }
+                    // 边框绘制在 border box 的边缘
+                    if (mod.top > 0) canvas.drawRect(Rect.makeXYWH(x, y, width, mod.top), paint)
+                    if (mod.bottom > 0) canvas.drawRect(Rect.makeXYWH(x, y + height - mod.bottom, width, mod.bottom), paint)
+                    if (mod.left > 0) canvas.drawRect(Rect.makeXYWH(x, y, mod.left, height), paint)
+                    if (mod.right > 0) canvas.drawRect(Rect.makeXYWH(x + width - mod.right, y, mod.right, height), paint)
+                }
+            }
+        }
     }
+
+    abstract fun drawContent(canvas: Canvas)
+}
+
+class Column(private val horizontalAlignment: HorizontalAlignment = HorizontalAlignment.Left) : BaseElement() {
+    override fun measureContent(surface: Surface) {
+        children.forEach { it.measure(surface) }
+        contentWidth = children.maxOfOrNull {
+            val margin = it.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            it.width + margin.left + margin.right
+        } ?: 0f
+        contentHeight = children.sumOf {
+            val margin = it.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            (it.height + margin.top + margin.bottom).toDouble()
+        }.toFloat()
+    }
+
+    override fun layoutChildren(parentX: Float, parentY: Float) {
+        val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
+        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
+        val availableWidth = this.width - (border.left + border.right + padding.left + padding.right)
+
+        var currentY = parentY
+        children.forEach { child ->
+            val margin = child.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            val childOccupiedWidth = child.width + margin.left + margin.right
+
+            val childStartX = when (horizontalAlignment) {
+                HorizontalAlignment.Left -> parentX
+                HorizontalAlignment.Center -> parentX + (availableWidth - childOccupiedWidth) / 2
+                HorizontalAlignment.Right -> parentX + (availableWidth - childOccupiedWidth)
+            }
+
+            child.layout(childStartX, currentY)
+
+            currentY += child.height + margin.top + margin.bottom
+        }
+    }
+
+    override fun drawContent(canvas: Canvas) { /* Column 本身无内容 */ }
 }
 
 class Row(private val verticalAlignment: VerticalAlignment = VerticalAlignment.Top) : BaseElement() {
     override fun measureContent(surface: Surface) {
         children.forEach { it.measure(surface) }
-        contentWidth = children.sumOf { it.width.toDouble() }.toFloat()
-        contentHeight = children.maxOfOrNull { it.height } ?: 0f
+        contentWidth = children.sumOf {
+            val margin = it.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            (it.width + margin.left + margin.right).toDouble()
+        }.toFloat()
+        contentHeight = children.maxOfOrNull {
+            val margin = it.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            it.height + margin.top + margin.bottom
+        } ?: 0f
     }
 
     override fun layoutChildren(parentX: Float, parentY: Float) {
+        val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
+        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
+        val availableHeight = this.height - (border.top + border.bottom + padding.top + padding.bottom)
+
         var currentX = parentX
         children.forEach { child ->
-            val childY = when (verticalAlignment) {
+            val margin = child.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            val childOccupiedHeight = child.height + margin.top + margin.bottom
+
+            val childStartY = when (verticalAlignment) {
                 VerticalAlignment.Top -> parentY
-                VerticalAlignment.Center -> parentY + (this.contentHeight - child.height) / 2
-                VerticalAlignment.Bottom -> parentY + (this.contentHeight - child.height)
+                VerticalAlignment.Center -> parentY + (availableHeight - childOccupiedHeight) / 2
+                VerticalAlignment.Bottom -> parentY + (availableHeight - childOccupiedHeight)
             }
-            child.layout(currentX, childY)
-            currentX += child.width
+
+            child.layout(currentX, childStartY)
+
+            currentX += child.width + margin.left + margin.right
         }
     }
 
-    override fun drawContent(canvas: Canvas) { /* Row 本身无内容 */
-    }
+    override fun drawContent(canvas: Canvas) { /* Row 本身无内容 */ }
 }
 
 class Box(
@@ -60,43 +248,48 @@ class Box(
 ) : BaseElement() {
     override fun measureContent(surface: Surface) {
         children.forEach { it.measure(surface) }
-        contentWidth = children.maxOfOrNull { it.width } ?: 0f
-        contentHeight = children.maxOfOrNull { it.height } ?: 0f
+        contentWidth = children.maxOfOrNull {
+            val margin = it.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            it.width + margin.left + margin.right
+        } ?: 0f
+        contentHeight = children.maxOfOrNull {
+            val margin = it.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            it.height + margin.top + margin.bottom
+        } ?: 0f
     }
 
     override fun layoutChildren(parentX: Float, parentY: Float) {
-        val padding = modifier.fold(Padding()) { acc, m -> m as? Padding ?: acc }
-        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> m as? Border ?: acc }
-        val margin = modifier.fold(Margin()) { acc, m -> m as? Margin ?: acc }
+        val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
+        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
 
-        // this.width 当前是整个元素的尺寸，包括 border/padding/margin
-        val availableWidth = this.width - (border.left + border.right + padding.left + padding.right + margin.left + margin.right)
-        val availableHeight = this.height - (border.top + border.bottom + padding.top + padding.bottom + margin.top + margin.bottom)
+        val availableWidth = this.width - (border.left + border.right + padding.left + padding.right)
+        val availableHeight = this.height - (border.top + border.bottom + padding.top + padding.bottom)
 
         children.forEach { child ->
-            val childX = when (horizontalAlignment) {
+            val margin = child.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            val childOccupiedWidth = child.width + margin.left + margin.right
+            val childOccupiedHeight = child.height + margin.top + margin.bottom
+
+            val childStartX = when (horizontalAlignment) {
                 HorizontalAlignment.Left -> parentX
-                HorizontalAlignment.Center -> parentX + (availableWidth - child.width) / 2
-                HorizontalAlignment.Right -> parentX + (availableWidth - child.width)
+                HorizontalAlignment.Center -> parentX + (availableWidth - childOccupiedWidth) / 2
+                HorizontalAlignment.Right -> parentX + (availableWidth - childOccupiedWidth)
             }
-            val childY = when (verticalAlignment) {
+            val childStartY = when (verticalAlignment) {
                 VerticalAlignment.Top -> parentY
-                VerticalAlignment.Center -> parentY + (availableHeight - child.height) / 2
-                VerticalAlignment.Bottom -> parentY + (availableHeight - child.height)
+                VerticalAlignment.Center -> parentY + (availableHeight - childOccupiedHeight) / 2
+                VerticalAlignment.Bottom -> parentY + (availableHeight - childOccupiedHeight)
             }
-            child.layout(childX, childY)
+            child.layout(childStartX, childStartY)
         }
     }
 
-    override fun drawContent(canvas: Canvas) { /* Box 本身无内容，靠子元素和Modifier绘制 */
-    }
+    override fun drawContent(canvas: Canvas) { /* Box 本身无内容 */ }
 }
 
 class Text(private val text: String) : BaseElement() {
     private lateinit var font: Font
     private lateinit var paint: Paint
-
-    // 新增：换行后的行集合（measure 后填充）
     private var lines: List<String> = listOf()
 
     private fun applyModifiers() {
@@ -107,9 +300,7 @@ class Text(private val text: String) : BaseElement() {
             when (mod) {
                 is TextColor -> finalColor = mod.color
                 is FontTypeface -> finalTypeface = mod.typeface
-                is FontSize -> {
-                    finalSize = mod.size
-                }
+                is FontSize -> finalSize = mod.size
             }
         }
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
@@ -120,14 +311,11 @@ class Text(private val text: String) : BaseElement() {
     override fun measureContent(surface: Surface) {
         applyModifiers()
 
-        // 读取策略和最大尺寸
         val maxSize = modifier.fold(MaxSize()) { acc, m -> if (m is MaxSize) m else acc }
         val overflow = modifier.fold(TextOverflowStrategy()) { acc, m -> m as? TextOverflowStrategy ?: acc }
-
         val lineHeight = font.metrics.descent - font.metrics.ascent
 
         if (overflow.strategy == TextOverflow.Wrap && maxSize.maxWidth.isFinite()) {
-            // 简单按空格换行的实现，遇不到空格则按字符拆分
             val words = text.split(Regex("\\s+"))
             val builtLines = mutableListOf<String>()
             var current = StringBuilder()
@@ -141,15 +329,12 @@ class Text(private val text: String) : BaseElement() {
 
             for (w in words) {
                 if (w.isEmpty()) continue
-                val attempt = if (current.isEmpty()) w else current.toString() + " " + w
+                val attempt = if (current.isEmpty()) w else "$current $w"
                 val widthAttempt = font.measureTextWidth(attempt, paint)
                 if (widthAttempt <= maxSize.maxWidth) {
-                    if (current.isEmpty()) current.append(w) else {
-                        current.append(" "); current.append(w)
-                    }
+                    if (current.isEmpty()) current.append(w) else current.append(" ").append(w)
                 } else {
                     if (current.isEmpty()) {
-                        // 单个词就超宽，按字符切分
                         var acc = ""
                         for (ch in w) {
                             val tryAcc = acc + ch
@@ -184,11 +369,7 @@ class Text(private val text: String) : BaseElement() {
                     } else {
                         // 逐字符去掉直到放得下
                         var t = truncated
-                        while (t.isNotEmpty() && font.measureTextWidth(
-                                "${t}${overflow.placeholder}",
-                                paint
-                            ) > maxSize.maxWidth
-                        ) {
+                        while (t.isNotEmpty() && font.measureTextWidth("${t}${overflow.placeholder}", paint) > maxSize.maxWidth) {
                             t = t.dropLast(1)
                         }
                         truncated = if (t.isEmpty()) overflow.placeholder else t + overflow.placeholder
@@ -254,8 +435,6 @@ class Text(private val text: String) : BaseElement() {
         var yCursor = drawY - font.metrics.ascent // baseline for first line
         // 绘制每一行（可能已经包括了省略号）
         for (line in lines) {
-            // 如果超出 contentHeight 则停止绘制（以防因为 rounding）
-            if (yCursor - drawY > contentHeight + 0.001f) break
             canvas.drawString(line, drawX, yCursor, font, paint)
             yCursor += lineHeight
         }
@@ -294,8 +473,7 @@ class ImageElement(private val image: Image) : BaseElement() {
                 // 计算源裁剪区域（中心裁剪）
                 val srcLeft = ((iw - dstW) / 2f).coerceAtLeast(0f)
                 val srcTop = ((ih - dstH) / 2f).coerceAtLeast(0f)
-                val srcR = Rect.makeXYWH(srcLeft, srcTop, dstW, dstH)
-                srcRect = srcR
+                srcRect = Rect.makeXYWH(srcLeft, srcTop, dstW, dstH)
                 targetWidth = dstW
                 targetHeight = dstH
                 contentWidth = targetWidth
@@ -312,12 +490,13 @@ class ImageElement(private val image: Image) : BaseElement() {
     }
 
     override fun layoutChildren(parentX: Float, parentY: Float) {}
+
     override fun drawContent(canvas: Canvas) {
-        val margin = modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
         val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
         val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
-        val drawX = this.x + border.left + padding.left + margin.left
-        val drawY = this.y + border.top + padding.top + margin.top
+
+        val drawX = this.x + border.left + padding.left
+        val drawY = this.y + border.top + padding.top
 
         val dstRect = Rect.makeXYWH(drawX, drawY, targetWidth, targetHeight)
         if (srcRect != null) {
