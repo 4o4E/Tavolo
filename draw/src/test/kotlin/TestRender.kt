@@ -657,7 +657,21 @@ class TestRender {
         ) {
             // --- 演示 Column 的 horizontalAlignment ---
             text("iconText 演示", modifier = Modifier.fontSize(28f).margin(10f))
-            iconText(Colors.LIGHT_BLUE.argb, "带icon的text", modifier = Modifier.fontSize(28f).margin(10f))
+            iconText("带icon的text", modifier = Modifier.fontSize(28f).margin(10f))
+        }
+    }
+
+    @Test
+    fun test_size_overflow() = testCompose("size_overflow") {
+        column(
+            modifier = Modifier
+                .padding(10f)
+                .background(Colors.BG.argb)
+                .padding(25f)
+                .clip(Shape.RoundedRect(4.5f))
+                .border(.5f, Colors.LIGHT_BLUE.argb)
+        ) {
+            box(Modifier.size(500.9f))
         }
     }
 }

@@ -17,6 +17,15 @@ fun render(backgroundColor: Int = Color.TRANSPARENT, root: UiElement = Column(),
         surface.canvas.apply {
             clear(backgroundColor)
             root.layout(0f, 0f)
+            // 处理子元素超出边界的问题
+            for (children in root.children) {
+                if (children.x + children.width > finalWidth) {
+                    children.width = finalWidth - children.x
+                }
+                if (children.y + children.height > finalHeight) {
+                    children.height = finalHeight - children.y
+                }
+            }
             root.draw(this)
         }
         surface.makeImageSnapshot()
