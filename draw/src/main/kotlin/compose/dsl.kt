@@ -67,3 +67,15 @@ fun UiElement.text(text: String, modifier: Modifier = Modifier) {
 fun UiElement.image(image: Image, modifier: Modifier = Modifier) {
     add(ImageElement(image).apply { this.modifier = modifier })
 }
+
+@UiDsl
+fun UiElement.iconText(iconColor: Int, text: String, modifier: Modifier) = row(verticalAlignment = VerticalAlignment.Center) {
+    val fontSize = modifier.fold(FontSize(-1f)) { acc, m -> m as? FontSize ?: acc }
+    if (fontSize.size == -1f) error("iconText必须在modifier中指定FontSize")
+    box(Modifier
+        .size(fontSize.size / 2, fontSize.size)
+        .background(iconColor)
+        .clip(Shape.RoundedRect(fontSize.size))
+    )
+    text(text, modifier)
+}

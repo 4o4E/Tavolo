@@ -647,4 +647,17 @@ class TestRender {
             }
         }
     }
+
+    @Test
+    fun test_icon_text() = testCompose("icon_text") {
+        column(
+            modifier = Modifier
+                .padding(10f)
+                .background(Colors.BG.argb),
+        ) {
+            // --- 演示 Column 的 horizontalAlignment ---
+            text("iconText 演示", modifier = Modifier.fontSize(28f).margin(10f))
+            iconText(Colors.LIGHT_BLUE.argb, "带icon的text", modifier = Modifier.fontSize(28f).margin(10f))
+        }
+    }
 }
