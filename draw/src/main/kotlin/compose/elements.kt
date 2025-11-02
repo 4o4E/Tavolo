@@ -287,6 +287,160 @@ class Box(
     override fun drawContent(canvas: Canvas) { /* Box 本身无内容 */ }
 }
 
+/**
+ * 单元格元素，用于包裹表格中的具体内容。
+ */
+class TableCell(
+    private val horizontalAlignment: HorizontalAlignment = HorizontalAlignment.Left,
+    private val verticalAlignment: VerticalAlignment = VerticalAlignment.Top
+) : BaseElement() {
+    val content: UiElement?
+        get() = children.firstOrNull()
+
+    override fun measureContent(surface: Surface) {
+        content?.measure(surface)
+        contentWidth = content?.width ?: 0f
+        contentHeight = content?.height ?: 0f
+    }
+
+    // 关键修改：像 Box 一样，在自己的可用空间内对齐子元素
+    override fun layoutChildren(parentX: Float, parentY: Float) {
+        val padding = modifier.fold(Padding()) { acc, m -> if (m is Padding) m else acc }
+        val border = modifier.fold(Border(color = Color.TRANSPARENT)) { acc, m -> if (m is Border) m else acc }
+
+        val availableWidth = this.width - (border.left + border.right + padding.left + padding.right)
+        val availableHeight = this.height - (border.top + border.bottom + padding.top + padding.bottom)
+
+        content?.let { child ->
+            val margin = child.modifier.fold(Margin()) { acc, m -> if (m is Margin) m else acc }
+            val childOccupiedWidth = child.width + margin.left + margin.right
+            val childOccupiedHeight = child.height + margin.top + margin.bottom
+
+            val childStartX = when (horizontalAlignment) {
+                HorizontalAlignment.Left -> parentX
+                HorizontalAlignment.Center -> parentX + (availableWidth - childOccupiedWidth) / 2
+                HorizontalAlignment.Right -> parentX + (availableWidth - childOccupiedWidth)
+            }
+            val childStartY = when (verticalAlignment) {
+                VerticalAlignment.Top -> parentY
+                VerticalAlignment.Center -> parentY + (availableHeight - childOccupiedHeight) / 2
+                VerticalAlignment.Bottom -> parentY + (availableHeight - childOccupiedHeight)
+            }
+            child.layout(childStartX, childStartY)
+        }
+    }
+
+    override fun drawContent(canvas: Canvas) {
+        // TableCell 本身不绘制，只作为容器
+    }
+}
+
+/**
+ * 表格行元素，管理一行内的单元格。
+ */
+class TableRow : BaseElement() {
+    val cells: List<TableCell>
+        get() = children.filterIsInstance<TableCell>()
+
+    override fun measureContent(surface: Surface) {
+        // 在 Table 的协调下进行测量，这里只是一个备用实现
+        children.forEach { it.measure(surface) }
+        contentWidth = children.sumOf { it.width.toDouble() }.toFloat()
+        contentHeight = children.maxOfOrNull { it.height } ?: 0f
+    }
+
+    override fun layoutChildren(parentX: Float, parentY: Float) {
+        // 布局也由 Table 统一处理
+    }
+
+    override fun drawContent(canvas: Canvas) {
+        // TableRow 本身不绘制
+    }
+}
+
+/**
+ * 表格主元素，负责协调列宽计算和整体布局。
+ */
+class Table(
+    private val columnSpacing: Float = 0f,
+    private val rowSpacing: Float = 0f
+) : BaseElement() {
+    private lateinit var columnWidths: List<Float>
+
+    val rows: List<TableRow>
+        get() = children.filterIsInstance<TableRow>()
+
+    override fun measureContent(surface: Surface) {
+        // --- 阶段一：发现列宽 ---
+        val naturalColumnWidths = mutableMapOf<Int, Float>()
+        rows.forEach { row ->
+            row.cells.forEachIndexed { index, cell ->
+                cell.measure(surface)
+                val currentMaxWidth = naturalColumnWidths.getOrDefault(index, 0f)
+                naturalColumnWidths[index] = maxOf(currentMaxWidth, cell.width)
+            }
+        }
+        val maxColumns = naturalColumnWidths.keys.maxOrNull()?.let { it + 1 } ?: 0
+        this.columnWidths = (0 until maxColumns).map { naturalColumnWidths.getOrDefault(it, 0f) }
+
+        // --- 阶段二：重新测量并设置最终尺寸 ---
+        var totalHeight = 0f
+        rows.forEach { row ->
+            var maxRowHeight = 0f
+            row.cells.forEachIndexed { cellIndex, cell ->
+                val constrainedWidth = columnWidths[cellIndex]
+                val content = cell.content
+                if (content != null) {
+                    val originalModifier = content.modifier
+                    content.modifier = content.modifier.maxSize(maxWidth = constrainedWidth)
+                    content.measure(surface)
+                    content.modifier = originalModifier
+                }
+
+                cell.measure(surface)
+                maxRowHeight = maxOf(maxRowHeight, cell.height)
+            }
+
+            row.height = maxRowHeight
+            row.contentHeight = maxRowHeight
+            val rowWidth = (0 until row.cells.size).sumOf { columnWidths[it].toDouble() }.toFloat() + maxOf(0, row.cells.size - 1) * columnSpacing
+            row.width = rowWidth
+            row.contentWidth = rowWidth
+
+            // =================================================================================
+            // 关键新增：强制为每个 Cell 设置由 Table 计算出的最终尺寸
+            // =================================================================================
+            row.cells.forEachIndexed { cellIndex, cell ->
+                cell.width = columnWidths[cellIndex]
+                cell.height = row.height
+            }
+            // =================================================================================
+
+            totalHeight += row.height
+        }
+
+        contentWidth = columnWidths.sum() + (maxOf(0, columnWidths.size - 1) * columnSpacing)
+        contentHeight = totalHeight + (maxOf(0, rows.size - 1) * rowSpacing)
+    }
+
+    override fun layoutChildren(parentX: Float, parentY: Float) {
+        var currentY = parentY
+        rows.forEach { row ->
+            var currentX = parentX
+            row.cells.forEachIndexed { index, cell ->
+                // 使用最终的列宽来布局单元格
+                cell.layout(currentX, currentY)
+                currentX += columnWidths[index] + columnSpacing
+            }
+            currentY += row.height + rowSpacing
+        }
+    }
+
+    override fun drawContent(canvas: Canvas) {
+        // Table 本身不绘制
+    }
+}
+
 class Text(private val text: String) : BaseElement() {
     private lateinit var font: Font
     private lateinit var paint: Paint

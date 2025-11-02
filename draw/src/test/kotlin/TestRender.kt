@@ -1,5 +1,9 @@
 package top.e404.skiko.draw.compose.test
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.EncodedImageFormat
@@ -138,260 +142,395 @@ class TestRender {
 
     @Test
     fun testAll() {
-        test1()
-        test2()
-        test3()
-        test4()
-        test5()
-        test6()
-    }
-
-    @Test
-    fun test1() {
-        testCompose("align") {
-            column(
-                modifier = Modifier
-                    .padding(10f)
-                    .background(Colors.BG.argb)
-            ) {
-                // --- 演示 Column 的 horizontalAlignment ---
-                text("Column 水平对齐演示", modifier = Modifier.fontSize(28f).margin(10f))
-
-                // 居左对齐 (Start)
-                column(
-                    horizontalAlignment = HorizontalAlignment.Left,
-                    modifier = Modifier.border(2f, Color.makeRGB(0, 150, 136)).padding(8f).margin(10f)
-                ) {
-                    text("左对齐(Start)")
-                    text("短文本")
-                    text("这是一个非常非常长的文本")
+        runBlocking(Dispatchers.IO) {
+            listOf(
+                ::test_align,
+                ::test_compose,
+                ::test_padding,
+                ::test_clip,
+                ::test_overflow,
+                ::test_box_alignment,
+                ::test_table_layout,
+                ::test_table_cell_modifiers
+            ).map {
+                async {
+                    it.invoke()
                 }
-
-                // 居中对齐 (Center)
-                column(
-                    horizontalAlignment = HorizontalAlignment.Center,
-                    modifier = Modifier.border(2f, Color.makeRGB(255, 87, 34)).padding(8f).margin(10f)
-                ) {
-                    text("居中对齐(Center)")
-                    text("短文本")
-                    text("这是一个非常非常长的文本")
-                }
-
-                // 居右对齐 (End)
-                column(
-                    horizontalAlignment = HorizontalAlignment.Right,
-                    modifier = Modifier.border(2f, Color.makeRGB(33, 150, 243)).padding(8f).margin(10f)
-                ) {
-                    text("右对齐(End)")
-                    text("短文本")
-                    text("这是一个非常非常长的文本")
-                }
-
-                // --- 演示 Row 的 verticalAlignment ---
-                text("Row 垂直对齐演示", modifier = Modifier.fontSize(28f).margin(10f))
-
-                row(
-                    verticalAlignment = VerticalAlignment.Top,
-                    modifier = Modifier.border(2f, Color.makeRGB(156, 39, 176)).padding(8f).margin(10f)
-                ) {
-                    text("顶对齐(Top)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
-                    image(image1)
-                    box(
-                        modifier = Modifier
-                            .padding(50F, 80f)
-                            .background(Color.makeARGB(128, 255, 193, 7))
-                            .clip(Shape.RoundedRect(15f))
-                    )
-                }
-
-                row(
-                    verticalAlignment = VerticalAlignment.Center,
-                    modifier = Modifier.border(2f, Color.makeRGB(233, 30, 99)).padding(8f).margin(10f)
-                ) {
-                    text("中对齐(Center)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
-                    image(image1)
-                    box(
-                        modifier = Modifier
-                            .padding(50F, 80f)
-                            .background(Color.makeARGB(128, 255, 193, 7))
-                            .clip(Shape.RoundedRect(15f))
-                    )
-                }
-
-                row(
-                    verticalAlignment = VerticalAlignment.Bottom,
-                    modifier = Modifier.border(2f, Color.makeRGB(76, 175, 80)).padding(8f).margin(10f)
-                ) {
-                    text("底对齐(Bottom)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
-                    image(image1)
-                    box(
-                        modifier = Modifier
-                            .padding(50F, 80f)
-                            .background(Color.makeARGB(128, 255, 193, 7))
-                            .clip(Shape.RoundedRect(15f))
-                    )
-                }
-            }
+            }.awaitAll()
         }
     }
 
     @Test
-    fun test2() {
-        testCompose("compose") {
+    fun test_align() = testCompose("align") {
+        column(
+            modifier = Modifier
+                .padding(10f)
+                .background(Colors.BG.argb)
+        ) {
+            // --- 演示 Column 的 horizontalAlignment ---
+            text("Column 水平对齐演示", modifier = Modifier.fontSize(28f).margin(10f))
+
+            // 居左对齐 (Start)
+            column(
+                horizontalAlignment = HorizontalAlignment.Left,
+                modifier = Modifier.border(2f, Color.makeRGB(0, 150, 136)).padding(8f).margin(10f)
+            ) {
+                text("左对齐(Start)")
+                text("短文本")
+                text("这是一个非常非常长的文本")
+            }
+
+            // 居中对齐 (Center)
             column(
                 horizontalAlignment = HorizontalAlignment.Center,
-                modifier = Modifier.padding(20f)
-                    .background(Colors.BG.argb)
+                modifier = Modifier.border(2f, Color.makeRGB(255, 87, 34)).padding(8f).margin(10f)
             ) {
-                // --- 演示封装的自定义组件 ---
-                text(
-                    "自定义组件演示", modifier = Modifier
-                        .fontSize(28f)
-                        .margin(bottom = 16f)
-                )
+                text("居中对齐(Center)")
+                text("短文本")
+                text("这是一个非常非常长的文本")
+            }
 
-                cards()
+            // 居右对齐 (End)
+            column(
+                horizontalAlignment = HorizontalAlignment.Right,
+                modifier = Modifier.border(2f, Color.makeRGB(33, 150, 243)).padding(8f).margin(10f)
+            ) {
+                text("右对齐(End)")
+                text("短文本")
+                text("这是一个非常非常长的文本")
+            }
 
-                text(
-                    "按钮", modifier = Modifier
-                        .background(Color.BLUE)
-                        .padding(150F, 20F)
+            // --- 演示 Row 的 verticalAlignment ---
+            text("Row 垂直对齐演示", modifier = Modifier.fontSize(28f).margin(10f))
+
+            row(
+                verticalAlignment = VerticalAlignment.Top,
+                modifier = Modifier.border(2f, Color.makeRGB(156, 39, 176)).padding(8f).margin(10f)
+            ) {
+                text("顶对齐(Top)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
+                image(image1)
+                box(
+                    modifier = Modifier
+                        .padding(50F, 80f)
+                        .background(Color.makeARGB(128, 255, 193, 7))
                         .clip(Shape.RoundedRect(15f))
-                        .fontSize(28f)
-                        .textColor(Color.WHITE)
-                        .margin(50F)
+                )
+            }
+
+            row(
+                verticalAlignment = VerticalAlignment.Center,
+                modifier = Modifier.border(2f, Color.makeRGB(233, 30, 99)).padding(8f).margin(10f)
+            ) {
+                text("中对齐(Center)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
+                image(image1)
+                box(
+                    modifier = Modifier
+                        .padding(50F, 80f)
+                        .background(Color.makeARGB(128, 255, 193, 7))
+                        .clip(Shape.RoundedRect(15f))
+                )
+            }
+
+            row(
+                verticalAlignment = VerticalAlignment.Bottom,
+                modifier = Modifier.border(2f, Color.makeRGB(76, 175, 80)).padding(8f).margin(10f)
+            ) {
+                text("底对齐(Bottom)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
+                image(image1)
+                box(
+                    modifier = Modifier
+                        .padding(50F, 80f)
+                        .background(Color.makeARGB(128, 255, 193, 7))
+                        .clip(Shape.RoundedRect(15f))
                 )
             }
         }
     }
 
     @Test
-    fun test3() {
-        testCompose("padding") {
-            column(
-                horizontalAlignment = HorizontalAlignment.Left,
-                modifier = Modifier.padding(20f).background(Colors.BG.argb)
+    fun test_compose() = testCompose("compose") {
+        column(
+            horizontalAlignment = HorizontalAlignment.Center,
+            modifier = Modifier.padding(20f)
+                .background(Colors.BG.argb)
+        ) {
+            // --- 演示封装的自定义组件 ---
+            text(
+                "自定义组件演示", modifier = Modifier
+                    .fontSize(28f)
+                    .margin(bottom = 16f)
+            )
+
+            cards()
+
+            text(
+                "按钮", modifier = Modifier
+                    .background(Color.BLUE)
+                    .padding(150F, 20F)
+                    .clip(Shape.RoundedRect(15f))
+                    .fontSize(28f)
+                    .textColor(Color.WHITE)
+                    .margin(50F)
+            )
+        }
+    }
+
+    @Test
+    fun test_padding() = testCompose("padding") {
+        column(
+            horizontalAlignment = HorizontalAlignment.Left,
+            modifier = Modifier.padding(20f).background(Colors.BG.argb)
+        ) {
+            // --- 演示分边距 Padding 和 Border ---
+            text("分边距与裁剪演示", modifier = Modifier.fontSize(28f).margin(top = 30f, bottom = 16f))
+            box(
+                modifier = Modifier
+                    .background(Color.makeRGB(207, 226, 255))
+                    .border(top = 4f, bottom = 12f, color = Color.makeRGB(66, 133, 244))
+                    .padding(left = 20f, right = 40f, top = 10f, bottom = 10f)
             ) {
-                // --- 演示分边距 Padding 和 Border ---
-                text("分边距与裁剪演示", modifier = Modifier.fontSize(28f).margin(top = 30f, bottom = 16f))
+                text("我有不同的边框和内边距")
+            }
+        }
+    }
+
+    @Test
+    fun test_clip() = testCompose("clip") {
+        column(
+            horizontalAlignment = HorizontalAlignment.Left,
+            modifier = Modifier
+                .padding(20f)
+                .background(Colors.BG.argb)
+        ) {
+            // --- 演示 Box 布局和圆角裁剪 ---
+            box(
+                modifier = Modifier
+                    .margin(top = 20f)
+                    .clip(Shape.RoundedRect(20f))
+            ) {
+                // Box 内的子元素会堆叠
+                image(image1)
                 box(
                     modifier = Modifier
-                        .background(Color.makeRGB(207, 226, 255))
-                        .border(top = 4f, bottom = 12f, color = Color.makeRGB(66, 133, 244))
-                        .padding(left = 20f, right = 40f, top = 10f, bottom = 10f)
+                        .background(Color.makeARGB(128, 0, 0, 0))
+                        .padding(12f)
                 ) {
-                    text("我有不同的边框和内边距")
+                    text("圆角裁剪 + 内容覆盖", modifier = Modifier.textColor(Color.WHITE))
                 }
             }
         }
     }
 
     @Test
-    fun test4() {
-        testCompose("clip") {
-            column(
-                horizontalAlignment = HorizontalAlignment.Left,
+    fun test_overflow() = testCompose("overflow") {
+        column(
+            modifier = Modifier
+                .padding(15f)
+                .background(Colors.BG.argb)
+        ) {
+            val longText = "这是一段非常非常非常长的文本，它需要足够的空间来展示，否则就会触发溢出策略。"
+            val imageForOverflow = image2 // 使用一个已加载的图片
+
+            // --- 文本溢出 ---
+            text("文本溢出策略", modifier = Modifier.fontSize(28f).margin(bottom = 10f))
+
+            // 1. 自动换行 (Wrap)
+            text("1. Wrap: 自动换行", modifier = Modifier.fontSize(20f).margin(bottom = 5f))
+            text(
+                longText,
                 modifier = Modifier
-                    .padding(20f)
-                    .background(Colors.BG.argb)
-            ) {
-                // --- 演示 Box 布局和圆角裁剪 ---
-                box(
-                    modifier = Modifier
-                        .margin(top = 20f)
-                        .clip(Shape.RoundedRect(20f))
-                ) {
-                    // Box 内的子元素会堆叠
-                    image(image1)
-                    box(
+                    .maxSize(maxWidth = 300f) // 限制最大宽度
+                    .textOverflow(TextOverflow.Wrap)
+                    .border(all = 1f, color = Colors.LIGHT_BLUE.argb)
+                    .padding(5f)
+                    .margin(bottom = 15f)
+            )
+
+            // 2. 省略号截断 (Ellipsis)
+            text("2. Ellipsis: 省略号截断", modifier = Modifier.fontSize(20f).margin(bottom = 5f))
+            text(
+                longText,
+                modifier = Modifier
+                    .fontSize(30f)
+                    .maxSize(maxWidth = 300f) // 限制最大宽度
+                    .textOverflow(TextOverflow.Ellipsis)
+                    .border(all = 1f, color = Colors.ORANGE.argb)
+                    .padding(5f)
+                    .margin(bottom = 15f)
+            )
+
+            // 3. 换行 + 高度限制 (导致行数截断)
+            text("3. Wrap + MaxHeight: 限制行数", modifier = Modifier.fontSize(20f).margin(bottom = 5f))
+            text(
+                longText + longText, // 使用更长的文本
+                modifier = Modifier
+                    .fontSize(30f)
+                    .maxSize(maxWidth = 300f, maxHeight = 70f) // 同时限制宽度和高度
+                    .textOverflow(TextOverflow.Wrap) // 策略仍是换行，但会被高度截断
+                    .border(all = 1f, color = Colors.PURPLE.argb)
+                    .padding(5f)
+                    .margin(bottom = 25f)
+            )
+
+            // --- 图片溢出 ---
+            text("图片溢出策略 (原图 64x64)", modifier = Modifier.fontSize(28f).margin(bottom = 10f))
+            row(verticalAlignment = VerticalAlignment.Center) {
+                // 1. 按比例缩放 (Scale)
+                column(horizontalAlignment = HorizontalAlignment.Center, modifier = Modifier.margin(right = 20f)) {
+                    text("1. Scale to 40x40", modifier = Modifier.margin(bottom = 5f))
+                    image(
+                        image = imageForOverflow,
                         modifier = Modifier
-                            .background(Color.makeARGB(128, 0, 0, 0))
-                            .padding(12f)
-                    ) {
-                        text("圆角裁剪 + 内容覆盖", modifier = Modifier.textColor(Color.WHITE))
-                    }
+                            .maxSize(maxWidth = 40f, maxHeight = 40f)
+                            .imageOverflow(ImageOverflow.Scale)
+                            .border(all = 1f, color = Colors.GREEN.argb)
+                    )
+                }
+
+                // 2. 居中裁剪 (Crop)
+                column(horizontalAlignment = HorizontalAlignment.Center) {
+                    text("2. Crop to 40x40", modifier = Modifier.margin(bottom = 5f))
+                    image(
+                        image = imageForOverflow,
+                        modifier = Modifier
+                            .maxSize(maxWidth = 40f, maxHeight = 40f)
+                            .imageOverflow(ImageOverflow.Crop)
+                            .border(all = 1f, color = Colors.RED.argb)
+                    )
                 }
             }
         }
     }
 
     @Test
-    fun test5() {
-        testCompose("overflow") {
-            column(
-                modifier = Modifier
-                    .padding(15f)
-                    .background(Colors.BG.argb)
+    fun test_box_alignment() = testCompose("box_alignment") {
+        column(modifier = Modifier.padding(10f).background(Colors.BG.argb)) {
+            text("Box 对齐演示 (大框 100x100, 小框 30x30)", modifier = Modifier.fontSize(20f).margin(bottom = 10f))
+
+            // Top Row
+            row(modifier = Modifier.margin(bottom = 10f)) {
+                // Top-Left
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Left,
+                    verticalAlignment = VerticalAlignment.Top
+                ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+
+                // Top-Center
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Center,
+                    verticalAlignment = VerticalAlignment.Top
+                ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+
+                // Top-Right
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                    horizontalAlignment = HorizontalAlignment.Right,
+                    verticalAlignment = VerticalAlignment.Top
+                ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+            }
+
+            // Center Row
+            row(modifier = Modifier.margin(bottom = 10f)) {
+                // Center-Left
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Left,
+                    verticalAlignment = VerticalAlignment.Center
+                ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+
+                // Center-Center
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Center,
+                    verticalAlignment = VerticalAlignment.Center
+                ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+
+                // Center-Right
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                    horizontalAlignment = HorizontalAlignment.Right,
+                    verticalAlignment = VerticalAlignment.Center
+                ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+            }
+
+            // Bottom Row
+            row {
+                // Bottom-Left
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Left,
+                    verticalAlignment = VerticalAlignment.Bottom
+                ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
+
+                // Bottom-Center
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                    horizontalAlignment = HorizontalAlignment.Center,
+                    verticalAlignment = VerticalAlignment.Bottom
+                ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
+
+                // Bottom-Right
+                box(
+                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                    horizontalAlignment = HorizontalAlignment.Right,
+                    verticalAlignment = VerticalAlignment.Bottom
+                ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
+            }
+        }
+    }
+
+    @Test
+    fun test_table_layout() = testCompose("table_layout") {
+        column(modifier = Modifier.padding(15f).background(Colors.BG.argb)) {
+            text("自动列宽表格演示", modifier = Modifier.fontSize(28f).margin(bottom = 15f))
+
+            table(
+                modifier = Modifier.border(1f, Colors.GRAY.argb),
+                columnSpacing = 10f,
+                rowSpacing = 10f
             ) {
-                val longText = "这是一段非常非常非常长的文本，它需要足够的空间来展示，否则就会触发溢出策略。"
-                val imageForOverflow = image2 // 使用一个已加载的图片
-
-                // --- 文本溢出 ---
-                text("文本溢出策略", modifier = Modifier.fontSize(28f).margin(bottom = 10f))
-
-                // 1. 自动换行 (Wrap)
-                text("1. Wrap: 自动换行", modifier = Modifier.fontSize(20f).margin(bottom = 5f))
-                text(
-                    longText,
-                    modifier = Modifier
-                        .maxSize(maxWidth = 300f) // 限制最大宽度
-                        .textOverflow(TextOverflow.Wrap)
-                        .border(all = 1f, color = Colors.LIGHT_BLUE.argb)
-                        .padding(5f)
-                        .margin(bottom = 15f)
-                )
-
-                // 2. 省略号截断 (Ellipsis)
-                text("2. Ellipsis: 省略号截断", modifier = Modifier.fontSize(20f).margin(bottom = 5f))
-                text(
-                    longText,
-                    modifier = Modifier
-                        .fontSize(30f)
-                        .maxSize(maxWidth = 300f) // 限制最大宽度
-                        .textOverflow(TextOverflow.Ellipsis)
-                        .border(all = 1f, color = Colors.ORANGE.argb)
-                        .padding(5f)
-                        .margin(bottom = 15f)
-                )
-
-                // 3. 换行 + 高度限制 (导致行数截断)
-                text("3. Wrap + MaxHeight: 限制行数", modifier = Modifier.fontSize(20f).margin(bottom = 5f))
-                text(
-                    longText + longText, // 使用更长的文本
-                    modifier = Modifier
-                        .fontSize(30f)
-                        .maxSize(maxWidth = 300f, maxHeight = 70f) // 同时限制宽度和高度
-                        .textOverflow(TextOverflow.Wrap) // 策略仍是换行，但会被高度截断
-                        .border(all = 1f, color = Colors.PURPLE.argb)
-                        .padding(5f)
-                        .margin(bottom = 25f)
-                )
-
-                // --- 图片溢出 ---
-                text("图片溢出策略 (原图 64x64)", modifier = Modifier.fontSize(28f).margin(bottom = 10f))
-                row(verticalAlignment = VerticalAlignment.Center) {
-                    // 1. 按比例缩放 (Scale)
-                    column(horizontalAlignment = HorizontalAlignment.Center, modifier = Modifier.margin(right = 20f)) {
-                        text("1. Scale to 40x40", modifier = Modifier.margin(bottom = 5f))
-                        image(
-                            image = imageForOverflow,
-                            modifier = Modifier
-                                .maxSize(maxWidth = 40f, maxHeight = 40f)
-                                .imageOverflow(ImageOverflow.Scale)
-                                .border(all = 1f, color = Colors.GREEN.argb)
-                        )
+                // 表头
+                tableRow {
+                    val cellModifier = Modifier
+                        .background(Colors.GRAY.argb)
+                        .padding(8f)
+                        .border(1f, Colors.YELLOW_GREEN.argb)
+                    cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
+                        text("ID", modifier = Modifier.fontSize(20f))
                     }
+                    cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
+                        text("用户名", modifier = Modifier.fontSize(20f))
+                    }
+                    cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
+                        text("备注", modifier = Modifier.fontSize(20f))
+                    }
+                }
 
-                    // 2. 居中裁剪 (Crop)
-                    column(horizontalAlignment = HorizontalAlignment.Center) {
-                        text("2. Crop to 40x40", modifier = Modifier.margin(bottom = 5f))
-                        image(
-                            image = imageForOverflow,
-                            modifier = Modifier
-                                .maxSize(maxWidth = 40f, maxHeight = 40f)
-                                .imageOverflow(ImageOverflow.Crop)
-                                .border(all = 1f, color = Colors.RED.argb)
-                        )
+                // 数据行
+                val users = listOf(
+                    Triple(1, "Alice", "这是一个比较长的备注，需要自动换行来正确显示。"),
+                    Triple(2, "Bob", "短备注。"),
+                    Triple(3, "Charlie a very long name", "这条备注也不短。"),
+                    Triple(4, "David", "正常。")
+                )
+
+                for ((id, name, note) in users) {
+                    tableRow {
+                        val cellModifier = Modifier
+                            .padding(8f)
+                            .border(1f, Colors.YELLOW_GREEN.argb)
+                        cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
+                            text(id.toString())
+                        }
+                        cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
+                            text(name)
+                        }
+                        cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
+                            // Text 默认是换行模式，所以当列宽确定后会自动换行
+                            text(note)
+                        }
                     }
                 }
             }
@@ -399,81 +538,111 @@ class TestRender {
     }
 
     @Test
-    fun test6() {
-        testCompose("box_alignment") {
-            column(modifier = Modifier.padding(10f).background(Colors.BG.argb)) {
-                text("Box 对齐演示 (大框 100x100, 小框 30x30)", modifier = Modifier.fontSize(20f).margin(bottom = 10f))
+    fun test_table_cell_modifiers() = testCompose("table_cell_modifiers") {
+        @UiDsl
+        fun TableRow.rowHead() = cell(modifier = Modifier.background(Colors.LIGHT_GRAY.argb)) {
+            box(Modifier.size(70f))
+        }
+        column(modifier = Modifier.padding(15f).background(Colors.BG.argb)) {
+            text("单元格修饰与对齐演示", modifier = Modifier.fontSize(28f).margin(bottom = 15f))
 
-                // Top Row
-                row(modifier = Modifier.margin(bottom = 10f)) {
-                    // Top-Left
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
-                        horizontalAlignment = HorizontalAlignment.Left,
-                        verticalAlignment = VerticalAlignment.Top
-                    ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
-
-                    // Top-Center
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Top
-                    ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
-
-                    // Top-Right
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
-                        horizontalAlignment = HorizontalAlignment.Right,
-                        verticalAlignment = VerticalAlignment.Top
-                    ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
+            table(columnSpacing = 10f, rowSpacing = 10f) {
+                tableRow {
+                    rowHead()
+                    // 这个单元格的背景会填满整个区域
+                    cell(
+                        modifier = Modifier.background(Colors.LIGHT_GRAY.argb).padding(18f),
+                        verticalAlignment = VerticalAlignment.Center
+                    ) {
+                        text("ID")
+                    }
+                    // 这个单元格的内容会水平居中
+                    cell(
+                        modifier = Modifier.background(Colors.LIGHT_GRAY.argb).padding(18f),
+                        horizontalAlignment = HorizontalAlignment.Center
+                    ) {
+                        text("分数")
+                    }
+                    cell(
+                        modifier = Modifier.background(Colors.LIGHT_GRAY.argb).padding(18f)
+                    ) {
+                        text("优")
+                    }
                 }
-
-                // Center Row
-                row(modifier = Modifier.margin(bottom = 10f)) {
-                    // Center-Left
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                tableRow {
+                    rowHead()
+                    cell(
+                        modifier = Modifier.background(Colors.PINK.argb),
                         horizontalAlignment = HorizontalAlignment.Left,
-                        verticalAlignment = VerticalAlignment.Center
-                    ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
-
-                    // Center-Center
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        verticalAlignment = VerticalAlignment.Top,
+                    ) {
+                        text("1")
+                    }
+                    cell(
+                        modifier = Modifier.background(Colors.LIGHT_BLUE.argb),
                         horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Center
-                    ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
-
-                    // Center-Right
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                        verticalAlignment = VerticalAlignment.Top,
+                    ) {
+                        text("95")
+                    }
+                    // 这个单元格的内容会垂直居中
+                    cell(
+                        modifier = Modifier.background(Colors.GREEN.argb),
                         horizontalAlignment = HorizontalAlignment.Right,
-                        verticalAlignment = VerticalAlignment.Center
-                    ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
+                        verticalAlignment = VerticalAlignment.Top
+                    ) {
+                        text("正常")
+                    }
                 }
-
-                // Bottom Row
-                row {
-                    // Bottom-Left
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                tableRow {
+                    rowHead()
+                    cell(
+                        modifier = Modifier.background(Colors.PINK.argb),
                         horizontalAlignment = HorizontalAlignment.Left,
-                        verticalAlignment = VerticalAlignment.Bottom
-                    ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
-
-                    // Bottom-Center
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb).margin(right = 10f),
+                        verticalAlignment = VerticalAlignment.Center,
+                    ) {
+                        text("2")
+                    }
+                    cell(
+                        modifier = Modifier.background(Colors.LIGHT_BLUE.argb),
                         horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Bottom
-                    ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
-
-                    // Bottom-Right
-                    box(
-                        modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
+                        verticalAlignment = VerticalAlignment.Center,
+                    ) {
+                        text("75")
+                    }
+                    // 这个单元格的内容会垂直居中
+                    cell(
+                        modifier = Modifier.background(Colors.GREEN.argb),
+                        horizontalAlignment = HorizontalAlignment.Right,
+                        verticalAlignment = VerticalAlignment.Center
+                    ) {
+                        text("良")
+                    }
+                }
+                tableRow {
+                    rowHead()
+                    cell(
+                        modifier = Modifier.background(Colors.PINK.argb),
+                        horizontalAlignment = HorizontalAlignment.Left,
+                        verticalAlignment = VerticalAlignment.Bottom,
+                    ) {
+                        text("3")
+                    }
+                    cell(
+                        modifier = Modifier.background(Colors.LIGHT_BLUE.argb),
+                        horizontalAlignment = HorizontalAlignment.Center,
+                        verticalAlignment = VerticalAlignment.Bottom,
+                    ) {
+                        text("65")
+                    }
+                    // 这个单元格的内容会垂直居中
+                    cell(
+                        modifier = Modifier.background(Colors.GREEN.argb),
                         horizontalAlignment = HorizontalAlignment.Right,
                         verticalAlignment = VerticalAlignment.Bottom
-                    ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
+                    ) {
+                        text("及格")
+                    }
                 }
             }
         }

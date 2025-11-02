@@ -34,6 +34,31 @@ fun UiElement.box(
 }
 
 @UiDsl
+fun UiElement.table(
+    modifier: Modifier = Modifier,
+    columnSpacing: Float = 0f,
+    rowSpacing: Float = 0f,
+    block: Table.() -> Unit
+) {
+    add(Table(columnSpacing, rowSpacing).apply { this.modifier = modifier; block() })
+}
+
+@UiDsl
+fun Table.tableRow(block: TableRow.() -> Unit) {
+    add(TableRow().apply(block))
+}
+
+@UiDsl
+fun TableRow.cell(
+    modifier: Modifier = Modifier,
+    horizontalAlignment: HorizontalAlignment = HorizontalAlignment.Left,
+    verticalAlignment: VerticalAlignment = VerticalAlignment.Top,
+    block: TableCell.() -> Unit
+) {
+    add(TableCell(horizontalAlignment, verticalAlignment).apply { this.modifier = modifier; block() })
+}
+
+@UiDsl
 fun UiElement.text(text: String, modifier: Modifier = Modifier) {
     add(Text(text).apply { this.modifier = modifier })
 }
