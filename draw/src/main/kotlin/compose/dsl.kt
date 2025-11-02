@@ -1,6 +1,7 @@
 package top.e404.skiko.draw.compose
 
 import org.jetbrains.skia.Image
+import top.e404.skiko.util.Colors
 
 
 typealias Composable = UiElement.() -> Unit
@@ -69,7 +70,7 @@ fun UiElement.image(image: Image, modifier: Modifier = Modifier) {
 }
 
 @UiDsl
-fun UiElement.iconText(iconColor: Int, text: String, modifier: Modifier) = row(verticalAlignment = VerticalAlignment.Center) {
+fun UiElement.iconText(text: String, iconColor: Int = Colors.LIGHT_BLUE.argb, modifier: Modifier) = row(verticalAlignment = VerticalAlignment.Center) {
     val fontSize = modifier.fold(FontSize(-1f)) { acc, m -> m as? FontSize ?: acc }
     if (fontSize.size == -1f) error("iconText必须在modifier中指定FontSize")
     box(Modifier
