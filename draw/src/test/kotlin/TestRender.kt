@@ -1,4 +1,4 @@
-package top.e404.skiko.draw.compose.test
+package top.e404.skiko.draw.test
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
