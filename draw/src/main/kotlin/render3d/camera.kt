@@ -7,13 +7,18 @@ import kotlin.math.sin
 
 /**
  * 轨道相机数据类，通过目标点、方位角、仰角和距离来定义相机位置
+ * @property target 相机注视的目标点
+ * @property azimuthDegrees 方位角，绕Y轴旋转的角度（左右视角）
+ * @property elevationDegrees 仰角，绕X轴旋转的角度（上下视角）
+ * @property distance 相机到目标点的距离
+ * @property upVector 相机的上方向向量，通常为(0, 1, 0)
  */
 data class OrbitCamera(
-    val target: Vec3 = Vec3(0f, 0f, 0f),
-    val azimuthDegrees: Float = 0f,
-    val elevationDegrees: Float = 0f,
-    val distance: Float = 10f,
-    val upVector: Vec3 = Vec3(0f, 1f, 0f)
+    var target: Vec3 = Vec3(0f, 0f, 0f),
+    var azimuthDegrees: Float = 0f,
+    var elevationDegrees: Float = 0f,
+    var distance: Float = 10f,
+    var upVector: Vec3 = Vec3(0f, 1f, 0f)
 )
 
 /**
