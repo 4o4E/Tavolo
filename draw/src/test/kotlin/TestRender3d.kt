@@ -16,7 +16,6 @@ class TestRender3d {
 
     @Test
     fun heatmap() {
-        println("--- 正在生成3D热力图 ---")
         // 生成随机的热力图数据
         fun generateBarData(numWeeks: Int, numDaysPerWeek: Int, maxValue: Int) = (0 until numWeeks).map {
             (0 until numDaysPerWeek).map {

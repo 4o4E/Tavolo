@@ -4,14 +4,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.skia.Color
-import org.jetbrains.skia.Data
-import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.FontMgr
-import org.jetbrains.skia.Image
+import org.jetbrains.skia.*
 import org.junit.Test
+import top.e404.skiko.draw.Theme
+import top.e404.skiko.draw.bar
 import top.e404.skiko.draw.compose.*
 import top.e404.skiko.util.Colors
+import top.e404.skiko.util.hsb
 import java.io.File
 import java.net.URL
 
@@ -672,6 +671,54 @@ class TestRender {
                 .border(.5f, Colors.LIGHT_BLUE.argb)
         ) {
             box(Modifier.size(500.9f))
+        }
+    }
+
+    @Test
+    fun test_bar() = testCompose("bar") {
+        val darkTheme = Theme(outerRadius = 200f, strokeWidth = 5f)
+        val fontSize = 25f
+        val iconSize = 20f
+        val colors = listOf(
+            Colors.RED.argb,
+            Colors.ORANGE.argb,
+            Colors.YELLOW.argb,
+            Colors.GREEN.argb,
+            Colors.CYAN.argb,
+            Colors.BLUE.argb,
+            Colors.PURPLE.argb,
+        ).map {
+            val (h, s, b) = it.hsb()
+            hsb(h, s - .3f, b - .5f)
+        }
+
+        @UiDsl
+        fun UiElement.barWithLabels(darkTheme: Theme, items: List<Pair<Int, Float>>) {
+            row(Modifier.margin(10f), VerticalAlignment.Center) {
+                bar(darkTheme, items)
+                column(Modifier.margin(left = 20f)) {
+                    for ((color, value) in items) {
+                        row(Modifier.margin(10f), VerticalAlignment.Center) {
+                            box(Modifier
+                                .size(iconSize)
+                                .background(color)
+                                .clip(Shape.RoundedRect(50f))
+                            )
+                            text("${color.toHexString()} - $value", Modifier
+                                .fontSize(fontSize)
+                                .margin(left = 15f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        column(Modifier.background(Colors.BG.argb)) {
+            barWithLabels(darkTheme, colors.map { it to 1f })
+            barWithLabels(darkTheme, colors.mapIndexed { index, color ->
+                color to (colors.size - index).toFloat()
+            })
         }
     }
 }

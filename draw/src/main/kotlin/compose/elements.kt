@@ -88,6 +88,9 @@ abstract class BaseElement : UiElement {
         this.height = finalHeight
     }
 
+    /**
+     * 第一阶段：测量内容尺寸，由具体元素实现。
+     */
     abstract fun measureContent(surface: Surface)
 
     override fun layout(parentX: Float, parentY: Float) {
@@ -108,6 +111,9 @@ abstract class BaseElement : UiElement {
         layoutChildren(childStartX, childStartY)
     }
 
+    /**
+     * 第二阶段：布局子元素，由具体容器元素实现。
+     */
     abstract fun layoutChildren(parentX: Float, parentY: Float)
 
     final override fun draw(canvas: Canvas) {
@@ -163,6 +169,9 @@ abstract class BaseElement : UiElement {
         }
     }
 
+    /**
+     * 第三阶段：绘制内容，由具体元素实现。
+     */
     abstract fun drawContent(canvas: Canvas)
 }
 
@@ -285,6 +294,29 @@ class Box(
     }
 
     override fun drawContent(canvas: Canvas) { /* Box 本身无内容 */ }
+}
+
+/**
+ * 画布元素，类似于 Box，用于更自由的布局场景，固定尺寸
+ */
+class CanvasElement(
+    override var width: Float,
+    override var height: Float,
+    val draw: CanvasElement.(Canvas) -> Unit
+) : BaseElement() {
+    internal var parentX: Float = 0f
+    internal var parentY: Float = 0f
+    override var contentWidth = width
+    override var contentHeight = height
+
+    override fun measureContent(surface: Surface) {}
+    override fun layoutChildren(parentX: Float, parentY: Float) {
+        this.parentX = parentX
+        this.parentY = parentY
+    }
+    override fun drawContent(canvas: Canvas) {
+        draw.invoke(this, canvas)
+    }
 }
 
 /**
