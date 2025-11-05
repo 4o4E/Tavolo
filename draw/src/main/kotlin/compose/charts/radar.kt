@@ -76,6 +76,9 @@ data class RadarTheme(
         isAntiAlias = true
     },
 
+    val labelOuterLength: Float = 10F,
+    /** 标签位置修正 处理标签覆盖坐标的问题 */
+    val labelFixPolicy: RadarFixPolicy = RadarFixPolicy.RATED_FIX,
     /** 标签字体 */
     val labelFont: Font = Font(DefaultTypefaceProvider.default, 25f),
     /** 标签字体颜色 */
@@ -85,6 +88,150 @@ data class RadarTheme(
         isAntiAlias = true
     }
 )
+
+@Suppress("UNUSED")
+enum class RadarFixPolicy(val fix: (
+    angle: Double,
+    a: Double,
+    line: TextLine,
+    centerX: Float,
+    centerY: Float,
+    theme: RadarTheme
+) -> Pair<Float, Float>) {
+    /** 不进行修正，标签起点始终在图表外侧固定位置 */
+    NONE({ angle, _, line, centerX, centerY, theme ->
+        val x = centerX + (theme.radius + theme.labelOuterLength) * cos(angle).toFloat()
+        val y = centerY + (theme.radius + theme.labelOuterLength) * sin(angle).toFloat()
+        x - line.width / 2 to y
+    }),
+    /** 对于两边的标签向外移动 */
+    MOVE_OUTSIDE({ angle, a, line, centerX, centerY, theme ->
+        val r = theme.radius + theme.labelOuterLength
+
+        val x = centerX + r * cos(angle).toFloat()
+        val y = centerY + r * sin(angle).toFloat()
+
+        val location = when {
+            abs(a - 1.5) < 1e-6 -> Location.TOP
+            abs(a - 0.5) < 1e-6 -> Location.BOTTOM
+            a in 0.5..1.5 -> Location.LEFT
+            else -> Location.RIGHT
+        }
+
+        val px = when (location) {
+            Location.LEFT -> x - line.width
+            Location.RIGHT -> x
+            else -> x - line.width / 2
+        }
+        px to y
+    }),
+    /** 按比例修正 标签依然除了顶部和底部都向外偏移 */
+    RATED_FIX({ angle, a, line, centerX, centerY, theme ->
+        // 距离上下顶点越近, 修正越大
+        val v = abs((a % 1) - 0.5)
+        val fix = (1 - v).toFloat() * theme.labelOuterLength * 1.5f
+        // 修正起点, 保持标签和图表的距离
+        val r = theme.radius + theme.labelOuterLength + fix
+
+        val x = centerX + r * cos(angle).toFloat()
+        val y = centerY + r * sin(angle).toFloat()
+
+
+        val location = when {
+            abs(a - 1.5) < 1e-6 -> Location.TOP
+            abs(a - 0.5) < 1e-6 -> Location.BOTTOM
+            a in 0.5..1.5 -> Location.LEFT
+            else -> Location.RIGHT
+        }
+
+        val px = when (location) {
+            Location.LEFT -> x - line.width
+            Location.RIGHT -> x
+            else -> x - line.width / 2
+        }
+        px to y
+    }),
+    /** 倾斜 */
+    TILT({ angle, _, line, centerX, centerY, theme ->
+        /**
+         * 计算从文本中心 (tx,ty) 指向雷达中心 (cx,cy) 的线段
+         * 在矩形 (left, top, right, bottom) 内的长度（从中心到盒子边界的距离）。
+         */
+        fun computeTextCenterToRadarInsideFontBoxLength(
+            tx: Float, ty: Float,
+            cx: Float, cy: Float,
+            left: Float, top: Float, right: Float, bottom: Float
+        ): Float {
+            val dx = cx - tx
+            val dy = cy - ty
+            val eps = 1e-6f
+
+            // 如果方向向量几乎为零，返回 0
+            if (abs(dx) < eps && abs(dy) < eps) return 0f
+
+            val candidates = mutableListOf<Float>()
+
+            // 与竖直边相交 (x = left 或 x = right)
+            if (abs(dx) > eps) {
+                val tLeft = (left - tx) / dx
+                if (tLeft > 0f) {
+                    val yAtT = ty + tLeft * dy
+                    if (yAtT >= top - eps && yAtT <= bottom + eps) candidates.add(tLeft)
+                }
+                val tRight = (right - tx) / dx
+                if (tRight > 0f) {
+                    val yAtT = ty + tRight * dy
+                    if (yAtT >= top - eps && yAtT <= bottom + eps) candidates.add(tRight)
+                }
+            }
+
+            // 与水平边相交 (y = top 或 y = bottom)
+            if (abs(dy) > eps) {
+                val tTop = (top - ty) / dy
+                if (tTop > 0f) {
+                    val xAtT = tx + tTop * dx
+                    if (xAtT >= left - eps && xAtT <= right + eps) candidates.add(tTop)
+                }
+                val tBottom = (bottom - ty) / dy
+                if (tBottom > 0f) {
+                    val xAtT = tx + tBottom * dx
+                    if (xAtT >= left - eps && xAtT <= right + eps) candidates.add(tBottom)
+                }
+            }
+
+            if (candidates.isEmpty()) return 0f
+
+            // 选择最近的正交交点 (最小正 t)
+            val tMin = candidates.minOrNull() ?: return 0f
+            val dist = sqrt(dx * dx + dy * dy) * tMin
+            return dist
+        }
+
+        val x = centerX + (theme.radius + theme.labelOuterLength) * cos(angle).toFloat()
+        val y = centerY + (theme.radius + theme.labelOuterLength) * sin(angle).toFloat()
+
+        val boxLeft = line.width / 2
+        val boxTop = line.ascent
+        val boxRight = line.width / 2
+        val boxBottom = line.descent
+        // 计算文本中心点连接雷达图中心点的线在字体盒中的长度
+        val distance = computeTextCenterToRadarInsideFontBoxLength(
+            x, y,
+            centerX, centerY,
+            boxLeft, boxTop,
+            boxRight, boxBottom
+        )
+
+        val r = theme.radius + theme.labelOuterLength - distance + line.run { sqrt(width * width + height * height) } / 2
+
+        val dx = centerX + r * cos(angle).toFloat()
+        val dy = centerY + r * sin(angle).toFloat()
+
+        val dpx = dx - line.width / 2
+        val dpy = dy - line.descent / 2
+        dpx to dpy
+    });
+}
 
 enum class Location { LEFT, TOP, RIGHT, BOTTOM }
 
@@ -165,35 +312,13 @@ fun drawRadarChart(canvas: Canvas, parentX: Float, parentY: Float, data: List<Pa
 
     // 绘制标签
 
-    val labelOuterLength = 40F
     data.forEachIndexed { i, (label) ->
         val angle = (i * angleStep + Math.PI / 2 * 3) % (2 * Math.PI)
-        val x = centerX + (theme.radius + labelOuterLength) * cos(angle).toFloat()
-        val y = centerY + (theme.radius + labelOuterLength) * sin(angle).toFloat()
-
         val line = TextLine.make(label, theme.labelFont)
-
         val a = angle / Math.PI
-        val location = when {
-            abs(a - 1.5) < 0.1 -> Location.TOP
-            abs(a - 0.5) < 0.1 -> Location.BOTTOM
-            a in 0.5..1.5 -> Location.LEFT
-            else -> Location.RIGHT
-        }
-        val gridX = centerX + theme.radius * cos(angle).toFloat()
-        val offset = theme.gridFont.size * 2
-        val overflow = when (location) {
-            Location.LEFT -> x + line.width / 2 + offset > gridX
-            Location.RIGHT -> x - line.width / 2 - offset < gridX
-            else -> false
-        }
 
-        val px = when (location) {
-            Location.LEFT if overflow -> x - line.width
-            Location.RIGHT if overflow -> x
-            else -> x - line.width / 2
+        theme.labelFixPolicy.fix(angle, a, line, centerX, centerY, theme).let { (px, py) ->
+            canvas.drawTextLine(line, px, py, theme.labelFontPaint)
         }
-        val py = y - line.height / 2
-        canvas.drawTextLine(line, px, py, theme.labelFontPaint)
     }
 }
