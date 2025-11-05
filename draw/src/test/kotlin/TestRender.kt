@@ -740,8 +740,29 @@ class TestRender {
 
         val theme = RadarTheme(800f, 600f)
 
-        column(Modifier.background(Colors.BG.argb).border(.5f, Colors.GRAY.argb).clip(Shape.RoundedRect(5f))) {
+        column(Modifier
+            .background(Colors.BG.argb)
+            .border(.5f, Colors.GRAY.argb)
+            .clip(Shape.RoundedRect(5f))
+        ) {
             radar(theme, data)
+        }
+    }
+
+    @Test
+    fun testIcon() = testCompose("icon") {
+        val svgContent = """<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m296-105-56-56 240-240 240 240-56 56-184-183-184 183Zm0-240-56-56 240-240 240 240-56 56-184-183-184 183Zm0-240-56-56 240-240 240 240-56 56-184-183-184 183Z"/></svg>"""
+        column(Modifier.background(Colors.BG.argb).padding(30f)) {
+            row(Modifier.border(1f, Color.WHITE), VerticalAlignment.Center) {
+                box(
+                    Modifier
+                        .background(Color.makeRGB(132, 93, 181))
+                        .clip(Shape.RoundedRect(50f))
+                ) {
+                    icon(IconTheme(50f), svgContent)
+                }
+                text("测试图标", Modifier.fontSize(40f).margin(left = 10f))
+            }
         }
     }
 }
