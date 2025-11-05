@@ -737,7 +737,7 @@ class TestRender {
             "java",
             "kotlin",
         )
-        val data = list.mapIndexed { index, s -> s to (index + 1f) / list.size }
+        val data = list.mapIndexed { index, s -> s to index / (list.size - 1f) }
 
         val theme = RadarTheme(800f, 600f)
 

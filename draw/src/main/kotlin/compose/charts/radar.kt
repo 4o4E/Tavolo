@@ -28,7 +28,7 @@ data class RadarTheme(
     val width: Float,
     /** 雷达图高度 */
     val height: Float,
-    /** 雷达图半径 */
+    /** 雷达图半径 即使设置了gridStart尺寸依然不变 */
     val radius: Float = 200f,
 
     /** 数据填充轮廓颜色 */
@@ -87,7 +87,10 @@ data class RadarTheme(
         color = labelFontColor
         isAntiAlias = true
     }
-)
+) {
+    /** 每个网格的单位距离 */
+    val gridUnit = radius / gridCount
+}
 
 @Suppress("UNUSED")
 enum class RadarFixPolicy(val fix: (
@@ -258,8 +261,8 @@ fun drawRadarChart(canvas: Canvas, parentX: Float, parentY: Float, data: List<Pa
     canvas.drawPath(path, theme.bgPaint)
 
     // 绘制网格线 和 网格坐标
-    for (i in 1..theme.gridCount) {
-        val r = theme.radius * i / theme.gridCount
+    for (ringIndex in 1..theme.gridCount) {
+        val r = theme.radius * ringIndex / theme.gridCount
         val gridPath = Path()
         for (j in 0 until n) {
             val angle = j * angleStep - Math.PI / 2
@@ -273,7 +276,7 @@ fun drawRadarChart(canvas: Canvas, parentX: Float, parentY: Float, data: List<Pa
         }
         gridPath.closePath()
         canvas.drawPath(gridPath, theme.gridLinePaint)
-        theme.gridFontProvider.invoke(i)?.let { gridText ->
+        theme.gridFontProvider.invoke(ringIndex - 1)?.let { gridText ->
             canvas.drawTextLine(
                 TextLine.make(gridText, theme.gridFont),
                 centerX + 3f,
@@ -283,17 +286,20 @@ fun drawRadarChart(canvas: Canvas, parentX: Float, parentY: Float, data: List<Pa
         }
     }
 
+    // 绘制放射线
     for (i in 0 until n) {
         val angle = i * angleStep - Math.PI / 2
-        val x = centerX + theme.radius * cos(angle).toFloat()
-        val y = centerY + theme.radius * sin(angle).toFloat()
-        canvas.drawLine(centerX, centerY, x, y, theme.gridLinePaint)
+        val tx = centerX + theme.radius * cos(angle).toFloat()
+        val ty = centerY + theme.radius * sin(angle).toFloat()
+        val fx = centerX + theme.gridUnit * cos(angle).toFloat()
+        val fy = centerY + theme.gridUnit * sin(angle).toFloat()
+        canvas.drawLine(fx, fy, tx, ty, theme.gridLinePaint)
     }
 
-    // 绘制数据
+    // 绘制数据层
     val dataPath = Path().run {
         data.forEachIndexed { i, (_, rate) ->
-            val r = theme.radius * rate
+            val r = (theme.radius - theme.gridUnit) * rate + theme.gridUnit
             val angle = i * angleStep - Math.PI / 2
             val x = centerX + r * cos(angle).toFloat()
             val y = centerY + r * sin(angle).toFloat()
@@ -309,9 +315,7 @@ fun drawRadarChart(canvas: Canvas, parentX: Float, parentY: Float, data: List<Pa
     canvas.drawPath(dataPath, theme.fillPaint)
     canvas.drawPath(dataPath, theme.fillOutlinePaint)
 
-
     // 绘制标签
-
     data.forEachIndexed { i, (label) ->
         val angle = (i * angleStep + Math.PI / 2 * 3) % (2 * Math.PI)
         val line = TextLine.make(label, theme.labelFont)
