@@ -6,9 +6,11 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.*
 import org.junit.Test
-import top.e404.skiko.draw.Theme
-import top.e404.skiko.draw.bar
+import top.e404.skiko.draw.compose.charts.BarTheme
+import top.e404.skiko.draw.compose.charts.bar
 import top.e404.skiko.draw.compose.*
+import top.e404.skiko.draw.compose.charts.RadarTheme
+import top.e404.skiko.draw.compose.charts.radar
 import top.e404.skiko.util.Colors
 import top.e404.skiko.util.hsb
 import java.io.File
@@ -676,7 +678,7 @@ class TestRender {
 
     @Test
     fun test_bar() = testCompose("bar") {
-        val darkTheme = Theme(outerRadius = 200f, strokeWidth = 5f)
+        val theme = BarTheme(outerRadius = 200f, strokeWidth = 5f)
         val fontSize = 25f
         val iconSize = 20f
         val colors = listOf(
@@ -693,9 +695,9 @@ class TestRender {
         }
 
         @UiDsl
-        fun UiElement.barWithLabels(darkTheme: Theme, items: List<Pair<Int, Float>>) {
+        fun UiElement.barWithLabels(theme: BarTheme, items: List<Pair<Int, Float>>) {
             row(Modifier.margin(10f), VerticalAlignment.Center) {
-                bar(darkTheme, items)
+                bar(theme, items)
                 column(Modifier.margin(left = 20f)) {
                     for ((color, value) in items) {
                         row(Modifier.margin(10f), VerticalAlignment.Center) {
@@ -714,11 +716,32 @@ class TestRender {
             }
         }
 
-        column(Modifier.background(Colors.BG.argb)) {
-            barWithLabels(darkTheme, colors.map { it to 1f })
-            barWithLabels(darkTheme, colors.mapIndexed { index, color ->
+        column(Modifier.background(Colors.BG.argb).border(.5f, Colors.GRAY.argb).clip(Shape.RoundedRect(5f))) {
+            barWithLabels(theme, colors.map { it to 1f })
+            barWithLabels(theme, colors.mapIndexed { index, color ->
                 color to (colors.size - index).toFloat()
             })
+        }
+    }
+
+    @Test
+    fun test_radar() = testCompose("radar") {
+        val data = listOf(
+            "js",
+            "c#",
+            "rust",
+            "scala",
+            "sql",
+            "typescript",
+            "markdown",
+            "java",
+            "kotlin",
+        ).mapIndexed { index, s -> s to index + 10 }
+
+        val theme = RadarTheme(800f, 600f)
+
+        column(Modifier.background(Colors.BG.argb).border(.5f, Colors.GRAY.argb).clip(Shape.RoundedRect(5f))) {
+            radar(theme, data)
         }
     }
 }

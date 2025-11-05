@@ -1,14 +1,16 @@
-package top.e404.skiko.draw
+package top.e404.skiko.draw.compose.charts
 
 import org.jetbrains.skia.*
-import top.e404.skiko.draw.compose.CanvasElement
-import top.e404.skiko.draw.compose.UiElement
+import top.e404.skiko.draw.compose.*
 
-fun UiElement.bar(theme: Theme, data: List<Pair<Int, Float>>) {
-    add(CanvasElement(theme.outerRadius * 2, theme.outerRadius * 2) { canvas ->
+fun UiElement.bar(theme: BarTheme, data: List<Pair<Int, Float>>) = add(
+    CanvasElement(
+        theme.outerRadius * 2,
+        theme.outerRadius * 2
+    ) { canvas ->
         drawDonutChart(canvas, parentX, parentY, data, theme)
-    })
-}
+    }
+)
 
 /**
  * Theme 数据类，用于定义图表的颜色方案
@@ -19,7 +21,7 @@ fun UiElement.bar(theme: Theme, data: List<Pair<Int, Float>>) {
  * @param strokeWidth 描边的宽度，默认为 2f
  * @param start 起始角度，默认为 -90f（从顶部开始绘制）
  */
-data class Theme(
+data class BarTheme(
     val outerRadius: Float,
     val innerRadius: Float = outerRadius * 2 / 3,
     val backgroundColor: Int = Color.TRANSPARENT,
@@ -40,7 +42,7 @@ fun drawDonutChart(
     left: Float,
     top: Float,
     data: List<Pair<Int, Float>>,
-    theme: Theme,
+    theme: BarTheme,
 ) {
     val centerX = left + theme.outerRadius
     val centerY = top + theme.outerRadius
