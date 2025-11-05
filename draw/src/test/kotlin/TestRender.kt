@@ -726,7 +726,7 @@ class TestRender {
 
     @Test
     fun test_radar() = testCompose("radar") {
-        val data = listOf(
+        val list = listOf(
             "js",
             "c#",
             "rust",
@@ -736,7 +736,8 @@ class TestRender {
             "markdown",
             "java",
             "kotlin",
-        ).mapIndexed { index, s -> s to index + 10 }
+        )
+        val data = list.mapIndexed { index, s -> s to index.toFloat() / list.size }
 
         val theme = RadarTheme(800f, 600f)
 
