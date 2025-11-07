@@ -16,9 +16,8 @@ import kotlin.math.min
 import kotlin.math.tan
 
 /**
- * 核心渲染函数，执行完整的渲染管线并保存结果到文件
+ * 渲染配置数据类，封装了渲染所需的各种参数
  *
- * @param mesh 要渲染的网格
  * @param width 输出图像宽度
  * @param height 输出图像高度
  * @param viewMatrix 视图矩阵
@@ -30,24 +29,47 @@ import kotlin.math.tan
  * @param useBackFaceCulling 是否启用背面剔除
  * @param antiAliasingLevel 抗锯齿级别
  * @param lightDirection 光源方向
- * @param ambientIntensity 环境光强度
+ * @param lightIntensity 环境光强度
+ */
+data class RenderConfig(
+    val width: Int,
+    val height: Int,
+    val viewMatrix: Mat4,
+    val cameraForward: Vec3,
+    val cameraDistance: Float,
+    val renderFaces: Boolean = true,
+    val usePerspective: Boolean = true,
+    val backgroundColor: Int = Color.TRANSPARENT,
+    val useBackFaceCulling: Boolean = false,
+    val antiAliasingLevel: Int = 2,
+    val lightDirection: Vec3 = Vec3(0.7f, 1.0f, 0.5f).normalized(),
+    val lightIntensity: Float = 1.9f
+)
+
+/**
+ * 核心渲染函数，执行完整的渲染管线并保存结果到文件
+ *
+ * @param mesh 要渲染的网格
  * @return 渲染后的图像
  */
 fun renderToImage(
     mesh: Mesh,
-    width: Int,
-    height: Int,
-    viewMatrix: Mat4,
-    cameraForward: Vec3,
-    cameraDistance: Float,
-    renderFaces: Boolean,
-    usePerspective: Boolean,
-    backgroundColor: Int,
-    useBackFaceCulling: Boolean = false,
-    antiAliasingLevel: Int = 2,
-    lightDirection: Vec3 = Vec3(0.7f, 1.0f, 0.5f).normalized(),
-    ambientIntensity: Float = 1.9f
+    config: RenderConfig
 ): Image {
+    val (
+        width,
+        height,
+        viewMatrix,
+        cameraForward,
+        cameraDistance,
+        renderFaces,
+        usePerspective,
+        backgroundColor,
+        useBackFaceCulling,
+        antiAliasingLevel,
+        lightDirection,
+        ambientIntensity
+    ) = config
     // 根据抗锯齿级别计算内部渲染尺寸
     val renderWidth = width * antiAliasingLevel
     val renderHeight = height * antiAliasingLevel

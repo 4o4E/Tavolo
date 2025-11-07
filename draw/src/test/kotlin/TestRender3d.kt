@@ -74,28 +74,32 @@ class TestRender3d {
         // 渲染并保存透视投影实体图
         renderToImage(
             chartMesh,
-            finalWidth,
-            finalHeight,
-            viewMatrix,
-            cameraForward,
-            camera.distance,
-            true,
-            true,
-            solidBg,
-            useBackFaceCulling = true
+            RenderConfig(
+                finalWidth,
+                finalHeight,
+                viewMatrix,
+                cameraForward,
+                camera.distance,
+                true,
+                true,
+                solidBg,
+                useBackFaceCulling = true
+            )
         ).let { File("heatmap_perspective_solid.png").writeBytes(it.encodeToData()!!.bytes) }
         // 渲染并保存正交投影实体图
         renderToImage(
             chartMesh,
-            finalWidth,
-            finalHeight,
-            viewMatrix,
-            cameraForward,
-            camera.distance,
-            true,
-            false,
-            solidBg,
-            useBackFaceCulling = true
+            RenderConfig(
+                finalWidth,
+                finalHeight,
+                viewMatrix,
+                cameraForward,
+                camera.distance,
+                true,
+                false,
+                solidBg,
+                useBackFaceCulling = true
+            )
         ).let { File("heatmap_orthographic_solid.png").writeBytes(it.encodeToData()!!.bytes) }
         println("--- 3D热力图渲染完成 ---\n")
     }
@@ -332,52 +336,60 @@ class TestRender3d {
         // 注意：对于皮肤模型，背面剔除通常是关闭的(useBackFaceCulling = false)，因为外层皮肤的内侧也可能需要被看到。
         renderToImage(
             playerMesh,
-            finalWidth,
-            finalHeight,
-            viewMatrix,
-            cameraForward,
-            camera.distance,
-            true,
-            true,
-            solidBg,
-            useBackFaceCulling = false
+            RenderConfig(
+                finalWidth,
+                finalHeight,
+                viewMatrix,
+                cameraForward,
+                camera.distance,
+                true,
+                true,
+                solidBg,
+                useBackFaceCulling = false
+            )
         ).let { File("${modelName}_perspective_solid.png").writeBytes(it.encodeToData()!!.bytes) }
         renderToImage(
             playerMesh,
-            finalWidth,
-            finalHeight,
-            viewMatrix,
-            cameraForward,
-            camera.distance,
-            false,
-            true,
-            wireframeBg,
-            useBackFaceCulling = false
+            RenderConfig(
+                finalWidth,
+                finalHeight,
+                viewMatrix,
+                cameraForward,
+                camera.distance,
+                false,
+                true,
+                wireframeBg,
+                useBackFaceCulling = false
+            )
         ).let { File("${modelName}_perspective_wireframe.png").writeBytes(it.encodeToData()!!.bytes) }
         renderToImage(
             playerMesh,
-            finalWidth,
-            finalHeight,
-            viewMatrix,
-            cameraForward,
-            camera.distance,
-            true,
-            false,
-            solidBg,
-            useBackFaceCulling = false
+            RenderConfig(
+                finalWidth,
+                finalHeight,
+                viewMatrix,
+                cameraForward,
+                camera.distance,
+                true,
+                false,
+                solidBg,
+                useBackFaceCulling = false
+            )
         ).let { File("${modelName}_orthographic_solid.png").writeBytes(it.encodeToData()!!.bytes) }
         // 为了演示背面剔除的效果，额外生成一张开启剔除的线框图
         renderToImage(
             playerMesh,
-            finalWidth,
-            finalHeight,
-            viewMatrix,
-            cameraForward,
-            camera.distance,
-            false,
-            false,
-            wireframeBg,
-            useBackFaceCulling = true
+            RenderConfig(
+                finalWidth,
+                finalHeight,
+                viewMatrix,
+                cameraForward,
+                camera.distance,
+                false,
+                false,
+                wireframeBg,
+                useBackFaceCulling = true
+            )
         ).let { File("${modelName}_orthographic_wireframe_culling_on.png").writeBytes(it.encodeToData()!!.bytes) }
     }
 
