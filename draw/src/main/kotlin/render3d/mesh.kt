@@ -1,8 +1,8 @@
 package top.e404.skiko.draw.render3d
 
+import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Rect
-
 
 /**
  * 创建一个简单的、无纹理的长方体
@@ -87,4 +87,24 @@ fun createUVCuboid(dims: Vec3, faceUVs: Map<FaceDirection, Rect>, textureWidth: 
     faceUVs[FaceDirection.TOP]?.let { addFace(listOf(3, 2, 7, 6), it) }
     faceUVs[FaceDirection.BOTTOM]?.let { addFace(listOf(5, 4, 1, 0), it) }
     return Mesh(vertices, faces)
+}
+
+/**
+ * 将多个独立的Mesh合并成一个大的Mesh
+ * 这可以提高渲染效率，因为只需要处理一个绘制调用
+ */
+fun combineMeshes(meshes: List<Mesh>, texture: Bitmap? = null): Mesh {
+    val combinedVertices = mutableListOf<Vertex>()
+    val combinedFaces = mutableListOf<Face>()
+    var vertexOffset = 0
+    for (mesh in meshes) {
+        combinedVertices.addAll(mesh.vertices)
+        for (face in mesh.faces) {
+            // 重新计算面的顶点索引，加上偏移量
+            val newIndices = face.indices.map { it + vertexOffset }
+            combinedFaces.add(Face(newIndices, face.baseColor))
+        }
+        vertexOffset += mesh.vertices.size
+    }
+    return Mesh(combinedVertices, combinedFaces, texture ?: meshes.firstOrNull()?.texture)
 }

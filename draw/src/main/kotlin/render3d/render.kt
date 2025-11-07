@@ -11,9 +11,54 @@ import org.jetbrains.skia.Path
 import org.jetbrains.skia.Point
 import org.jetbrains.skia.Surface
 import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 import kotlin.math.tan
+
+/**
+ * 轨道相机数据类，通过目标点、方位角、仰角和距离来定义相机位置
+ * @property target 相机注视的目标点
+ * @property yaw 方位角，绕Y轴旋转的角度（左右视角）
+ * @property pitch 俯仰角，绕X轴旋转的角度（上下视角）
+ * @property distance 相机到目标点的距离
+ * @property upVector 相机的上方向向量，通常为(0, 1, 0)
+ */
+data class OrbitCamera(
+    var target: Vec3 = Vec3(0f, 0f, 0f),
+    var yaw: Float = 0f,
+    var pitch: Float = 0f,
+    var distance: Float = 10f,
+    var upVector: Vec3 = Vec3(0f, 1f, 0f)
+) {
+    /**
+     * 根据轨道相机参数创建视图矩阵和相机位置
+     *
+     * @return 返回一个包含视图矩阵和相机前向向量的数据类
+     */
+    fun createViewMatrix(): ViewMatrix {
+        // 将角度转换为弧度
+        val yaw = this@OrbitCamera.yaw * (PI / 180.0).toFloat()
+        val pitch = this@OrbitCamera.pitch * (PI / 180.0).toFloat()
+        // 通过球面坐标计算相机位置
+        val eyeX = target.x + distance * cos(pitch) * sin(yaw)
+        val eyeY = target.y + distance * sin(pitch)
+        val eyeZ = target.z + distance * cos(pitch) * cos(yaw)
+        val eyePosition = Vec3(eyeX, eyeY, eyeZ)
+        val viewMatrix = Mat4.lookAt(eyePosition, target, upVector)
+        val cameraForward = (target - eyePosition).normalized()
+        return ViewMatrix(viewMatrix, cameraForward)
+    }
+}
+
+/**
+ * 包含视图矩阵和相机前向向量的数据类
+ *
+ * @property viewMatrix 视图矩阵
+ * @property cameraForward 相机的前向向量
+ */
+data class ViewMatrix(val viewMatrix: Mat4, val cameraForward: Vec3)
 
 /**
  * 渲染配置数据类，封装了渲染所需的各种参数
@@ -34,16 +79,14 @@ import kotlin.math.tan
 data class RenderConfig(
     val width: Int,
     val height: Int,
-    val viewMatrix: Mat4,
-    val cameraForward: Vec3,
-    val cameraDistance: Float,
+    val camera: OrbitCamera,
     val renderFaces: Boolean = true,
     val usePerspective: Boolean = true,
     val backgroundColor: Int = Color.TRANSPARENT,
     val useBackFaceCulling: Boolean = false,
     val antiAliasingLevel: Int = 2,
     val lightDirection: Vec3 = Vec3(0.7f, 1.0f, 0.5f).normalized(),
-    val lightIntensity: Float = 1.9f
+    val lightIntensity: Float = 0.9f
 )
 
 /**
@@ -59,9 +102,7 @@ fun renderToImage(
     val (
         width,
         height,
-        viewMatrix,
-        cameraForward,
-        cameraDistance,
+        camera,
         renderFaces,
         usePerspective,
         backgroundColor,
@@ -75,9 +116,10 @@ fun renderToImage(
     val renderHeight = height * antiAliasingLevel
     val aspectRatio = width.toFloat() / height.toFloat()
     val fov = 45f * (PI / 180.0).toFloat()
+    val (viewMatrix, cameraForward) = camera.createViewMatrix()
     // 根据配置选择并创建投影矩阵
     val projection = if (usePerspective) Mat4.perspective(fov, aspectRatio, 0.1f, 200f) else {
-        val orthoHeight = 2f * cameraDistance * tan(fov / 2f)
+        val orthoHeight = 2f * camera.distance * tan(fov / 2f)
         val orthoWidth = orthoHeight * aspectRatio
         Mat4.orthographic(-orthoWidth / 2f, orthoWidth / 2f, -orthoHeight / 2f, orthoHeight / 2f, 0.1f, 200f)
     }
