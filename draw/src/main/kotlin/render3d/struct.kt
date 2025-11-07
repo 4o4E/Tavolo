@@ -1,6 +1,8 @@
 package top.e404.skiko.draw.render3d
 
 import org.jetbrains.skia.Bitmap
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
 
@@ -27,6 +29,39 @@ data class Vec3(val x: Float, val y: Float, val z: Float) {
     fun dot(other: Vec3) = x * other.x + y * other.y + z * other.z // 点乘
     fun length() = sqrt(x * x + y * y + z * z) // 计算向量长度（模）
     fun normalized() = if (length() > 0) this / length() else this // 单位化向量
+
+    fun rotateX(angle: Float): Vec3 {
+        val cos = cos(angle)
+        val sin = sin(angle)
+        return Vec3(x, y * cos - z * sin, y * sin + z * cos)
+    }
+
+    fun rotateY(angle: Float): Vec3 {
+        val cos = cos(angle)
+        val sin = sin(angle)
+        return Vec3(x * cos + z * sin, y, -x * sin + z * cos)
+    }
+
+    fun rotateZ(angle: Float): Vec3 {
+        val cos = cos(angle)
+        val sin = sin(angle)
+        return Vec3(x * cos - y * sin, x * sin + y * cos, z)
+    }
+
+    fun rotate(rotation: Transformation.Rotate): Vec3 {
+        val radX = Math.toRadians(rotation.x.toDouble()).toFloat()
+        val radY = Math.toRadians(rotation.y.toDouble()).toFloat()
+        val radZ = Math.toRadians(rotation.z.toDouble()).toFloat()
+        return this.rotateZ(radZ).rotateY(radY).rotateX(radX)
+    }
+
+    fun scale(scaling: Transformation.Scale): Vec3 {
+        return Vec3(x * scaling.x, y * scaling.y, z * scaling.z)
+    }
+
+    fun translate(translation: Transformation.Translate): Vec3 {
+        return this.plus(Vec3(translation.x, translation.y, translation.z))
+    }
 }
 
 /**
@@ -156,3 +191,12 @@ data class Mesh(val vertices: List<Vertex>, val faces: List<Face>, val texture: 
  * 着色后的顶点，存储屏幕坐标、用于透视校正的1/w值和UV坐标
  */
 data class ShadedVertex(val screenPos: Vec3, val oneOverW: Float, val uv: Vec2)
+
+/**
+ * 封装所有可能的变换操作
+ */
+sealed class Transformation {
+    data class Rotate(val x: Float = 0f, val y: Float = 0f, val z: Float = 0f) : Transformation()
+    data class Scale(val x: Float = 1f, val y: Float = 1f, val z: Float = 1f) : Transformation()
+    data class Translate(val x: Float = 0f, val y: Float = 0f, val z: Float = 0f) : Transformation()
+}
