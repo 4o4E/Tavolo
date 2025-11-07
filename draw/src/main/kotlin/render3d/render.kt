@@ -15,12 +15,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.tan
 
-
-// 超采样抗锯齿级别。2表示在2x2的网格上渲染，然后下采样到1个像素。
-val antiAliasingLevel = 2
-
 /**
  * 核心渲染函数，执行完整的渲染管线并保存结果到文件
+ *
  * @param mesh 要渲染的网格
  * @param width 输出图像宽度
  * @param height 输出图像高度
@@ -31,6 +28,10 @@ val antiAliasingLevel = 2
  * @param usePerspective true使用透视投影，false使用正交投影
  * @param backgroundColor 背景色
  * @param useBackFaceCulling 是否启用背面剔除
+ * @param antiAliasingLevel 抗锯齿级别
+ * @param lightDirection 光源方向
+ * @param ambientIntensity 环境光强度
+ * @return 渲染后的图像
  */
 fun renderToImage(
     mesh: Mesh,
@@ -42,7 +43,10 @@ fun renderToImage(
     renderFaces: Boolean,
     usePerspective: Boolean,
     backgroundColor: Int,
-    useBackFaceCulling: Boolean
+    useBackFaceCulling: Boolean = false,
+    antiAliasingLevel: Int = 2,
+    lightDirection: Vec3 = Vec3(0.7f, 1.0f, 0.5f).normalized(),
+    ambientIntensity: Float = 1.9f
 ): Image {
     // 根据抗锯齿级别计算内部渲染尺寸
     val renderWidth = width * antiAliasingLevel
@@ -79,7 +83,7 @@ fun renderToImage(
             // 背面剔除：如果面的法线与相机前向向量的点积为正，说明面背对相机，剔除
             if (useBackFaceCulling && faceNormal.dot(cameraForward) > 0) continue
             // 计算光照强度
-            val lightIntensity = calculateLightIntensity(faceNormal)
+            val lightIntensity = calculateLightIntensity(faceNormal, lightDirection, ambientIntensity)
             // 将多边形面分割成三角形进行光栅化
             for (i in 0 until face.indices.size - 2) {
                 val triIndices = listOf(face.indices[0], face.indices[i + 1], face.indices[i + 2])
