@@ -65,9 +65,8 @@ class TestRender3d {
         val chartDepth = (DAYS_PER_WEEK - 1) * (barSize + barSpacing)
         val chartCenter = Vec3(chartWidth / 2f, MAX_VALUE * 0.3f / 2f, chartDepth / 2f)
         // 设置相机
-        val camera = OrbitCamera(target = chartCenter, azimuthDegrees = 45f, elevationDegrees = 35f, distance = 50f)
-        val (viewMatrix, eyePosition) = createViewMatrix(camera)
-        val cameraForward = (camera.target - eyePosition).normalized()
+        val camera = OrbitCamera(target = chartCenter, yaw = 45f, pitch = 35f, distance = 50f)
+        val (viewMatrix, cameraForward) = camera.createViewMatrix()
         val solidBg = Color.makeRGB(0, 0, 15)
         val finalWidth = 1600
         val finalHeight = 1200
@@ -324,10 +323,13 @@ class TestRender3d {
         // 创建玩家模型
         val playerMesh = createMinecraftPlayer(skinBitmap, isSlim)
         // 设置相机
-        val camera =
-            OrbitCamera(target = Vec3(0f, 12f, 0f), azimuthDegrees = 45f, elevationDegrees = 20f, distance = 60f)
-        val (viewMatrix, eyePosition) = createViewMatrix(camera)
-        val cameraForward = (camera.target - eyePosition).normalized()
+        val camera = OrbitCamera(
+            target = Vec3(0f, 12f, 0f),
+            yaw = 45f,
+            pitch = 20f,
+            distance = 60f
+        )
+        val (viewMatrix, cameraForward) = camera.createViewMatrix()
         val solidBg = Color.makeRGB(80, 100, 130)
         val wireframeBg = Color.makeRGB(20, 25, 30)
         val finalWidth = 800

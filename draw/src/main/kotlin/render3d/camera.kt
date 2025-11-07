@@ -8,36 +8,46 @@ import kotlin.math.sin
 /**
  * 轨道相机数据类，通过目标点、方位角、仰角和距离来定义相机位置
  * @property target 相机注视的目标点
- * @property azimuthDegrees 方位角，绕Y轴旋转的角度（左右视角）
- * @property elevationDegrees 仰角，绕X轴旋转的角度（上下视角）
+ * @property yaw 方位角，绕Y轴旋转的角度（左右视角）
+ * @property pitch 俯仰角，绕X轴旋转的角度（上下视角）
  * @property distance 相机到目标点的距离
  * @property upVector 相机的上方向向量，通常为(0, 1, 0)
  */
 data class OrbitCamera(
     var target: Vec3 = Vec3(0f, 0f, 0f),
-    var azimuthDegrees: Float = 0f,
-    var elevationDegrees: Float = 0f,
+    var yaw: Float = 0f,
+    var pitch: Float = 0f,
     var distance: Float = 10f,
     var upVector: Vec3 = Vec3(0f, 1f, 0f)
-)
+) {
+    /**
+     * 根据轨道相机参数创建视图矩阵和相机位置
+     *
+     * @return 返回一个包含视图矩阵和相机前向向量的数据类
+     */
+    fun createViewMatrix(): ViewMatrix {
+        // 将角度转换为弧度
+        val yaw = this@OrbitCamera.yaw * (PI / 180.0).toFloat()
+        val pitch = this@OrbitCamera.pitch * (PI / 180.0).toFloat()
+        // 通过球面坐标计算相机位置
+        val eyeX = target.x + distance * cos(pitch) * sin(yaw)
+        val eyeY = target.y + distance * sin(pitch)
+        val eyeZ = target.z + distance * cos(pitch) * cos(yaw)
+        val eyePosition = Vec3(eyeX, eyeY, eyeZ)
+        val viewMatrix = Mat4.lookAt(eyePosition, target, upVector)
+        val cameraForward = (target - eyePosition).normalized()
+        return ViewMatrix(viewMatrix, cameraForward)
+    }
+}
 
 /**
- * 根据轨道相机参数创建视图矩阵和相机位置
- * @param camera 轨道相机实例
- * @return 返回一个包含视图矩阵和相机世界坐标的Pair
+ * 包含视图矩阵和相机前向向量的数据类
+ *
+ * @property viewMatrix 视图矩阵
+ * @property cameraForward 相机的前向向量
  */
-fun createViewMatrix(camera: OrbitCamera): Pair<Mat4, Vec3> {
-    val azimuth = camera.azimuthDegrees * (PI / 180.0).toFloat()
-    val elevation = camera.elevationDegrees * (PI / 180.0).toFloat()
-    // 通过球面坐标计算相机位置
-    val eyeX = camera.target.x + camera.distance * cos(elevation) * sin(azimuth)
-    val eyeY = camera.target.y + camera.distance * sin(elevation)
-    val eyeZ = camera.target.z + camera.distance * cos(elevation) * cos(azimuth)
-    val eyePosition = Vec3(eyeX, eyeY, eyeZ)
-    // 使用Mat4.lookAt创建视图矩阵
-    val viewMatrix = Mat4.lookAt(eyePosition, camera.target, camera.upVector)
-    return Pair(viewMatrix, eyePosition)
-}
+data class ViewMatrix(val viewMatrix: Mat4, val cameraForward: Vec3)
+
 
 /**
  * 将多个独立的Mesh合并成一个大的Mesh
