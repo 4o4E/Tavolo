@@ -75,8 +75,8 @@ fun UiElement.iconText(text: String, modifier: Modifier, iconColor: Int = Colors
     if (fontSize.size == -1f) error("iconText必须在modifier中指定FontSize")
     box(Modifier
         .size(fontSize.size / 2, fontSize.size)
-        .background(iconColor)
         .clip(Shape.RoundedRect(fontSize.size))
+        .background(iconColor)
     )
     text(text, modifier)
 }

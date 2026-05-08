@@ -79,14 +79,11 @@ abstract class BaseElement : UiElement {
 
     private fun Border.asInsets() = ModifierInsets(top, right, bottom, left)
 
-    private fun Margin.asInsets() = ModifierInsets(top, right, bottom, left)
-
     protected fun contentBounds(): Bounds {
         var bounds = Bounds(x, y, width, height)
         for (mod in modifier.toList()) {
             bounds = when (mod) {
                 is Padding -> bounds.inset(mod.asInsets())
-                is Margin -> bounds.inset(mod.asInsets())
                 is Border -> bounds.inset(mod.asInsets())
                 else -> bounds
             }
@@ -109,11 +106,6 @@ abstract class BaseElement : UiElement {
                     if (!mod.height.isNaN()) finalHeight = mod.height
                 }
                 is Padding -> {
-                    val insets = mod.asInsets()
-                    finalWidth += insets.horizontal
-                    finalHeight += insets.vertical
-                }
-                is Margin -> {
                     val insets = mod.asInsets()
                     finalWidth += insets.horizontal
                     finalHeight += insets.vertical
@@ -154,7 +146,6 @@ abstract class BaseElement : UiElement {
         for (mod in modifier.toList()) {
             when (mod) {
                 is Padding -> bounds = bounds.inset(mod.asInsets())
-                is Margin -> bounds = bounds.inset(mod.asInsets())
                 is Background -> {
                     val paint = Paint().apply { color = mod.color; isAntiAlias = antiAlias.enabled }
                     context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, bounds.width, bounds.height), paint)

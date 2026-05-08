@@ -53,7 +53,6 @@ import top.e404.skiko.draw.compose.icon
 import top.e404.skiko.draw.compose.iconText
 import top.e404.skiko.draw.compose.image
 import top.e404.skiko.draw.compose.imageOverflow
-import top.e404.skiko.draw.compose.margin
 import top.e404.skiko.draw.compose.maxSize
 import top.e404.skiko.draw.compose.padding
 import top.e404.skiko.draw.compose.render
@@ -67,6 +66,7 @@ import top.e404.skiko.draw.compose.text
 import top.e404.skiko.draw.compose.textColor
 import top.e404.skiko.draw.compose.textOverflow
 import top.e404.skiko.draw.compose.width
+import top.e404.skiko.util.Colors
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -106,10 +106,10 @@ private fun testImage(width: Int, height: Int): Image =
 
 class ComposeLayoutUnitTest {
     @Test
-    fun columnMeasuresMarginsAndHorizontalAlignment() {
+    fun columnMeasuresPaddingAndHorizontalAlignment() {
         val root = Column(horizontalAlignment = HorizontalAlignment.Center)
         val first = CanvasElement(20f, 10f) {}
-        first.modifier = Modifier.margin(top = 1f, right = 4f, bottom = 2f, left = 3f)
+        first.modifier = Modifier.padding(top = 1f, right = 4f, bottom = 2f, left = 3f)
         val second = CanvasElement(40f, 10f) {}
 
         root.add(first)
@@ -128,7 +128,7 @@ class ComposeLayoutUnitTest {
         val root = Row(verticalAlignment = VerticalAlignment.Center)
         root.modifier = Modifier.size(width = 30f, height = 40f)
         val first = CanvasElement(10f, 10f) {}
-        first.modifier = Modifier.margin(top = 5f, bottom = 5f)
+        first.modifier = Modifier.padding(top = 5f, bottom = 5f)
         val second = CanvasElement(5f, 30f) {}
 
         root.add(first)
@@ -152,7 +152,7 @@ class ComposeLayoutUnitTest {
             .padding(10f)
             .border(2f, Color.RED)
         val child = CanvasElement(20f, 10f) {}
-        child.modifier = Modifier.margin(right = 5f, bottom = 3f)
+        child.modifier = Modifier.padding(right = 5f, bottom = 3f)
 
         root.add(child)
         root.measure(MeasureContext(FixedTextMeasurer()))
@@ -194,26 +194,26 @@ class ComposeLayoutUnitTest {
     }
 
     @Test
-    fun heatmapStyleLayoutUsesSingleAxisSizeAndHorizontalVerticalMargin() {
+    fun heatmapStyleLayoutUsesSingleAxisSizeAndHorizontalVerticalPadding() {
         val root = Column()
         val typeface = Typeface.makeEmpty()
 
         root.apply {
-            row(Modifier.margin(top = 20f)) {
-                column(Modifier.margin(right = 10f), horizontalAlignment = HorizontalAlignment.Right) {
+            row(Modifier.padding(top = 20f)) {
+                column(Modifier.padding(right = 10f), horizontalAlignment = HorizontalAlignment.Right) {
                     text(" ", Modifier.fontFamily(typeface).fontSize(10f))
-                    text("Mon", Modifier.fontFamily(typeface).fontSize(10f).margin(horizontal = 3f, vertical = 0f))
+                    text("Mon", Modifier.fontFamily(typeface).fontSize(10f).padding(horizontal = 3f, vertical = 0f))
                     box(Modifier.height(16f))
                     text("Wed", Modifier.fontFamily(typeface).fontSize(10f))
                 }
                 column {
                     box(
                         Modifier
+                            .padding(3f)
                             .size(15f)
                             .background(Color.RED)
                             .border(.5f, Color.BLACK)
                             .clip(Shape.RoundedRect(3f))
-                            .margin(3f)
                     )
                 }
             }
@@ -225,9 +225,9 @@ class ComposeLayoutUnitTest {
         val row = assertIs<Row>(root.children.single())
         val labels = assertIs<Column>(row.children[0])
         val heatmap = assertIs<Column>(row.children[1])
-        assertElementBounds(row, x = 0f, y = 0f, width = 61f, height = 66f)
+        assertElementBounds(row, x = 0f, y = 0f, width = 67f, height = 66f)
         assertElementBounds(labels.children[2], x = 36f, y = 40f, width = 0f, height = 16f)
-        assertElementBounds(heatmap.children.single(), x = 46f, y = 20f, width = 15f, height = 15f)
+        assertElementBounds(heatmap.children.single(), x = 46f, y = 20f, width = 21f, height = 21f)
     }
 }
 
@@ -322,14 +322,14 @@ class ComposeModifierCommandUnitTest {
             box(
                 modifier = Modifier
                     .size(20f)
-                    .background(Color.RED)
                     .clip(top.e404.skiko.draw.compose.Shape.Circle)
+                    .background(Color.RED)
             )
         }
 
-        assertTrue(commands[1] is DrawCommand.Rect)
-        assertTrue(commands[2] is DrawCommand.Save)
-        assertTrue(commands[3] is DrawCommand.ClipPath)
+        assertTrue(commands[1] is DrawCommand.Save)
+        assertTrue(commands[2] is DrawCommand.ClipPath)
+        assertTrue(commands[3] is DrawCommand.Rect)
         assertTrue(commands[4] is DrawCommand.Restore)
     }
 
@@ -340,8 +340,8 @@ class ComposeModifierCommandUnitTest {
                 modifier = Modifier
                     .size(20f)
                     .antiAlias(false)
-                    .background(Color.RED)
                     .clip(Shape.RoundedRect(4f))
+                    .background(Color.RED)
             )
         }
 
@@ -358,15 +358,15 @@ class ComposeModifierCommandUnitTest {
                     Modifier
                         .width(100f)
                         .height(10f)
-                        .background(Color.makeRGB(128, 128, 128))
                         .clip(Shape.RoundedRect(50f))
+                        .background(Color.makeRGB(128, 128, 128))
                 )
                 box(
                     Modifier
                         .width(25f)
                         .height(10f)
-                        .background(Color.GREEN)
                         .clip(Shape.RoundedRect(50f))
+                        .background(Color.GREEN)
                 )
             }
         }
@@ -554,7 +554,7 @@ class ComposeCanvasAndChartUnitTest {
             val element = CanvasElement(10f, 10f) { canvas ->
                 canvas.drawCircle(parentX + 1f, parentY + 2f, 3f, Paint().apply { color = Color.RED })
             }
-            element.modifier = Modifier.margin(left = 4f, top = 5f)
+            element.modifier = Modifier.padding(left = 4f, top = 5f)
             add(element)
         }
 
@@ -701,14 +701,14 @@ class ComposeIconUnitTest {
     fun githubFooterStyleIconAndTextRowRecordsIconPathAndText() {
         val svg = """<svg viewBox="0 0 10 10"><path d="M 0 0 L 10 0 L 10 10 Z"/></svg>"""
         val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
-            row(Modifier.margin(horizontal = 50f), VerticalAlignment.Center) {
+            row(Modifier.padding(horizontal = 50f), VerticalAlignment.Center) {
                 icon(IconTheme(40f, color = Color.WHITE), svg)
                 text(
                     "42",
                     Modifier
                         .fontSize(40f)
                         .textColor(Color.WHITE)
-                        .margin(left = 20f, right = 50f)
+                        .padding(left = 20f, right = 50f)
                         .fontFamily(Typeface.makeEmpty())
                 )
             }
@@ -732,7 +732,7 @@ class ComposeDslAndRenderUnitTest {
                     box(Modifier.size(5f))
                 }
             }
-            table(Modifier.margin(horizontal = 1f, vertical = 2f), columnSpacing = 1f, rowSpacing = 1f) {
+            table(Modifier.padding(horizontal = 1f, vertical = 2f), columnSpacing = 1f, rowSpacing = 1f) {
                 tableRow {
                     cell { text("x") }
                 }
@@ -757,7 +757,10 @@ class ComposeDslAndRenderUnitTest {
             iconText("ok", Modifier.fontSize(20f).fontFamily(Typeface.makeEmpty()))
         }
 
-        assertTrue(commands.any { it is DrawCommand.ClipPath })
+        val clipIndex = commands.indexOfFirst { it is DrawCommand.ClipPath }
+        val iconRectIndex = commands.indexOfFirst { it is DrawCommand.Rect && it.paint.color == Colors.LIGHT_BLUE.argb }
+        assertTrue(clipIndex >= 0, "应记录 iconText 图标裁剪命令")
+        assertTrue(iconRectIndex > clipIndex, "图标背景应在裁剪之后绘制")
         assertEquals("ok", commands.filterIsInstance<DrawCommand.Text>().single().text)
     }
 

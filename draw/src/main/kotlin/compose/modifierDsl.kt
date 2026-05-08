@@ -26,13 +26,6 @@ fun Modifier.padding(horizontal: Float = 0f, vertical: Float = 0f): Modifier =
 fun Modifier.padding(top: Float = 0f, right: Float = 0f, bottom: Float = 0f, left: Float = 0f): Modifier =
     this.then(Padding(top, right, bottom, left))
 
-fun Modifier.margin(all: Float): Modifier = padding(all)
-fun Modifier.margin(horizontal: Float = 0f, vertical: Float = 0f): Modifier =
-    padding(horizontal = horizontal, vertical = vertical)
-
-fun Modifier.margin(top: Float = 0f, right: Float = 0f, bottom: Float = 0f, left: Float = 0f): Modifier =
-    padding(top = top, right = right, bottom = bottom, left = left)
-
 fun Modifier.border(all: Float, color: Int): Modifier = this.then(Border(all, all, all, all, color))
 fun Modifier.border(horizontal: Float = 0f, vertical: Float = 0f, color: Int): Modifier =
     this.then(Border(vertical, horizontal, vertical, horizontal, color))

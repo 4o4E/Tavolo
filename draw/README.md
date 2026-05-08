@@ -30,7 +30,7 @@ dependencies {
 常用 `Modifier`:
 
 - 尺寸：`size`、`width`、`height`、`maxSize`
-- 间距：`padding`、`margin`
+- 间距：`padding`
 - 样式：`background`、`border`、`clip`
 - 文本：`fontSize`、`fontFamily`、`textColor`、`textOverflow`
 - 图片：`imageOverflow`
@@ -44,7 +44,6 @@ Modifier
     .padding(8f)       // 背景内的内容留白
 ```
 
-`margin` 仅作为兼容旧代码的别名保留，内部按 `padding` 处理；新代码应优先使用 `padding`。
 `size` 也遵循链式顺序：`.size(100f).padding(10f)` 表示总尺寸为 `100f`，`.padding(10f).size(100f)` 表示内容尺寸为 `100f` 且总尺寸额外包含外层 `padding`。
 
 ```kotlin
