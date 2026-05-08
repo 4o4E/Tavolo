@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    jacoco
 }
 
 dependencies {
@@ -24,6 +25,15 @@ configurations["manualTestRuntimeOnly"].extendsFrom(configurations["testRuntimeO
 
 tasks.test {
     workingDir = rootDir.resolve("run")
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        csv.required.set(true)
+        html.required.set(true)
+    }
 }
 
 tasks.register<Test>("manualTest") {

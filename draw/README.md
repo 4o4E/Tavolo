@@ -21,6 +21,7 @@ dependencies {
 
 - `./gradlew :draw:test` 只运行稳定单元测试，应使用断言验证布局、测量和绘制命令，不依赖人工查看图片。
 - `./gradlew :draw:manualTest` 运行人工测试，主要用于生成示例图片到 `run/out` 后人工检查渲染效果，允许依赖本地资源或网络资源。
+- `./gradlew :draw:jacocoTestReport` 生成单元测试覆盖率报告，HTML 报告位于 `draw/build/reports/jacoco/test/html/index.html`。
 
 ## 2D Compose DSL
 
