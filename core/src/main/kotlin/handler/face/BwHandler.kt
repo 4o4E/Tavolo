@@ -4,10 +4,10 @@ import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.Surface
+import org.jetbrains.skia.TextLine
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.FontType
 import top.e404.tavolo.annotation.ImageHandler
-import top.e404.tavolo.draw.splitByWidth
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.util.autoSize
@@ -52,8 +52,8 @@ object BwHandler : FramesHandler {
         val f1 = Font(tf, s1.toFloat())
         val f2 = Font(tf, s2.toFloat())
         // 按宽度拆分
-        val (lines1, _) = l1.splitByWidth(maxW, f1, 0)
-        val (lines2, _) = l2.splitByWidth(maxW, f2, 0)
+        val lines1 = l1.splitByWidth(maxW, f1)
+        val lines2 = l2.splitByWidth(maxW, f2)
 
         val spacing = s1 / 2
         val h1 = (lines1.size - 1) * (s1 / 10) + lines1.sumOf { (it.descent - it.ascent).toDouble() }.toInt()
@@ -94,6 +94,28 @@ object BwHandler : FramesHandler {
                 }
             }
         }
+    }
+
+    private fun String.splitByWidth(maxWidth: Int, font: Font): List<TextLine> {
+        val lines = mutableListOf<TextLine>()
+        for (paragraph in lineSequence()) {
+            if (paragraph.isEmpty()) {
+                lines += TextLine.make("", font)
+                continue
+            }
+            var current = ""
+            for (char in paragraph) {
+                val next = current + char
+                if (current.isNotEmpty() && TextLine.make(next, font).width > maxWidth) {
+                    lines += TextLine.make(current, font)
+                    current = char.toString()
+                } else {
+                    current = next
+                }
+            }
+            if (current.isNotEmpty()) lines += TextLine.make(current, font)
+        }
+        return lines.ifEmpty { listOf(TextLine.make("", font)) }
     }
 }
 

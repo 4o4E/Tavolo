@@ -3,7 +3,6 @@ package top.e404.tavolo.generator.list
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.FontType
-import top.e404.tavolo.draw.Pointer
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.generator.ImageGenerator
 import top.e404.tavolo.util.asColor
@@ -55,15 +54,16 @@ object ShakeTextGenerator : ImageGenerator {
             w + 2 * (padding + shakeSize),
             fontSize.toInt() + 2 * (padding + shakeSize)
         ).run {
-            val p = Pointer(padding + 5F, padding + fontSize - 10)
+            var x = padding + 5F
+            val y = padding + fontSize - 10
             val paint = Paint().apply { color = bgColor }
             withCanvas {
                 drawRect(Rect.makeXYWH(0F, 0F, width.toFloat(), height.toFloat()), paint)
                 for (c in map.keys) {
-                    drawTextLine(c, p.x + random(shakeSize), p.y + random(shakeSize), paint.apply {
+                    drawTextLine(c, x + random(shakeSize), y + random(shakeSize), paint.apply {
                         color = fontColor
                     })
-                    p.x += map[c]!!.toInt() + fontSpace
+                    x += map[c]!!.toInt() + fontSpace
                 }
             }
         }

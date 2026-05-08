@@ -55,7 +55,7 @@ subprojects {
         publishing.publications.create<MavenPublication>("java") {
             from(components["kotlin"])
             artifact(tasks.getByName("sourcesJar"))
-            artifactId = "${rootProject.name}-${project.name}"
+            artifactId = "${rootProject.name.lowercase()}-${project.name}"
             groupId = Versions.GROUP
             version = Versions.VERSION
         }

@@ -22,7 +22,7 @@
 版本请在[release](https://github.com/4o4E/Tavolo/releases)中查看
 
 ```kotlin
-val version = "2.0.0"
+val version = "2.0.0-SNAPSHOT"
 
 repositories {
     mavenCentral()

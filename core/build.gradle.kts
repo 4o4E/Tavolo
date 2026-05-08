@@ -36,3 +36,23 @@ tasks {
 //        minHeapSize = "8G"
     }
 }
+
+val manualTest by sourceSets.creating {
+    java.srcDir("src/manualTest/kotlin")
+    resources.srcDir("src/manualTest/resources")
+    compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+    runtimeClasspath += output + compileClasspath
+}
+
+configurations["manualTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["manualTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
+
+tasks.register<Test>("manualTest") {
+    description = "运行需要人工查看输出图片或依赖本地资源的 core 测试"
+    group = "verification"
+    testClassesDirs = manualTest.output.classesDirs
+    classpath = manualTest.runtimeClasspath
+    workingDir = rootProject.projectDir.resolve("run")
+    shouldRunAfter(tasks.test)
+    useJUnitPlatform()
+}
