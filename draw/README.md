@@ -27,6 +27,16 @@ dependencies {
 
 `render` 会先测量根节点尺寸，再创建 Skia `Image` 并绘制内容。布局元素包括 `column`、`row`、`box`、`table`、`text`、`image` 等。
 
+### 设计目标
+
+`top.e404.skiko.draw.compose` 的目标是提供一个适合图片绘制场景的宽度自适应组件库。调用方通常只描述内容、约束和组合关系，根节点会根据子元素测量结果得到最终宽高，再创建对应尺寸的 `Image`。
+
+和直接操作 Skia `Canvas`、固定画布尺寸的绘图库或只提供低层绘制命令的方案相比，这套 DSL 更关注组件组合和自适应测量：
+
+- 文本、图片、图表和容器组件可以先测量再布局，减少手写坐标和宽高计算。
+- `column`、`row`、`box`、`table` 会按子元素尺寸自动推导自身尺寸，适合生成宽度随内容变化的卡片、统计图和 README 图片。
+- 仍保留底层 `canvas` 能力，用于需要自定义绘制的局部区域。
+
 常用 `Modifier`:
 
 - 尺寸：`size`、`width`、`height`、`maxSize`
@@ -45,6 +55,48 @@ Modifier
 ```
 
 `size` 也遵循链式顺序：`.size(100f).padding(10f)` 表示总尺寸为 `100f`，`.padding(10f).size(100f)` 表示内容尺寸为 `100f` 且总尺寸额外包含外层 `padding`。
+
+### margin 迁移
+
+Compose DSL 已移除 `margin` API，不再由父布局特殊读取子元素外边距。外部留白和内部留白统一用多层 `padding` 表达，并且 `Modifier` 顺序会影响测量、布局和绘制结果。
+
+旧写法中表示外部留白的 `margin`，迁移时应放到链式调用靠外的一侧：
+
+```kotlin
+// 旧写法
+Modifier
+    .background(color)
+    .padding(8f)
+    .margin(12f)
+
+// 新写法：外部留白在 background 之前
+Modifier
+    .padding(12f)
+    .background(color)
+    .padding(8f)
+```
+
+旧写法中放在固定尺寸元素之后的 `margin`，迁移时也应放到 `size` 之前，避免把留白算进固定内容区域：
+
+```kotlin
+// 旧写法
+Modifier
+    .size(100f)
+    .margin(right = 10f)
+
+// 新写法
+Modifier
+    .padding(right = 10f)
+    .size(100f)
+```
+
+需要圆角背景时，`clip` 应放在 `background` 之前，让背景绘制发生在裁剪区域内：
+
+```kotlin
+Modifier
+    .clip(Shape.RoundedRect(8f))
+    .background(color)
+```
 
 ```kotlin
 import org.jetbrains.skia.Color
