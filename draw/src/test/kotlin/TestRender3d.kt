@@ -71,8 +71,8 @@ class TestRender3d {
         val finalWidth = 1600
         val finalHeight = 1200
         // 渲染并保存透视投影实体图
-        renderToImage(
-            chartMesh,
+        renderSceneToImage(
+            Scene(listOf(chartMesh)),
             RenderConfig(
                 finalWidth,
                 finalHeight,
@@ -84,8 +84,8 @@ class TestRender3d {
             )
         ).let { File("heatmap_perspective_solid.png").writeBytes(it.encodeToData()!!.bytes) }
         // 渲染并保存正交投影实体图
-        renderToImage(
-            chartMesh,
+        renderSceneToImage(
+            Scene(listOf(chartMesh)),
             RenderConfig(
                 finalWidth,
                 finalHeight,
@@ -332,8 +332,8 @@ class TestRender3d {
         val finalHeight = 1200
         // 渲染四种不同模式的图像
         // 注意：对于皮肤模型，背面剔除通常是关闭的(useBackFaceCulling = false)，因为外层皮肤的内侧也可能需要被看到。
-        renderToImage(
-            playerMesh,
+        renderSceneToImage(
+            Scene(listOf(playerMesh)),
             RenderConfig(
                 finalWidth,
                 finalHeight,
@@ -344,8 +344,8 @@ class TestRender3d {
                 useBackFaceCulling = false
             )
         ).let { File("${modelName}_perspective_solid.png").writeBytes(it.encodeToData()!!.bytes) }
-        renderToImage(
-            playerMesh,
+        renderSceneToImage(
+            Scene(listOf(playerMesh)),
             RenderConfig(
                 finalWidth,
                 finalHeight,
@@ -356,8 +356,8 @@ class TestRender3d {
                 useBackFaceCulling = false
             )
         ).let { File("${modelName}_perspective_wireframe.png").writeBytes(it.encodeToData()!!.bytes) }
-        renderToImage(
-            playerMesh,
+        renderSceneToImage(
+            Scene(listOf(playerMesh)),
             RenderConfig(
                 finalWidth,
                 finalHeight,
@@ -369,8 +369,8 @@ class TestRender3d {
             )
         ).let { File("${modelName}_orthographic_solid.png").writeBytes(it.encodeToData()!!.bytes) }
         // 为了演示背面剔除的效果，额外生成一张开启剔除的线框图
-        renderToImage(
-            playerMesh,
+        renderSceneToImage(
+            Scene(listOf(playerMesh)),
             RenderConfig(
                 finalWidth,
                 finalHeight,
