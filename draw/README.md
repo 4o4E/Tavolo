@@ -35,6 +35,18 @@ dependencies {
 - 文本：`fontSize`、`fontFamily`、`textColor`、`textOverflow`
 - 图片：`imageOverflow`
 
+`Modifier` 按链式顺序逐层应用，和 Jetpack Compose 一样可以用多层 `padding` 表达外部留白和内部留白：
+
+```kotlin
+Modifier
+    .padding(12f)      // 外层留白
+    .background(color)
+    .padding(8f)       // 背景内的内容留白
+```
+
+`margin` 仅作为兼容旧代码的别名保留，内部按 `padding` 处理；新代码应优先使用 `padding`。
+`size` 也遵循链式顺序：`.size(100f).padding(10f)` 表示总尺寸为 `100f`，`.padding(10f).size(100f)` 表示内容尺寸为 `100f` 且总尺寸额外包含外层 `padding`。
+
 ```kotlin
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.EncodedImageFormat
@@ -57,11 +69,11 @@ fun main() {
             text(
                 "Compose style image rendering",
                 modifier = Modifier
-                    .margin(top = 8f)
+                    .padding(top = 8f)
                     .fontSize(20f)
                     .textColor(Color.makeRGB(91, 103, 120))
             )
-            row(modifier = Modifier.margin(top = 20f)) {
+            row(modifier = Modifier.padding(top = 20f)) {
                 box(
                     modifier = Modifier
                         .size(120f, 56f)

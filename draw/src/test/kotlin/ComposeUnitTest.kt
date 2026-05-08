@@ -119,7 +119,7 @@ class ComposeLayoutUnitTest {
 
         assertFloatEquals(40f, root.width)
         assertFloatEquals(23f, root.height)
-        assertElementBounds(first, x = 9.5f, y = 1f, width = 20f, height = 10f)
+        assertElementBounds(first, x = 6.5f, y = 0f, width = 27f, height = 13f)
         assertElementBounds(second, x = 0f, y = 13f, width = 40f, height = 10f)
     }
 
@@ -137,7 +137,7 @@ class ComposeLayoutUnitTest {
         root.layout(0f, 0f)
 
         assertElementBounds(root, x = 0f, y = 0f, width = 30f, height = 40f)
-        assertElementBounds(first, x = 0f, y = 15f, width = 10f, height = 10f)
+        assertElementBounds(first, x = 0f, y = 10f, width = 10f, height = 20f)
         assertElementBounds(second, x = 10f, y = 5f, width = 5f, height = 30f)
     }
 
@@ -158,9 +158,9 @@ class ComposeLayoutUnitTest {
         root.measure(MeasureContext(FixedTextMeasurer()))
         root.layout(0f, 0f)
 
-        assertFloatEquals(124f, root.width)
-        assertFloatEquals(104f, root.height)
-        assertElementBounds(child, x = 87f, y = 79f, width = 20f, height = 10f)
+        assertFloatEquals(100f, root.width)
+        assertFloatEquals(80f, root.height)
+        assertElementBounds(child, x = 63f, y = 55f, width = 25f, height = 13f)
     }
 
     @Test
@@ -225,9 +225,9 @@ class ComposeLayoutUnitTest {
         val row = assertIs<Row>(root.children.single())
         val labels = assertIs<Column>(row.children[0])
         val heatmap = assertIs<Column>(row.children[1])
-        assertElementBounds(row, x = 0f, y = 20f, width = 68f, height = 46f)
+        assertElementBounds(row, x = 0f, y = 0f, width = 61f, height = 66f)
         assertElementBounds(labels.children[2], x = 36f, y = 40f, width = 0f, height = 16f)
-        assertElementBounds(heatmap.children.single(), x = 49f, y = 23f, width = 16f, height = 16f)
+        assertElementBounds(heatmap.children.single(), x = 46f, y = 20f, width = 15f, height = 15f)
     }
 }
 
@@ -248,13 +248,69 @@ class ComposeModifierCommandUnitTest {
         val rects = recorder.commands.filterIsInstance<DrawCommand.Rect>()
         assertEquals(5, rects.size)
         assertEquals(Color.BLUE, rects[0].paint.color)
-        assertFloatEquals(16f, rects[0].rect.width)
-        assertFloatEquals(24f, rects[0].rect.height)
+        assertFloatEquals(10f, rects[0].rect.width)
+        assertFloatEquals(20f, rects[0].rect.height)
         assertEquals(Color.RED, rects[1].paint.color)
         assertFloatEquals(1f, rects[1].rect.height)
         assertFloatEquals(3f, rects[2].rect.height)
         assertFloatEquals(4f, rects[3].rect.width)
         assertFloatEquals(2f, rects[4].rect.width)
+    }
+
+    @Test
+    fun orderedPaddingBackgroundAndBorderUseNestedBounds() {
+        val root = Box()
+        root.modifier = Modifier
+            .padding(2f)
+            .background(Color.BLUE)
+            .padding(top = 1f, right = 4f, bottom = 2f, left = 3f)
+            .border(1f, Color.RED)
+            .size(10f, 8f)
+        root.measure(MeasureContext(FixedTextMeasurer()))
+        root.layout(0f, 0f)
+        val recorder = RecordingDrawCanvas()
+
+        root.draw(DrawContext(recorder))
+
+        assertElementBounds(root, x = 0f, y = 0f, width = 23f, height = 17f)
+        val rects = recorder.commands.filterIsInstance<DrawCommand.Rect>()
+        assertEquals(5, rects.size)
+
+        val background = rects[0]
+        assertEquals(Color.BLUE, background.paint.color)
+        assertFloatEquals(2f, background.rect.left)
+        assertFloatEquals(2f, background.rect.top)
+        assertFloatEquals(19f, background.rect.width)
+        assertFloatEquals(13f, background.rect.height)
+
+        val topBorder = rects[1]
+        assertEquals(Color.RED, topBorder.paint.color)
+        assertFloatEquals(5f, topBorder.rect.left)
+        assertFloatEquals(3f, topBorder.rect.top)
+        assertFloatEquals(12f, topBorder.rect.width)
+        assertFloatEquals(1f, topBorder.rect.height)
+    }
+
+    @Test
+    fun sizeOrderChangesMeasuredBoundsLikeNestedModifiers() {
+        val outerSize = Box().apply {
+            modifier = Modifier
+                .size(10f)
+                .padding(2f)
+        }
+        val innerSize = Box().apply {
+            modifier = Modifier
+                .padding(2f)
+                .size(10f)
+        }
+
+        listOf(outerSize, innerSize).forEach {
+            it.measure(MeasureContext(FixedTextMeasurer()))
+            it.layout(0f, 0f)
+        }
+
+        assertElementBounds(outerSize, x = 0f, y = 0f, width = 10f, height = 10f)
+        assertElementBounds(innerSize, x = 0f, y = 0f, width = 14f, height = 14f)
     }
 
     @Test
@@ -271,9 +327,9 @@ class ComposeModifierCommandUnitTest {
             )
         }
 
-        assertTrue(commands[1] is DrawCommand.Save)
-        assertTrue(commands[2] is DrawCommand.ClipPath)
-        assertTrue(commands[3] is DrawCommand.Rect)
+        assertTrue(commands[1] is DrawCommand.Rect)
+        assertTrue(commands[2] is DrawCommand.Save)
+        assertTrue(commands[3] is DrawCommand.ClipPath)
         assertTrue(commands[4] is DrawCommand.Restore)
     }
 
@@ -289,7 +345,7 @@ class ComposeModifierCommandUnitTest {
             )
         }
 
-        assertTrue(commands[2] is DrawCommand.ClipPath)
+        assertTrue(commands.any { it is DrawCommand.ClipPath })
         val rect = commands.filterIsInstance<DrawCommand.Rect>().single()
         assertEquals(false, rect.paint.antiAlias)
     }
