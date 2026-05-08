@@ -1,4 +1,4 @@
-# Compose render abstraction implementation plan
+# Compose 渲染抽象实施计划
 
 目标版本：`2.0.0`
 
@@ -14,7 +14,7 @@
 - 提供 recording/fake 后端，用于单元测试中断言绘制命令。
 - 保留少量 golden image 测试，验证 Skiko 后端实际渲染效果。
 
-第一阶段的目标是隔离 `Surface`/`Canvas` 和可控文本测量，不是让所有单元测试完全不接触 Skiko 类型。`Font`、`Paint`、`Path`、`Rect`、`Image` 可以在第一阶段继续作为参数类型存在；测试应通过 fake measurer 和 recording command 快照减少对 Skiko native 绘制行为的依赖。
+第一阶段的目标是隔离 `Surface`/`Canvas` 和可控文本测量，不是让所有单元测试完全不接触 Skiko 类型。`Font`、`Paint`、`Path`、`Rect`、`Image` 可以在第一阶段继续作为参数类型存在；测试应通过 fake 测量器和 recording 命令快照减少对 Skiko native 绘制行为的依赖。
 
 ## 非目标
 
@@ -35,7 +35,7 @@
 - `CanvasElement` 直接暴露 Skiko `Canvas`
 - `charts` 和 `icon` 中也直接操作 `Canvas`、`Paint`、`Path`
 
-这些调用导致测试很难替换底层行为，只能生成图片后人工查看或做 fragile 的像素比较。
+这些调用导致测试很难替换底层行为，只能生成图片后人工查看或做脆弱的像素比较。
 
 ## 新架构
 
@@ -182,7 +182,7 @@ private fun prepareRenderTree(
 3. 校验根节点最终尺寸。
 4. `root.layout(0f, 0f)`
 5. 执行当前 `render` 已有的子元素边界修正逻辑，或把该逻辑重命名为明确的 `normalizeLayoutBounds(root, finalWidth, finalHeight)`。
-6. 返回包含 `root`、`width`、`height` 的 prepared tree。
+6. 返回包含 `root`、`width`、`height` 的 `PreparedRenderTree`。
 
 `render` 使用 `SkiaDrawCanvas` 执行绘制，`renderCommands` 使用 `RecordingDrawCanvas` 执行绘制。两者都必须通过 `DrawCanvas.clear(backgroundColor)` 开始绘制。
 
@@ -253,7 +253,7 @@ sealed interface DrawCommand {
 
 - `save`、`restore`、`translate`、`scale` 都作为独立命令记录。
 - 后续 `drawRect`、`drawPath`、`drawCircle` 等命令记录调用时传入的原始参数，不应用当前 transform 得到最终坐标。
-- 测试应断言局部命令序列，或者使用 helper 查找某段 `save -> transform -> draw -> restore`。
+- 测试应断言局部命令序列，或者使用辅助函数查找某段 `save -> transform -> draw -> restore`。
 
 示例命令：
 
@@ -621,7 +621,7 @@ assertContains(
 )
 ```
 
-命令断言应使用专门 helper 处理浮点误差和局部序列匹配：
+命令断言应使用专门辅助函数处理浮点误差和局部序列匹配：
 
 ```kotlin
 assertCommandContains(
@@ -796,7 +796,7 @@ assertCommandEquals(expected, actual, epsilon = 0.01f)
 
 - 大量 layout tests：不创建 Skiko surface，不生成图片。
 - 中量 command tests：验证绘制命令、坐标、颜色、clip/save/restore。
-- 少量 golden image tests：验证真实 Skiko 渲染链路。
+- 少量 golden image 测试：验证真实 Skiko 渲染链路。
 
 ## 风险
 
@@ -804,7 +804,7 @@ assertCommandEquals(expected, actual, epsilon = 0.01f)
 - `charts/radar.kt` 使用 `TextLine` 做标签测量和绘制，迁移时要决定保留 `TextLine` 包装方法，还是统一改用 `TextMeasurer + drawString`。
 - 直接记录 `Paint`、`Rect`、`Font`、`Path` 等可变或 native 对象会导致测试脆弱，recording 命令必须保存不可变快照。
 - `RecordingDrawCanvas` 第一阶段记录原始 transform 命令，不计算最终几何；测试作者需要按命令流语义写断言。
-- 破坏性变更会影响所有自定义 `UiElement` 用户，需要在 `draw/README.md` 和 release note 里说明。
+- 破坏性变更会影响所有自定义 `UiElement` 用户，需要在 `draw/README.md` 和 release note 中说明。
 
 ## 完成标准
 
@@ -812,7 +812,7 @@ assertCommandEquals(expected, actual, epsilon = 0.01f)
 - `render` 和 `renderCommands` 共用同一个 measure/layout/normalize/draw 准备流程。
 - Compose 核心元素不再直接依赖 `Surface` 测量。
 - Compose 核心元素不再直接依赖 `Canvas` 绘制。
-- 文本 wrap/ellipsis 可以用 fake measurer 做稳定单元测试。
+- 文本 wrap/ellipsis 可以用 fake 测量器做稳定单元测试。
 - `RecordingDrawCanvas` 对 `Paint`、`Rect`、`Font` 等参数保存不可变快照。
 - `RecordingDrawCanvas` 的 transform 语义有测试覆盖。
 - background/border/text/image 至少有 command recording 测试。

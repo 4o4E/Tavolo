@@ -238,7 +238,7 @@ enum class RadarFixPolicy(val fix: (
 
 enum class Location { LEFT, TOP, RIGHT, BOTTOM }
 
-fun drawRadarChart(canvas: Canvas, parentX: Float, parentY: Float, data: List<Pair<String, Float>>, theme: RadarTheme) {
+fun drawRadarChart(canvas: DrawCanvas, parentX: Float, parentY: Float, data: List<Pair<String, Float>>, theme: RadarTheme) {
     val centerX = parentX + theme.width / 2f
     val centerY = parentY + theme.height / 2f
     val n = data.size

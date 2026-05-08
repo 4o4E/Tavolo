@@ -50,7 +50,7 @@ data class IconTheme(
  * @param parentY 父元素的Y坐标偏移
  */
 fun drawIcon(
-    canvas: Canvas,
+    canvas: DrawCanvas,
     path: Path,
     viewBox: Rect,
     theme: IconTheme,

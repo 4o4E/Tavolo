@@ -1,35 +1,77 @@
 package top.e404.skiko.draw.compose
 
-import org.jetbrains.skia.*
+import org.jetbrains.skia.Color
+import org.jetbrains.skia.Image
+import org.jetbrains.skia.Surface
 
 @DslMarker
 annotation class UiDsl
 
-fun render(backgroundColor: Int = Color.TRANSPARENT, root: UiElement = Column(), content: Composable): Image {
+data class PreparedRenderTree(
+    val root: UiElement,
+    val width: Int,
+    val height: Int
+)
+
+private fun prepareRenderTree(
+    root: UiElement,
+    measureContext: MeasureContext,
+    content: Composable
+): PreparedRenderTree {
     root.apply(content)
-    Surface.makeRasterN32Premul(1, 1).use { root.measure(it) }
+    root.measure(measureContext)
     val finalWidth = root.width.toInt()
     val finalHeight = root.height.toInt()
     if (finalWidth <= 0 || finalHeight <= 0) {
-        error("计算尺寸无效 (width=$finalWidth, height=$finalHeight)，无法生成图片。")
+        error("计算尺寸无效 (width=$finalWidth, height=$finalHeight)，无法渲染图片")
     }
-    return Surface.makeRasterN32Premul(finalWidth, finalHeight).use { surface ->
-        surface.canvas.apply {
-            clear(backgroundColor)
-            root.layout(0f, 0f)
-            // 处理子元素超出边界的问题
-            for (children in root.children) {
-                if (children.x + children.width > finalWidth) {
-                    children.width = finalWidth - children.x
-                }
-                if (children.y + children.height > finalHeight) {
-                    children.height = finalHeight - children.y
-                }
-            }
-            root.draw(this)
+    root.layout(0f, 0f)
+    normalizeLayoutBounds(root, finalWidth, finalHeight)
+    return PreparedRenderTree(root, finalWidth, finalHeight)
+}
+
+private fun normalizeLayoutBounds(root: UiElement, finalWidth: Int, finalHeight: Int) {
+    // 保持既有渲染行为：根节点的直接子元素会被裁剪到根节点边界内。
+    for (children in root.children) {
+        if (children.x + children.width > finalWidth) {
+            children.width = finalWidth - children.x
         }
+        if (children.y + children.height > finalHeight) {
+            children.height = finalHeight - children.y
+        }
+    }
+}
+
+fun render(
+    backgroundColor: Int = Color.TRANSPARENT,
+    root: UiElement = Column(),
+    measureContext: MeasureContext = MeasureContext(),
+    content: Composable
+): Image {
+    val prepared = prepareRenderTree(root, measureContext, content)
+    return Surface.makeRasterN32Premul(prepared.width, prepared.height).use { surface ->
+        val drawContext = DrawContext(SkiaDrawCanvas(surface.canvas))
+        drawContext.canvas.clear(backgroundColor)
+        prepared.root.draw(drawContext)
         surface.makeImageSnapshot()
     }
+}
+
+fun render(backgroundColor: Int, root: UiElement, content: Composable): Image =
+    render(backgroundColor, root, MeasureContext(), content)
+
+fun renderCommands(
+    backgroundColor: Int = Color.TRANSPARENT,
+    root: UiElement = Column(),
+    measureContext: MeasureContext = MeasureContext(),
+    content: Composable
+): List<DrawCommand> {
+    val prepared = prepareRenderTree(root, measureContext, content)
+    val recorder = RecordingDrawCanvas()
+    val drawContext = DrawContext(recorder)
+    drawContext.canvas.clear(backgroundColor)
+    prepared.root.draw(drawContext)
+    return recorder.commands
 }
 
 fun debugBaseElement(layer: Int, el: UiElement, sb: StringBuilder) {

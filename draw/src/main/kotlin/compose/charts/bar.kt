@@ -38,7 +38,7 @@ data class BarTheme(
  * @param theme 包含颜色配置的 Theme 对象
  */
 fun drawDonutChart(
-    canvas: Canvas,
+    canvas: DrawCanvas,
     left: Float,
     top: Float,
     data: List<Pair<Int, Float>>,
