@@ -8,7 +8,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "skiko-util"
+rootProject.name = "Tavolo"
 include(
     ":annotation",
     ":ksp",

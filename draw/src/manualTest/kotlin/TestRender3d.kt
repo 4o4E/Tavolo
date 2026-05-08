@@ -1,11 +1,11 @@
-package top.e404.skiko.draw.test
+package top.e404.tavolo.draw.test
 
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Rect
 import org.junit.Test
-import top.e404.skiko.draw.render3d.*
+import top.e404.tavolo.draw.render3d.*
 import java.io.File
 import kotlin.math.pow
 import kotlin.random.Random

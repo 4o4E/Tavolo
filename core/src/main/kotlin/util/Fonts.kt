@@ -1,4 +1,4 @@
-package top.e404.skiko.util
+package top.e404.tavolo.util
 
 import org.jetbrains.skia.FontMgr
 import org.jetbrains.skia.FontStyleSet

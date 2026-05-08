@@ -1,9 +1,9 @@
-package top.e404.skiko.ksp
+package top.e404.tavolo.ksp
 
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import top.e404.skiko.annotation.ImageHandler
+import top.e404.tavolo.annotation.ImageHandler
 
 class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolProcessor {
     private val codeGenerator = environment.codeGenerator
@@ -15,19 +15,19 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
         val stream = try {
             codeGenerator.createNewFile(
                 dependencies = Dependencies(false),
-                packageName = "top.e404.skiko.handler",
+                packageName = "top.e404.tavolo.handler",
                 fileName = "handlers",
                 extensionName = "kt"
             )
         } catch (e: Exception) {
-            logger.warn("skip exists file top/e404/skiko/handler/handlers.kt")
+            logger.warn("skip exists file top/e404/tavolo/handler/handlers.kt")
             return emptyList()
         }
         logger.warn("process ${extSet.count()} ext")
         stream.bufferedWriter().use { bw ->
-            bw.appendLine("package top.e404.skiko.handler").appendLine()
+            bw.appendLine("package top.e404.tavolo.handler").appendLine()
             bw.appendLine("// size: ${extSet.count()}")
-            bw.appendLine("val handlerSet: Set<top.e404.skiko.frame.FramesHandler> = setOf(")
+            bw.appendLine("val handlerSet: Set<top.e404.tavolo.frame.FramesHandler> = setOf(")
             extSet.forEach {
                 it as KSClassDeclaration
                 bw.append("    ").appendLine("${it.qualifiedName!!.asString()},")

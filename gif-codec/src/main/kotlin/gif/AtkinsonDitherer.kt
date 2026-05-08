@@ -1,7 +1,7 @@
-package top.e404.skiko.gif
+package top.e404.tavolo.gif
 
 import org.jetbrains.skia.*
-import top.e404.skiko.util.rgb
+import top.e404.tavolo.util.rgb
 
 /**
  * 抖动器

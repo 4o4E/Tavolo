@@ -1,19 +1,19 @@
-package top.e404.skiko.handler.face
+package top.e404.tavolo.handler.face
 
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.Surface
-import top.e404.skiko.util.Colors
-import top.e404.skiko.FontType
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.draw.splitByWidth
-import top.e404.skiko.frame.*
-import top.e404.skiko.frame.HandleResult.Companion.result
-import top.e404.skiko.util.autoSize
-import top.e404.skiko.util.fill
-import top.e404.skiko.util.grayMatrix
-import top.e404.skiko.util.withCanvas
+import top.e404.tavolo.util.Colors
+import top.e404.tavolo.FontType
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.draw.splitByWidth
+import top.e404.tavolo.frame.*
+import top.e404.tavolo.frame.HandleResult.Companion.result
+import top.e404.tavolo.util.autoSize
+import top.e404.tavolo.util.fill
+import top.e404.tavolo.util.grayMatrix
+import top.e404.tavolo.util.withCanvas
 
 @ImageHandler
 object BwHandler : FramesHandler {

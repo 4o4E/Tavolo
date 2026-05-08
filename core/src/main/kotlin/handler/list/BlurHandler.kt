@@ -1,11 +1,11 @@
-package top.e404.skiko.handler.list
+package top.e404.tavolo.handler.list
 
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.ImageFilter
 import org.jetbrains.skia.Paint
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.frame.*
-import top.e404.skiko.frame.HandleResult.Companion.result
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.frame.*
+import top.e404.tavolo.frame.HandleResult.Companion.result
 
 @ImageHandler
 object BlurHandler : FramesHandler {

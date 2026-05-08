@@ -1,4 +1,4 @@
-package top.e404.skiko.draw.test
+package top.e404.tavolo.draw.test
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -6,13 +6,13 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.*
 import org.junit.Test
-import top.e404.skiko.draw.compose.charts.BarTheme
-import top.e404.skiko.draw.compose.charts.bar
-import top.e404.skiko.draw.compose.*
-import top.e404.skiko.draw.compose.charts.RadarTheme
-import top.e404.skiko.draw.compose.charts.radar
-import top.e404.skiko.util.Colors
-import top.e404.skiko.util.hsb
+import top.e404.tavolo.draw.compose.charts.BarTheme
+import top.e404.tavolo.draw.compose.charts.bar
+import top.e404.tavolo.draw.compose.*
+import top.e404.tavolo.draw.compose.charts.RadarTheme
+import top.e404.tavolo.draw.compose.charts.radar
+import top.e404.tavolo.util.Colors
+import top.e404.tavolo.util.hsb
 import java.io.File
 import java.net.URL
 

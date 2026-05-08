@@ -1,9 +1,9 @@
-package top.e404.skiko.handler.list
+package top.e404.tavolo.handler.list
 
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.frame.*
-import top.e404.skiko.frame.HandleResult.Companion.result
-import top.e404.skiko.util.rotate
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.frame.*
+import top.e404.tavolo.frame.HandleResult.Companion.result
+import top.e404.tavolo.util.rotate
 
 /**
  * 旋转图片

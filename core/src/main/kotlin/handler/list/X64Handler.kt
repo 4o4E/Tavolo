@@ -1,15 +1,15 @@
-package top.e404.skiko.handler.list
+package top.e404.tavolo.handler.list
 
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.frame.FramesHandler
-import top.e404.skiko.frame.HandleResult.Companion.result
-import top.e404.skiko.frame.common
-import top.e404.skiko.frame.handle
-import top.e404.skiko.util.getJarImage
-import top.e404.skiko.util.newSurface
-import top.e404.skiko.util.resize
-import top.e404.skiko.util.withCanvas
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.frame.FramesHandler
+import top.e404.tavolo.frame.HandleResult.Companion.result
+import top.e404.tavolo.frame.common
+import top.e404.tavolo.frame.handle
+import top.e404.tavolo.util.getJarImage
+import top.e404.tavolo.util.newSurface
+import top.e404.tavolo.util.resize
+import top.e404.tavolo.util.withCanvas
 import kotlin.math.min
 
 /**

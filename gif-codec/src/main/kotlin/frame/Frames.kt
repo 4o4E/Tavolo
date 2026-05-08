@@ -1,8 +1,8 @@
-package top.e404.skiko.frame
+package top.e404.tavolo.frame
 
 import org.jetbrains.skia.*
-import top.e404.skiko.gif.gif
-import top.e404.skiko.util.*
+import top.e404.tavolo.gif.gif
+import top.e404.tavolo.util.*
 import kotlin.math.max
 
 /**

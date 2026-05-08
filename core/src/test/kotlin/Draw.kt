@@ -1,8 +1,8 @@
-package top.e404.skiko
+package top.e404.tavolo
 
-import top.e404.skiko.draw.element.*
-import top.e404.skiko.draw.toImage
-import top.e404.skiko.util.Colors
+import top.e404.tavolo.draw.element.*
+import top.e404.tavolo.draw.toImage
+import top.e404.tavolo.util.Colors
 import java.io.File
 import kotlin.test.Test
 

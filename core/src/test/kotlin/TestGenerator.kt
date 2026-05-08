@@ -1,9 +1,9 @@
-package top.e404.skiko
+package top.e404.tavolo
 
 import kotlinx.coroutines.runBlocking
-import top.e404.skiko.frame.encodeToBytes
-import top.e404.skiko.generator.ImageGenerator
-import top.e404.skiko.generator.list.*
+import top.e404.tavolo.frame.encodeToBytes
+import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.list.*
 import java.io.File
 import kotlin.test.Test
 

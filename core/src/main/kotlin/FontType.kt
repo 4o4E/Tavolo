@@ -1,6 +1,6 @@
 @file:Suppress("UNUSED")
 
-package top.e404.skiko
+package top.e404.tavolo
 
 import org.jetbrains.skia.*
 import org.jetbrains.skia.paragraph.TypefaceFontProvider

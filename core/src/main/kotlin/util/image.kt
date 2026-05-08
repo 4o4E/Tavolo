@@ -1,10 +1,10 @@
 @file:JvmName("ToImage")
 
-package top.e404.skiko.util
+package top.e404.tavolo.util
 
 import org.jetbrains.skia.Font
-import top.e404.skiko.draw.element.Text
-import top.e404.skiko.draw.toImage
+import top.e404.tavolo.draw.element.Text
+import top.e404.tavolo.draw.toImage
 
 @Suppress("UNUSED")
 fun String.toImage(

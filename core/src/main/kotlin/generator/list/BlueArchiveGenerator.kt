@@ -1,13 +1,13 @@
-package top.e404.skiko.generator.list
+package top.e404.tavolo.generator.list
 
 import org.jetbrains.skia.*
 import org.jetbrains.skia.paragraph.ParagraphBuilder
 import org.jetbrains.skia.paragraph.ParagraphStyle
 import org.jetbrains.skia.paragraph.TextStyle
 import org.jetbrains.skia.svg.SVGDOM
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.generator.ImageGenerator
-import top.e404.skiko.util.*
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.util.*
 import kotlin.math.max
 
 object BlueArchiveGenerator : ImageGenerator {

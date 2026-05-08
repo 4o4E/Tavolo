@@ -6,7 +6,7 @@
 
 ```kotlin
 dependencies {
-    implementation("top.e404.skiko-util:skiko-util-gif-codec:<version>")
+    implementation("top.e404.tavolo:tavolo-gif-codec:<version>")
 }
 ```
 
@@ -30,7 +30,7 @@ import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Paint
-import top.e404.skiko.gif.gif
+import top.e404.tavolo.gif.gif
 import java.io.File
 
 private fun makeFrame(color: Int): Bitmap {
@@ -64,10 +64,10 @@ fun main() {
 
 ```kotlin
 import kotlinx.coroutines.runBlocking
-import top.e404.skiko.frame.decodeToFrames
-import top.e404.skiko.frame.encodeToBytes
-import top.e404.skiko.frame.handle
-import top.e404.skiko.util.resize
+import top.e404.tavolo.frame.decodeToFrames
+import top.e404.tavolo.frame.encodeToBytes
+import top.e404.tavolo.frame.handle
+import top.e404.tavolo.util.resize
 import java.io.File
 
 fun main() = runBlocking {

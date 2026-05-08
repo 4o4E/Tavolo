@@ -1,15 +1,15 @@
-package top.e404.skiko.generator.list
+package top.e404.tavolo.generator.list
 
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.TextLine
-import top.e404.skiko.BdfType
-import top.e404.skiko.FontType
-import top.e404.skiko.dot.generator
-import top.e404.skiko.dot.toBitMatrix
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.generator.ImageGenerator
-import top.e404.skiko.util.*
+import top.e404.tavolo.BdfType
+import top.e404.tavolo.FontType
+import top.e404.tavolo.dot.generator
+import top.e404.tavolo.dot.toBitMatrix
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.util.*
 
 object DotMatrixCharImageGenerator : ImageGenerator {
     private val font = FontType.HEI.getSkiaFont(20F)

@@ -1,4 +1,4 @@
-package top.e404.skiko.annotation
+package top.e404.tavolo.annotation
 
 /**
  * 标记为Frames处理器

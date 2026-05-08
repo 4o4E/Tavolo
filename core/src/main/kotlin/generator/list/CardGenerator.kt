@@ -1,12 +1,12 @@
-package top.e404.skiko.generator.list
+package top.e404.tavolo.generator.list
 
 import org.jetbrains.skia.*
-import top.e404.skiko.util.Colors
-import top.e404.skiko.FontType
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.frame.toFrames
-import top.e404.skiko.generator.ImageGenerator
-import top.e404.skiko.util.withCanvas
+import top.e404.tavolo.util.Colors
+import top.e404.tavolo.FontType
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.frame.toFrames
+import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.util.withCanvas
 import kotlin.math.max
 
 object CardGenerator : ImageGenerator {

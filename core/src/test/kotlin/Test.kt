@@ -1,13 +1,13 @@
-package top.e404.skiko
+package top.e404.tavolo
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.*
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.frame.encodeToBytes
-import top.e404.skiko.handler.handlerSet
-import top.e404.skiko.util.*
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.frame.encodeToBytes
+import top.e404.tavolo.handler.handlerSet
+import top.e404.tavolo.util.*
 import java.io.File
 import kotlin.math.sqrt
 import kotlin.test.Test

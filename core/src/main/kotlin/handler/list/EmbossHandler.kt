@@ -1,18 +1,18 @@
-package top.e404.skiko.handler.list
+package top.e404.tavolo.handler.list
 
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.IRect
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.util.argb
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.frame.FramesHandler
-import top.e404.skiko.frame.HandleResult.Companion.result
-import top.e404.skiko.frame.common
-import top.e404.skiko.frame.handle
-import top.e404.skiko.util.limit
-import top.e404.skiko.util.rgb
-import top.e404.skiko.util.toBitmap
-import top.e404.skiko.util.toImage
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.util.argb
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.frame.FramesHandler
+import top.e404.tavolo.frame.HandleResult.Companion.result
+import top.e404.tavolo.frame.common
+import top.e404.tavolo.frame.handle
+import top.e404.tavolo.util.limit
+import top.e404.tavolo.util.rgb
+import top.e404.tavolo.util.toBitmap
+import top.e404.tavolo.util.toImage
 
 /**
  * 浮雕效果

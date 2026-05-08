@@ -6,16 +6,16 @@
 
 ```kotlin
 dependencies {
-    implementation("top.e404.skiko-util:skiko-util-draw:<version>")
+    implementation("top.e404.tavolo:tavolo-draw:<version>")
 }
 ```
 
 ## 包结构
 
-- `top.e404.skiko.draw.compose`: 推荐使用的 2D 绘图 DSL。
-- `top.e404.skiko.draw.compose.charts`: 内置图表组件，目前包含环形图和雷达图。
-- `top.e404.skiko.draw.render3d`: CPU 3D 渲染相关类型和渲染函数。
-- `top.e404.skiko.draw.element`: 旧版绘图元素，已废弃，不建议新增使用。
+- `top.e404.tavolo.draw.compose`: 推荐使用的 2D 绘图 DSL。
+- `top.e404.tavolo.draw.compose.charts`: 内置图表组件，目前包含环形图和雷达图。
+- `top.e404.tavolo.draw.render3d`: CPU 3D 渲染相关类型和渲染函数。
+- `top.e404.tavolo.draw.element`: 旧版绘图元素，已废弃，不建议新增使用。
 
 ## 测试分层
 
@@ -29,7 +29,7 @@ dependencies {
 
 ### 设计目标
 
-`top.e404.skiko.draw.compose` 的目标是提供一个适合图片绘制场景的宽度自适应组件库。调用方通常只描述内容、约束和组合关系，根节点会根据子元素测量结果得到最终宽高，再创建对应尺寸的 `Image`。
+`top.e404.tavolo.draw.compose` 的目标是提供一个适合图片绘制场景的宽度自适应组件库。调用方通常只描述内容、约束和组合关系，根节点会根据子元素测量结果得到最终宽高，再创建对应尺寸的 `Image`。
 
 和直接操作 Skia `Canvas`、固定画布尺寸的绘图库或只提供低层绘制命令的方案相比，这套 DSL 更关注组件组合和自适应测量：
 
@@ -129,7 +129,7 @@ Modifier
 ```kotlin
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.EncodedImageFormat
-import top.e404.skiko.draw.compose.*
+import top.e404.tavolo.draw.compose.*
 import java.io.File
 
 fun main() {
@@ -140,7 +140,7 @@ fun main() {
                 .background(Color.makeRGB(245, 247, 250))
         ) {
             text(
-                "skiko-util",
+                "Tavolo",
                 fontSize = 36f,
                 textColor = Color.makeRGB(32, 38, 46)
             )
@@ -180,11 +180,11 @@ fun main() {
 ```kotlin
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.EncodedImageFormat
-import top.e404.skiko.draw.compose.*
-import top.e404.skiko.draw.compose.charts.BarTheme
-import top.e404.skiko.draw.compose.charts.RadarTheme
-import top.e404.skiko.draw.compose.charts.bar
-import top.e404.skiko.draw.compose.charts.radar
+import top.e404.tavolo.draw.compose.*
+import top.e404.tavolo.draw.compose.charts.BarTheme
+import top.e404.tavolo.draw.compose.charts.RadarTheme
+import top.e404.tavolo.draw.compose.charts.bar
+import top.e404.tavolo.draw.compose.charts.radar
 import java.io.File
 
 fun main() {
@@ -224,7 +224,7 @@ fun main() {
 ```kotlin
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.EncodedImageFormat
-import top.e404.skiko.draw.render3d.*
+import top.e404.tavolo.draw.render3d.*
 import java.io.File
 
 fun main() {

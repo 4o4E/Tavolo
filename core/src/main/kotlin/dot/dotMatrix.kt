@@ -1,12 +1,12 @@
-package top.e404.skiko.dot
+package top.e404.tavolo.dot
 
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
-import top.e404.dbf.BdfFont
-import top.e404.dbf.BitMatrix
-import top.e404.dbf.plus
-import top.e404.skiko.util.*
+import top.e404.tavolo.dbf.BdfFont
+import top.e404.tavolo.dbf.BitMatrix
+import top.e404.tavolo.dbf.plus
+import top.e404.tavolo.util.*
 import kotlin.math.max
 import kotlin.math.pow
 

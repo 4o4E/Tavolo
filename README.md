@@ -1,14 +1,16 @@
-# skiko-util
+# Tavolo
+
+`Tavolo` 读作 `TAH-vo-lo`，来自 Esperanto，含义为“图层”。这里取“承载图像处理、绘制、编码和渲染能力的工作台”这一层含义。
 
 基于[skiko](https://github.com/JetBrains/skiko)的绘图工具库, 包括
 
-- [gif编码](skiko-util-gif-codec/src/main/kotlin/gif)(参考[cssxsh/mirai-skia-plugin](https://github.com/cssxsh/mirai-skia-plugin))
-- [封装图片处理的抽象框架](skiko-util-gif-codec/src/main/kotlin/frame)
-- [文本转图片](skiko-util-draw/src/main/kotlin)
-- [图片滤镜/特效](skiko-util-core/src/main/kotlin/handler/list)
-- [基于输入图片生成表情](skiko-util-core/src/main/kotlin/handler/face)
-- [基于输入生成图片](skiko-util-core/src/main/kotlin/generator/list)
-- [bdf点阵字体解析](skiko-util-bdf-parser/src/main/kotlin)
+- [gif编码](gif-codec/src/main/kotlin/gif)(参考[cssxsh/mirai-skia-plugin](https://github.com/cssxsh/mirai-skia-plugin))
+- [封装图片处理的抽象框架](gif-codec/src/main/kotlin/frame)
+- [文本转图片](draw/src/main/kotlin)
+- [图片滤镜/特效](core/src/main/kotlin/handler/list)
+- [基于输入图片生成表情](core/src/main/kotlin/handler/face)
+- [基于输入生成图片](core/src/main/kotlin/generator/list)
+- [bdf点阵字体解析](bdf-parser/src/main/kotlin)
 
 ## 未来计划
 
@@ -17,7 +19,7 @@
 
 ## 引入依赖
 
-版本请在[release](https://github.com/4o4E/skiko-util/releases)中查看
+版本请在[release](https://github.com/4o4E/Tavolo/releases)中查看
 
 ```kotlin
 val version = "1.0.1"
@@ -27,9 +29,9 @@ repositories {
 }
 
 dependencies {
-    implementation("top.e404:skiko-util-core:${version}")
-    implementation("top.e404:skiko-util-draw:${version}")
-    implementation("top.e404:skiko-util-gif-codec:${version}")
-    implementation("top.e404:skiko-util-util:${version}")
+    implementation("top.e404.tavolo:core:${version}")
+    implementation("top.e404.tavolo:draw:${version}")
+    implementation("top.e404.tavolo:gif-codec:${version}")
+    implementation("top.e404.tavolo:util:${version}")
 }
 ```

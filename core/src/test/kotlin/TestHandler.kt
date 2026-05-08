@@ -1,13 +1,13 @@
-package top.e404.skiko
+package top.e404.tavolo
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import top.e404.skiko.frame.FramesHandler
-import top.e404.skiko.frame.decodeToFrames
-import top.e404.skiko.frame.encodeToBytes
-import top.e404.skiko.handler.face.*
-import top.e404.skiko.handler.list.*
+import top.e404.tavolo.frame.FramesHandler
+import top.e404.tavolo.frame.decodeToFrames
+import top.e404.tavolo.frame.encodeToBytes
+import top.e404.tavolo.handler.face.*
+import top.e404.tavolo.handler.list.*
 import java.io.File
 import kotlin.test.Test
 

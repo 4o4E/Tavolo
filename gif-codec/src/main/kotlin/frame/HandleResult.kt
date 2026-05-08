@@ -1,4 +1,4 @@
-package top.e404.skiko.frame
+package top.e404.tavolo.frame
 
 /**
  * 代表图片处理的结果

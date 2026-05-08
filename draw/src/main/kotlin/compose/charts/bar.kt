@@ -1,7 +1,7 @@
-package top.e404.skiko.draw.compose.charts
+package top.e404.tavolo.draw.compose.charts
 
 import org.jetbrains.skia.*
-import top.e404.skiko.draw.compose.*
+import top.e404.tavolo.draw.compose.*
 
 fun UiElement.bar(theme: BarTheme, data: List<Pair<Int, Float>>) = add(
     CanvasElement(

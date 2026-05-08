@@ -1,8 +1,8 @@
-package top.e404.skiko.lowpoly
+package top.e404.tavolo.lowpoly
 
 import org.jetbrains.skia.*
-import top.e404.skiko.util.toBitmap
-import top.e404.skiko.util.withCanvas
+import top.e404.tavolo.util.toBitmap
+import top.e404.tavolo.util.withCanvas
 
 object LowPoly {
     fun Image.lowpolyBySize(

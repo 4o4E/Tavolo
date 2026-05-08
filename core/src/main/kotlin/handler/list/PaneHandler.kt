@@ -1,13 +1,13 @@
-package top.e404.skiko.handler.list
+package top.e404.tavolo.handler.list
 
 import org.jetbrains.skia.*
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.frame.*
-import top.e404.skiko.frame.HandleResult.Companion.result
-import top.e404.skiko.util.intOrPercentage
-import top.e404.skiko.util.newBitmap
-import top.e404.skiko.util.toBitmap
-import top.e404.skiko.util.toImage
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.frame.*
+import top.e404.tavolo.frame.HandleResult.Companion.result
+import top.e404.tavolo.util.intOrPercentage
+import top.e404.tavolo.util.newBitmap
+import top.e404.tavolo.util.toBitmap
+import top.e404.tavolo.util.toImage
 import kotlin.math.min
 
 /**

@@ -1,7 +1,7 @@
-package top.e404.skiko.lowpoly
+package top.e404.tavolo.lowpoly
 
 import org.jetbrains.skia.Bitmap
-import top.e404.skiko.util.rgb
+import top.e404.tavolo.util.rgb
 import kotlin.math.sqrt
 
 object Sobel {

@@ -1,9 +1,9 @@
-package top.e404.skiko.generator.list
+package top.e404.tavolo.generator.list
 
-import top.e404.skiko.frame.Frame
-import top.e404.skiko.generator.ImageGenerator
-import top.e404.skiko.handler.face.WriteHandler
-import top.e404.skiko.util.getJarImage
+import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.handler.face.WriteHandler
+import top.e404.tavolo.util.getJarImage
 
 /**
  * 悄悄话图片生成

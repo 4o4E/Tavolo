@@ -476,10 +476,10 @@ fun drawIcon(canvas: DrawCanvas, ...)
 包名可以使用：
 
 ```kotlin
-package top.e404.skiko.draw.compose.rendering
+package top.e404.tavolo.draw.compose.rendering
 ```
 
-如果希望用户导入更少，可以在 `top.e404.skiko.draw.compose` 中 re-export 常用类型，或者直接把接口放在该包下。
+如果希望用户导入更少，可以在 `top.e404.tavolo.draw.compose` 中 re-export 常用类型，或者直接把接口放在该包下。
 
 ### 2. 改造测量签名
 

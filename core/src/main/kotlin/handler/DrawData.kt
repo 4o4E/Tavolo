@@ -1,4 +1,4 @@
-package top.e404.skiko.handler
+package top.e404.tavolo.handler
 
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.SerialName
@@ -8,12 +8,12 @@ import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
-import top.e404.skiko.handler.DrawData.Companion.FlipMode.*
-import top.e404.skiko.handler.list.FlipHorizontalHandler.flipHorizontal
-import top.e404.skiko.handler.list.FlipVerticalHandler.flipVertical
-import top.e404.skiko.util.drawImageRectNearest
-import top.e404.skiko.util.readJarFile
-import top.e404.skiko.util.rotateKeepSize
+import top.e404.tavolo.handler.DrawData.Companion.FlipMode.*
+import top.e404.tavolo.handler.list.FlipHorizontalHandler.flipHorizontal
+import top.e404.tavolo.handler.list.FlipVerticalHandler.flipVertical
+import top.e404.tavolo.util.drawImageRectNearest
+import top.e404.tavolo.util.readJarFile
+import top.e404.tavolo.util.rotateKeepSize
 
 @Serializable
 data class DrawData(

@@ -1,4 +1,4 @@
-package top.e404.skiko.gif
+package top.e404.tavolo.gif
 
 import kotlinx.coroutines.*
 import org.jetbrains.skia.*

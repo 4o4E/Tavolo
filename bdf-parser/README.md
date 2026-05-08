@@ -2,13 +2,13 @@
 
 解析 BDF(Bitmap Distribution Format) 点阵字体，并把字符映射为可访问的位图矩阵。
 
-> 注意：当前模块源码包名是 `top.e404.dbf`，使用时请按实际包名导入。
+> 注意：当前模块源码包名是 `top.e404.tavolo.dbf`，使用时请按实际包名导入。
 
 ## 引入
 
 ```kotlin
 dependencies {
-    implementation("top.e404.skiko-util:skiko-util-bdf-parser:<version>")
+    implementation("top.e404.tavolo:tavolo-bdf-parser:<version>")
 }
 ```
 
@@ -26,8 +26,8 @@ dependencies {
 ## 示例
 
 ```kotlin
-import top.e404.dbf.BdfParser
-import top.e404.dbf.BitMatrix
+import top.e404.tavolo.dbf.BdfParser
+import top.e404.tavolo.dbf.BitMatrix
 import java.io.File
 
 private fun BitMatrix.printMatrix() {

@@ -1,4 +1,4 @@
-package top.e404.skiko.gif
+package top.e404.tavolo.gif
 
 import org.jetbrains.skia.IRect
 import java.nio.ByteBuffer

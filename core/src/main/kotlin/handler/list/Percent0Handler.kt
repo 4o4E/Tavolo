@@ -1,12 +1,12 @@
-package top.e404.skiko.handler.list
+package top.e404.tavolo.handler.list
 
 import org.jetbrains.skia.*
-import top.e404.skiko.FontType
-import top.e404.skiko.annotation.ImageHandler
-import top.e404.skiko.frame.*
-import top.e404.skiko.frame.HandleResult.Companion.result
-import top.e404.skiko.util.pmapIndexed
-import top.e404.skiko.util.withCanvas
+import top.e404.tavolo.FontType
+import top.e404.tavolo.annotation.ImageHandler
+import top.e404.tavolo.frame.*
+import top.e404.tavolo.frame.HandleResult.Companion.result
+import top.e404.tavolo.util.pmapIndexed
+import top.e404.tavolo.util.withCanvas
 import kotlin.math.abs
 import kotlin.math.min
 

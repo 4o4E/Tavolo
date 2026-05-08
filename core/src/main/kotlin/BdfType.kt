@@ -1,6 +1,6 @@
-package top.e404.skiko
+package top.e404.tavolo
 
-import top.e404.dbf.BdfParser
+import top.e404.tavolo.dbf.BdfParser
 import java.io.File
 
 enum class BdfType(val path: String) {

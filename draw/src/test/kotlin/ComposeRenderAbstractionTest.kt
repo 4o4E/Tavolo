@@ -1,18 +1,17 @@
-package top.e404.skiko.draw.test
+package top.e404.tavolo.draw.test
 
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
 import org.junit.Test
-import top.e404.skiko.draw.compose.Column
-import top.e404.skiko.draw.compose.DrawCommand
-import top.e404.skiko.draw.compose.MeasureContext
-import top.e404.skiko.draw.compose.Modifier
-import top.e404.skiko.draw.compose.RecordingDrawCanvas
-import top.e404.skiko.draw.compose.TextMeasurer
-import top.e404.skiko.draw.compose.TextMetrics
-import top.e404.skiko.draw.compose.renderCommands
-import top.e404.skiko.draw.compose.text
+import top.e404.tavolo.draw.compose.Column
+import top.e404.tavolo.draw.compose.DrawCommand
+import top.e404.tavolo.draw.compose.MeasureContext
+import top.e404.tavolo.draw.compose.RecordingDrawCanvas
+import top.e404.tavolo.draw.compose.TextMeasurer
+import top.e404.tavolo.draw.compose.TextMetrics
+import top.e404.tavolo.draw.compose.renderCommands
+import top.e404.tavolo.draw.compose.text
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue

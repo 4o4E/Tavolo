@@ -1,4 +1,4 @@
-package top.e404.skiko.draw.compose
+package top.e404.tavolo.draw.compose
 
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.FontMgr

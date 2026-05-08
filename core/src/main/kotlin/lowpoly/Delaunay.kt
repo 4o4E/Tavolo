@@ -1,4 +1,4 @@
-package top.e404.skiko.lowpoly
+package top.e404.tavolo.lowpoly
 
 import java.util.*
 

@@ -1,11 +1,11 @@
-package top.e404.skiko
+package top.e404.tavolo
 
 import org.jetbrains.skia.*
-import top.e404.skiko.dot.binary
-import top.e404.skiko.dot.generator
-import top.e404.skiko.util.Colors
-import top.e404.skiko.util.bytes
-import top.e404.skiko.util.withCanvas
+import top.e404.tavolo.dot.binary
+import top.e404.tavolo.dot.generator
+import top.e404.tavolo.util.Colors
+import top.e404.tavolo.util.bytes
+import top.e404.tavolo.util.withCanvas
 import java.io.File
 import kotlin.test.Test
 

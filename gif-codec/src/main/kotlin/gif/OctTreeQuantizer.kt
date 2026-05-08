@@ -1,8 +1,8 @@
-package top.e404.skiko.gif
+package top.e404.tavolo.gif
 
 import org.jetbrains.skia.Bitmap
-import top.e404.skiko.util.rgb
-import top.e404.skiko.util.forEachColor
+import top.e404.tavolo.util.rgb
+import top.e404.tavolo.util.forEachColor
 
 /**
  * qct树量化器
