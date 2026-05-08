@@ -131,13 +131,13 @@ abstract class BaseElement : UiElement {
         this.x = parentX
         this.y = parentY
         val content = contentBounds()
-        layoutChildren(content.x, content.y)
+        layoutChildren(content)
     }
 
     /**
      * 第二阶段：布局子元素，由具体容器元素实现。
      */
-    abstract fun layoutChildren(parentX: Float, parentY: Float)
+    protected abstract fun layoutChildren(content: Bounds)
 
     final override fun draw(context: DrawContext) {
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
@@ -200,8 +200,9 @@ class Column(private val horizontalAlignment: HorizontalAlignment = HorizontalAl
         contentHeight = children.sumOf { it.height.toDouble() }.toFloat()
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        val content = contentBounds()
+    override fun layoutChildren(content: Bounds) {
+        val parentX = content.x
+        val parentY = content.y
         val availableWidth = content.width
 
         var currentY = parentY
@@ -228,8 +229,9 @@ class Row(private val verticalAlignment: VerticalAlignment = VerticalAlignment.T
         contentHeight = children.maxOfOrNull { it.height } ?: 0f
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        val content = contentBounds()
+    override fun layoutChildren(content: Bounds) {
+        val parentX = content.x
+        val parentY = content.y
         val availableHeight = content.height
 
         var currentX = parentX
@@ -259,8 +261,9 @@ class Box(
         contentHeight = children.maxOfOrNull { it.height } ?: 0f
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        val content = contentBounds()
+    override fun layoutChildren(content: Bounds) {
+        val parentX = content.x
+        val parentY = content.y
         val availableWidth = content.width
         val availableHeight = content.height
 
@@ -296,9 +299,9 @@ class CanvasElement(
     override var contentHeight = height
 
     override fun measureContent(context: MeasureContext) {}
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        this.parentX = parentX
-        this.parentY = parentY
+    override fun layoutChildren(content: Bounds) {
+        this.parentX = content.x
+        this.parentY = content.y
     }
     override fun drawContent(context: DrawContext) {
         draw.invoke(this, context.canvas)
@@ -322,12 +325,13 @@ class TableCell(
     }
 
     // 关键修改：像 Box 一样，在自己的可用空间内对齐子元素
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        val contentBounds = contentBounds()
-        val availableWidth = contentBounds.width
-        val availableHeight = contentBounds.height
+    override fun layoutChildren(content: Bounds) {
+        val parentX = content.x
+        val parentY = content.y
+        val availableWidth = content.width
+        val availableHeight = content.height
 
-        content?.let { child ->
+        this.content?.let { child ->
             val childStartX = when (horizontalAlignment) {
                 HorizontalAlignment.Left -> parentX
                 HorizontalAlignment.Center -> parentX + (availableWidth - child.width) / 2
@@ -361,7 +365,7 @@ class TableRow : BaseElement() {
         contentHeight = children.maxOfOrNull { it.height } ?: 0f
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {
+    override fun layoutChildren(content: Bounds) {
         // 布局也由 Table 统一处理
     }
 
@@ -435,10 +439,10 @@ class Table(
         contentHeight = totalHeight + (maxOf(0, rows.size - 1) * rowSpacing)
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {
-        var currentY = parentY
+    override fun layoutChildren(content: Bounds) {
+        var currentY = content.y
         rows.forEach { row ->
-            var currentX = parentX
+            var currentX = content.x
             row.cells.forEachIndexed { index, cell ->
                 // 使用最终的列宽来布局单元格
                 cell.layout(currentX, currentY)
@@ -591,7 +595,7 @@ class Text(private val text: String) : BaseElement() {
         }
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {}
+    override fun layoutChildren(content: Bounds) {}
 
     override fun drawContent(context: DrawContext) {
         val content = contentBounds()
@@ -656,7 +660,7 @@ class ImageElement(private val image: Image) : BaseElement() {
         }
     }
 
-    override fun layoutChildren(parentX: Float, parentY: Float) {}
+    override fun layoutChildren(content: Bounds) {}
 
     override fun drawContent(context: DrawContext) {
         val content = contentBounds()
