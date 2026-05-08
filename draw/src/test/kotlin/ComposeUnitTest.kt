@@ -5,7 +5,10 @@ import org.jetbrains.skia.Font
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
+import org.jetbrains.skia.Path
+import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
+import org.jetbrains.skia.Typeface
 import org.junit.Test
 import top.e404.skiko.draw.compose.Box
 import top.e404.skiko.draw.compose.CanvasElement
@@ -13,38 +16,60 @@ import top.e404.skiko.draw.compose.Column
 import top.e404.skiko.draw.compose.DrawCommand
 import top.e404.skiko.draw.compose.DrawContext
 import top.e404.skiko.draw.compose.HorizontalAlignment
+import top.e404.skiko.draw.compose.IconTheme
 import top.e404.skiko.draw.compose.ImageOverflow
 import top.e404.skiko.draw.compose.MeasureContext
 import top.e404.skiko.draw.compose.Modifier
 import top.e404.skiko.draw.compose.RecordingDrawCanvas
 import top.e404.skiko.draw.compose.Row
+import top.e404.skiko.draw.compose.Shape
+import top.e404.skiko.draw.compose.SkiaDrawCanvas
+import top.e404.skiko.draw.compose.SkiaTextMeasurer
 import top.e404.skiko.draw.compose.Table
+import top.e404.skiko.draw.compose.TableRow
 import top.e404.skiko.draw.compose.TextMeasurer
 import top.e404.skiko.draw.compose.TextMetrics
 import top.e404.skiko.draw.compose.TextOverflow
 import top.e404.skiko.draw.compose.UiElement
 import top.e404.skiko.draw.compose.VerticalAlignment
+import top.e404.skiko.draw.compose.antiAlias
 import top.e404.skiko.draw.compose.background
 import top.e404.skiko.draw.compose.border
 import top.e404.skiko.draw.compose.box
 import top.e404.skiko.draw.compose.charts.BarTheme
+import top.e404.skiko.draw.compose.charts.RadarFixPolicy
+import top.e404.skiko.draw.compose.charts.RadarTheme
 import top.e404.skiko.draw.compose.charts.bar
+import top.e404.skiko.draw.compose.charts.drawRadarChart
+import top.e404.skiko.draw.compose.charts.radar
 import top.e404.skiko.draw.compose.clip
+import top.e404.skiko.draw.compose.column
+import top.e404.skiko.draw.compose.debugBaseElement
+import top.e404.skiko.draw.compose.drawIcon
 import top.e404.skiko.draw.compose.fontSize
+import top.e404.skiko.draw.compose.fontFamily
+import top.e404.skiko.draw.compose.height
+import top.e404.skiko.draw.compose.icon
+import top.e404.skiko.draw.compose.iconText
 import top.e404.skiko.draw.compose.image
 import top.e404.skiko.draw.compose.imageOverflow
 import top.e404.skiko.draw.compose.margin
 import top.e404.skiko.draw.compose.maxSize
 import top.e404.skiko.draw.compose.padding
+import top.e404.skiko.draw.compose.render
 import top.e404.skiko.draw.compose.renderCommands
+import top.e404.skiko.draw.compose.row
 import top.e404.skiko.draw.compose.size
 import top.e404.skiko.draw.compose.tableRow
 import top.e404.skiko.draw.compose.cell
+import top.e404.skiko.draw.compose.table
 import top.e404.skiko.draw.compose.text
 import top.e404.skiko.draw.compose.textColor
 import top.e404.skiko.draw.compose.textOverflow
+import top.e404.skiko.draw.compose.width
 import kotlin.math.abs
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -137,6 +162,36 @@ class ComposeLayoutUnitTest {
         assertFloatEquals(104f, root.height)
         assertElementBounds(child, x = 87f, y = 79f, width = 20f, height = 10f)
     }
+
+    @Test
+    fun remainingAlignmentBranchesAreCovered() {
+        val column = Column(horizontalAlignment = HorizontalAlignment.Right)
+        val columnChild = CanvasElement(10f, 10f) {}
+        column.modifier = Modifier.size(30f, 10f)
+        column.add(columnChild)
+
+        val row = Row(verticalAlignment = VerticalAlignment.Bottom)
+        val rowChild = CanvasElement(10f, 10f) {}
+        row.modifier = Modifier.size(10f, 30f)
+        row.add(rowChild)
+
+        val box = Box(
+            horizontalAlignment = HorizontalAlignment.Center,
+            verticalAlignment = VerticalAlignment.Center
+        )
+        val boxChild = CanvasElement(10f, 10f) {}
+        box.modifier = Modifier.size(30f, 30f)
+        box.add(boxChild)
+
+        listOf(column, row, box).forEach {
+            it.measure(MeasureContext(FixedTextMeasurer()))
+            it.layout(0f, 0f)
+        }
+
+        assertElementBounds(columnChild, x = 20f, y = 0f, width = 10f, height = 10f)
+        assertElementBounds(rowChild, x = 0f, y = 20f, width = 10f, height = 10f)
+        assertElementBounds(boxChild, x = 10f, y = 10f, width = 10f, height = 10f)
+    }
 }
 
 class ComposeModifierCommandUnitTest {
@@ -183,6 +238,23 @@ class ComposeModifierCommandUnitTest {
         assertTrue(commands[2] is DrawCommand.ClipPath)
         assertTrue(commands[3] is DrawCommand.Rect)
         assertTrue(commands[4] is DrawCommand.Restore)
+    }
+
+    @Test
+    fun roundedRectClipAndAntiAliasAreRecorded() {
+        val commands = renderCommands {
+            box(
+                modifier = Modifier
+                    .size(20f)
+                    .antiAlias(false)
+                    .background(Color.RED)
+                    .clip(Shape.RoundedRect(4f))
+            )
+        }
+
+        assertTrue(commands[2] is DrawCommand.ClipPath)
+        val rect = commands.filterIsInstance<DrawCommand.Rect>().single()
+        assertEquals(false, rect.paint.antiAlias)
     }
 }
 
@@ -286,6 +358,21 @@ class ComposeImageUnitTest {
         assertFloatEquals(40f, command.dst.width)
         assertFloatEquals(30f, command.dst.height)
     }
+
+    @Test
+    fun imageWithoutMaxSizeUsesOriginalSizeAndDslEntry() {
+        val image = testImage(12, 8)
+        val root = Column()
+
+        root.apply {
+            image(image)
+        }
+        root.measure(MeasureContext())
+        root.layout(0f, 0f)
+
+        assertFloatEquals(12f, root.width)
+        assertFloatEquals(8f, root.height)
+    }
 }
 
 class ComposeTableUnitTest {
@@ -312,6 +399,28 @@ class ComposeTableUnitTest {
         assertElementBounds(table.rows[0].cells[1], x = 22f, y = 0f, width = 40f, height = 10f)
         assertElementBounds(table.rows[1].cells[0], x = 0f, y = 13f, width = 20f, height = 10f)
         assertElementBounds(table.rows[1].cells[1], x = 22f, y = 13f, width = 40f, height = 10f)
+    }
+
+    @Test
+    fun tableCellAlignsContentAndTableRowFallbackMeasuresChildren() {
+        val row = TableRow()
+        row.cell(
+            modifier = Modifier.size(30f, 30f),
+            horizontalAlignment = HorizontalAlignment.Right,
+            verticalAlignment = VerticalAlignment.Bottom
+        ) {
+            box(Modifier.size(10f))
+        }
+
+        row.measure(MeasureContext(FixedTextMeasurer()))
+        row.layout(0f, 0f)
+
+        val cell = row.cells.single()
+        cell.layout(0f, 0f)
+        val child = cell.content!!
+        assertFloatEquals(30f, row.width)
+        assertFloatEquals(30f, row.height)
+        assertElementBounds(child, x = 20f, y = 20f, width = 10f, height = 10f)
     }
 }
 
@@ -361,5 +470,198 @@ class ComposeCanvasAndChartUnitTest {
         assertEquals(2, circles.size)
         assertFloatEquals(9f, circles[0].radius)
         assertFloatEquals(5f, circles[1].radius)
+    }
+
+    @Test
+    fun radarChartRecordsPathsLinesAndTextLines() {
+        val recorder = RecordingDrawCanvas()
+        val theme = RadarTheme(
+            width = 100f,
+            height = 100f,
+            radius = 30f,
+            gridCount = 2,
+            gridFontProvider = { "g$it" },
+            labelFixPolicy = RadarFixPolicy.NONE,
+            labelFont = Font(Typeface.makeEmpty(), 10f),
+            gridFont = Font(Typeface.makeEmpty(), 8f)
+        )
+
+        drawRadarChart(
+            recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf("a" to 0.2f, "b" to 0.6f, "c" to 1f),
+            theme = theme
+        )
+
+        assertEquals(5, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
+        assertEquals(3, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        assertEquals(5, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun radarDslAddsCanvasElementWithThemeSize() {
+        val root = Column()
+
+        root.apply {
+            radar(
+                RadarTheme(width = 80f, height = 60f, radius = 20f),
+                listOf("a" to 1f, "b" to 0.5f, "c" to 0.2f)
+            )
+        }
+        root.measure(MeasureContext())
+
+        assertFloatEquals(80f, root.width)
+        assertFloatEquals(60f, root.height)
+    }
+}
+
+class ComposeIconUnitTest {
+    @Test
+    fun drawIconRecordsTransformAndPathCommands() {
+        val recorder = RecordingDrawCanvas()
+        val path = Path().apply { moveTo(0f, 0f); lineTo(10f, 0f) }
+
+        drawIcon(
+            canvas = recorder,
+            path = path,
+            viewBox = Rect.makeXYWH(0f, 0f, 10f, 20f),
+            theme = IconTheme(size = 40f, scale = 1f, color = Color.RED),
+            parentX = 3f,
+            parentY = 4f
+        )
+
+        assertTrue(recorder.commands[0] is DrawCommand.Save)
+        assertEquals(DrawCommand.Translate(13f, 4f), recorder.commands[1])
+        assertEquals(DrawCommand.Scale(2f, 2f), recorder.commands[2])
+        val originTranslate = assertIs<DrawCommand.Translate>(recorder.commands[3])
+        assertFloatEquals(0f, originTranslate.dx)
+        assertFloatEquals(0f, originTranslate.dy)
+        val drawPath = assertIs<DrawCommand.Path>(recorder.commands[4])
+        assertEquals(Color.RED, drawPath.paint.color)
+        assertTrue(recorder.commands[5] is DrawCommand.Restore)
+    }
+
+    @Test
+    fun iconDslParsesSvgAndDrawsPath() {
+        val svg = """<svg viewBox="0 0 10 10"><path d="M 0 0 L 10 0 L 10 10 Z"/></svg>"""
+        val commands = renderCommands {
+            icon(IconTheme(size = 20f), svg)
+        }
+
+        assertTrue(commands.any { it is DrawCommand.Path })
+        assertTrue(commands.any { it is DrawCommand.Scale })
+    }
+}
+
+class ComposeDslAndRenderUnitTest {
+    @Test
+    fun dslEntriesBuildExpectedTree() {
+        val root = Column()
+
+        root.apply {
+            column(Modifier.width(20f)) {
+                row(Modifier.height(10f)) {
+                    box(Modifier.size(5f))
+                }
+            }
+            table(Modifier.margin(horizontal = 1f, vertical = 2f), columnSpacing = 1f, rowSpacing = 1f) {
+                tableRow {
+                    cell { text("x") }
+                }
+            }
+        }
+
+        assertEquals(2, root.children.size)
+        assertIs<Column>(root.children[0])
+        assertIs<Table>(root.children[1])
+    }
+
+    @Test
+    fun iconTextRequiresFontSizeAndBuildsRow() {
+        val missing = assertFailsWith<IllegalStateException> {
+            renderCommands {
+                iconText("bad", Modifier)
+            }
+        }
+        assertTrue(missing.message!!.contains("FontSize"))
+
+        val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
+            iconText("ok", Modifier.fontSize(20f).fontFamily(Typeface.makeEmpty()))
+        }
+
+        assertTrue(commands.any { it is DrawCommand.ClipPath })
+        assertEquals("ok", commands.filterIsInstance<DrawCommand.Text>().single().text)
+    }
+
+    @Test
+    fun invalidRenderSizeThrowsAndOverflowChildrenAreNormalized() {
+        val error = assertFailsWith<IllegalStateException> {
+            renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {}
+        }
+        assertTrue(error.message!!.contains("计算尺寸无效"))
+
+        val root = Column().apply {
+            modifier = Modifier.size(10f, 10f)
+        }
+        val commands = renderCommands(root = root) {
+            val element = CanvasElement(20f, 30f) { canvas ->
+                canvas.drawRect(Rect.makeXYWH(parentX, parentY, width, height), Paint())
+            }
+            add(element)
+        }
+
+        val rect = commands.filterIsInstance<DrawCommand.Rect>().single()
+        assertFloatEquals(10f, rect.rect.width)
+        assertFloatEquals(10f, rect.rect.height)
+    }
+
+    @Test
+    fun renderAndSkiaBackendsAreExercised() {
+        val image = render(backgroundColor = Color.WHITE) {
+            box(Modifier.size(2f))
+        }
+        assertTrue(image.width > 0)
+        assertTrue(image.height > 0)
+
+        val font = Font(Typeface.makeEmpty(), 12f)
+        val paint = Paint()
+        assertFloatEquals(font.measureTextWidth("abc", paint), SkiaTextMeasurer.measureTextWidth("abc", font, paint))
+        assertFloatEquals(font.metrics.descent - font.metrics.ascent, SkiaTextMeasurer.metrics(font).lineHeight)
+
+        Surface.makeRasterN32Premul(20, 20).use { surface ->
+            val canvas = SkiaDrawCanvas(surface.canvas)
+            val path = Path().apply { moveTo(0f, 0f); lineTo(10f, 10f) }
+            val skiaImage = testImage(2, 2)
+            canvas.clear(Color.TRANSPARENT)
+            canvas.save()
+            canvas.translate(1f, 1f)
+            canvas.scale(1f, 1f)
+            canvas.clipPath(path)
+            canvas.drawRect(Rect.makeXYWH(0f, 0f, 1f, 1f), paint)
+            canvas.drawString("x", 0f, 10f, font, paint)
+            canvas.drawImageRect(skiaImage, Rect.makeXYWH(0f, 0f, 2f, 2f), Rect.makeXYWH(0f, 0f, 2f, 2f), paint)
+            canvas.drawPath(path, paint)
+            canvas.drawArc(0f, 0f, 10f, 10f, 0f, 90f, true, paint)
+            canvas.drawCircle(5f, 5f, 2f, paint)
+            canvas.drawLine(0f, 0f, 10f, 10f, paint)
+            canvas.restore()
+        }
+    }
+
+    @Test
+    fun debugBaseElementPrintsTreeAndModifiers() {
+        val root = Column()
+        root.apply {
+            text("x", Modifier.fontSize(12f))
+        }
+        root.measure(MeasureContext(FixedTextMeasurer()))
+        root.layout(0f, 0f)
+
+        val output = buildString { debugBaseElement(0, root, this) }
+
+        assertTrue(output.contains("children:"))
+        assertTrue(output.contains("modifiers:"))
+        assertTrue(output.contains("contentWidth:"))
     }
 }
