@@ -2,7 +2,6 @@ package top.e404.skiko.draw.compose
 
 import org.jetbrains.skia.Path
 import org.jetbrains.skia.RRect
-import org.jetbrains.skia.Typeface
 
 interface Modifier {
     fun then(other: Modifier): Modifier = if (other === Modifier) this else CombinedModifier(this, other)
@@ -53,9 +52,6 @@ sealed interface Shape {
 }
 
 data class Background(val color: Int) : ElementModifier
-data class TextColor(val color: Int) : ElementModifier
-data class FontSize(val size: Float) : ElementModifier
-data class FontTypeface(val typeface: Typeface) : ElementModifier
 data class Clip(val shape: Shape) : ElementModifier
 
 data class Padding(
@@ -77,32 +73,14 @@ data class AntiAlias(
     val enabled: Boolean = true,
 ) : ElementModifier
 
-data class MaxSize(
+data class SizeIn(
+    val minWidth: Float = 0f,
     val maxWidth: Float = Float.POSITIVE_INFINITY,
+    val minHeight: Float = 0f,
     val maxHeight: Float = Float.POSITIVE_INFINITY
 ) : ElementModifier
 
 data class Size(
     val width: Float = Float.NaN,
     val height: Float = Float.NaN
-) : ElementModifier
-
-enum class ImageOverflow { Scale, Crop }
-data class ImageOverflowStrategy(val strategy: ImageOverflow = ImageOverflow.Scale) : ElementModifier
-
-enum class TextOverflow {
-    /**
-     * 换行显示，超出宽度时自动换行
-     */
-    Wrap,
-
-    /**
-     * 省略号显示，超出宽度时在末尾添加省略号
-     */
-    Ellipsis
-}
-
-data class TextOverflowStrategy(
-    val strategy: TextOverflow = TextOverflow.Wrap,
-    val placeholder: String = "…"
 ) : ElementModifier

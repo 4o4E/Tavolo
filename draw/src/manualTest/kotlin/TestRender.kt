@@ -45,7 +45,8 @@ class TestRender {
     }
 
     init {
-        DefaultTypefaceProvider.default = FontMgr.default.makeFromData(Data.makeFromBytes(File("font/LXGWWenKai-Regular.ttf").readBytes()))!!
+        ComposeFontManager.registerFile("LXGWWenKai", File("font/LXGWWenKai-Regular.ttf"))
+        ComposeFontManager.defaultFamily = "LXGWWenKai"
     }
     @UiDsl
     fun UiElement.profileCard(index: Int, name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
@@ -67,8 +68,7 @@ class TestRender {
                 ) {
                     text(
                         "$index",
-                        Modifier
-                            .fontSize(30F)
+                        fontSize = 30F
                     )
                 }
                 box(Modifier.size(60f),
@@ -77,8 +77,7 @@ class TestRender {
                 ) {
                     text(
                         "[",
-                        Modifier
-                            .fontSize(30F)
+                        fontSize = 30F
                     )
                 }
                 box(Modifier.size(60f),
@@ -87,8 +86,7 @@ class TestRender {
                 ) {
                     text(
                         "]",
-                        Modifier
-                            .fontSize(30F)
+                        fontSize = 30F
                     )
                 }
             }
@@ -101,15 +99,15 @@ class TestRender {
             column {
                 text(
                     name, Modifier
-                        .maxSize(maxWidth = 500f, maxHeight = 40f)
-                        .fontSize(28f)
-                        .textColor(Color.WHITE)
+                        .sizeIn(maxWidth = 500f, maxHeight = 40f),
+                    fontSize = 28f,
+                    textColor = Color.WHITE
                 )
                 text(
                     desc, Modifier
-                        .maxSize(maxWidth = 500f, maxHeight = 40f)
-                        .fontSize(20f)
-                        .textColor(Color.WHITE)
+                        .sizeIn(maxWidth = 500f, maxHeight = 40f),
+                    fontSize = 20f,
+                    textColor = Color.WHITE
                 )
             }
         }
@@ -170,7 +168,7 @@ class TestRender {
                 .background(Colors.BG.argb)
         ) {
             // --- 演示 Column 的 horizontalAlignment ---
-            text("Column 水平对齐演示", modifier = Modifier.fontSize(28f).padding(10f))
+            text("Column 水平对齐演示", modifier = Modifier.padding(10f), fontSize = 28f)
 
             // 居左对齐 (Start)
             column(
@@ -203,7 +201,7 @@ class TestRender {
             }
 
             // --- 演示 Row 的 verticalAlignment ---
-            text("Row 垂直对齐演示", modifier = Modifier.fontSize(28f).padding(10f))
+            text("Row 垂直对齐演示", modifier = Modifier.padding(10f), fontSize = 28f)
 
             row(
                 verticalAlignment = VerticalAlignment.Top,
@@ -259,8 +257,8 @@ class TestRender {
             // --- 演示封装的自定义组件 ---
             text(
                 "自定义组件演示", modifier = Modifier
-                    .fontSize(28f)
-                    .padding(bottom = 16f)
+                    .padding(bottom = 16f),
+                fontSize = 28f
             )
 
             cards()
@@ -270,9 +268,9 @@ class TestRender {
                     .padding(50F)
                     .clip(Shape.RoundedRect(15f))
                     .background(Color.BLUE)
-                    .padding(150F, 20F)
-                    .fontSize(28f)
-                    .textColor(Color.WHITE)
+                    .padding(150F, 20F),
+                fontSize = 28f,
+                textColor = Color.WHITE
             )
         }
     }
@@ -284,7 +282,7 @@ class TestRender {
             modifier = Modifier.padding(20f).background(Colors.BG.argb)
         ) {
             // --- 演示分边距 Padding 和 Border ---
-            text("分边距与裁剪演示", modifier = Modifier.fontSize(28f).padding(top = 30f, bottom = 16f))
+            text("分边距与裁剪演示", modifier = Modifier.padding(top = 30f, bottom = 16f), fontSize = 28f)
             box(
                 modifier = Modifier
                     .background(Color.makeRGB(207, 226, 255))
@@ -306,16 +304,16 @@ class TestRender {
             text(
                 "Modifier 链式顺序演示",
                 modifier = Modifier
-                    .fontSize(28f)
-                    .textColor(Color.WHITE)
-                    .padding(bottom = 16f)
+                    .padding(bottom = 16f),
+                fontSize = 28f,
+                textColor = Color.WHITE
             )
             text(
                 "左侧用外层 padding + background + 内层 padding + border + size；右侧把 size 放在最外层，总尺寸会被固定。",
                 modifier = Modifier
-                    .fontSize(18f)
-                    .textColor(Colors.LIGHT_GRAY.argb)
-                    .padding(bottom = 18f)
+                    .padding(bottom = 18f),
+                fontSize = 18f,
+                textColor = Colors.LIGHT_GRAY.argb
             )
 
             row(verticalAlignment = VerticalAlignment.Top) {
@@ -323,9 +321,9 @@ class TestRender {
                     text(
                         "推荐：padding 在外，size 在内",
                         modifier = Modifier
-                            .fontSize(18f)
-                            .textColor(Color.WHITE)
-                            .padding(bottom = 8f)
+                            .padding(bottom = 8f),
+                        fontSize = 18f,
+                        textColor = Color.WHITE
                     )
                     box(
                         horizontalAlignment = HorizontalAlignment.Center,
@@ -341,9 +339,8 @@ class TestRender {
                     ) {
                         text(
                             "内容区域 220 x 96",
-                            modifier = Modifier
-                                .fontSize(22f)
-                                .textColor(Color.WHITE)
+                            fontSize = 22f,
+                            textColor = Color.WHITE
                         )
                     }
                 }
@@ -352,9 +349,9 @@ class TestRender {
                     text(
                         "对比：size 在外，后续 padding 向内收缩",
                         modifier = Modifier
-                            .fontSize(18f)
-                            .textColor(Color.WHITE)
-                            .padding(bottom = 8f)
+                            .padding(bottom = 8f),
+                        fontSize = 18f,
+                        textColor = Color.WHITE
                     )
                     box(
                         horizontalAlignment = HorizontalAlignment.Center,
@@ -370,9 +367,8 @@ class TestRender {
                     ) {
                         text(
                             "总尺寸固定",
-                            modifier = Modifier
-                                .fontSize(22f)
-                                .textColor(Color.WHITE)
+                            fontSize = 22f,
+                            textColor = Color.WHITE
                         )
                     }
                 }
@@ -381,9 +377,9 @@ class TestRender {
             text(
                 "下方每个色块使用多层 padding 表达外部和内部留白：灰色背景表示父容器，彩色背景从 padding 后开始绘制。",
                 modifier = Modifier
-                    .fontSize(18f)
-                    .textColor(Colors.LIGHT_GRAY.argb)
-                    .padding(top = 24f, bottom = 10f)
+                    .padding(top = 24f, bottom = 10f),
+                fontSize = 18f,
+                textColor = Colors.LIGHT_GRAY.argb
             )
             row(
                 modifier = Modifier
@@ -407,9 +403,8 @@ class TestRender {
                     ) {
                         text(
                             label,
-                            modifier = Modifier
-                                .fontSize(18f)
-                                .textColor(Color.BLACK)
+                            fontSize = 18f,
+                            textColor = Color.BLACK
                         )
                     }
                 }
@@ -438,7 +433,7 @@ class TestRender {
                         .background(Color.makeARGB(128, 0, 0, 0))
                         .padding(12f)
                 ) {
-                    text("圆角裁剪 + 内容覆盖", modifier = Modifier.textColor(Color.WHITE))
+                    text("圆角裁剪 + 内容覆盖", textColor = Color.WHITE)
                 }
             }
         }
@@ -455,48 +450,48 @@ class TestRender {
             val imageForOverflow = image2 // 使用一个已加载的图片
 
             // --- 文本溢出 ---
-            text("文本溢出策略", modifier = Modifier.fontSize(28f).padding(bottom = 10f))
+            text("文本溢出策略", modifier = Modifier.padding(bottom = 10f), fontSize = 28f)
 
             // 1. 自动换行 (Wrap)
-            text("1. Wrap: 自动换行", modifier = Modifier.fontSize(20f).padding(bottom = 5f))
+            text("1. Wrap: 自动换行", modifier = Modifier.padding(bottom = 5f), fontSize = 20f)
             text(
                 longText,
                 modifier = Modifier
-                    .maxSize(maxWidth = 300f) // 限制最大宽度
-                    .textOverflow(TextOverflow.Wrap)
+                    .sizeIn(maxWidth = 300f) // 限制最大宽度
                     .padding(bottom = 15f)
                     .border(all = 1f, color = Colors.LIGHT_BLUE.argb)
-                    .padding(5f)
+                    .padding(5f),
+                textOverflow = TextOverflow.Wrap
             )
 
             // 2. 省略号截断 (Ellipsis)
-            text("2. Ellipsis: 省略号截断", modifier = Modifier.fontSize(20f).padding(bottom = 5f))
+            text("2. Ellipsis: 省略号截断", modifier = Modifier.padding(bottom = 5f), fontSize = 20f)
             text(
                 longText,
                 modifier = Modifier
-                    .fontSize(30f)
-                    .maxSize(maxWidth = 300f) // 限制最大宽度
-                    .textOverflow(TextOverflow.Ellipsis)
+                    .sizeIn(maxWidth = 300f) // 限制最大宽度
                     .padding(bottom = 15f)
                     .border(all = 1f, color = Colors.ORANGE.argb)
-                    .padding(5f)
+                    .padding(5f),
+                fontSize = 30f,
+                textOverflow = TextOverflow.Ellipsis
             )
 
             // 3. 换行 + 高度限制 (导致行数截断)
-            text("3. Wrap + MaxHeight: 限制行数", modifier = Modifier.fontSize(20f).padding(bottom = 5f))
+            text("3. Wrap + MaxHeight: 限制行数", modifier = Modifier.padding(bottom = 5f), fontSize = 20f)
             text(
                 longText + longText, // 使用更长的文本
                 modifier = Modifier
-                    .fontSize(30f)
-                    .maxSize(maxWidth = 300f, maxHeight = 70f) // 同时限制宽度和高度
-                    .textOverflow(TextOverflow.Wrap) // 策略仍是换行，但会被高度截断
+                    .sizeIn(maxWidth = 300f, maxHeight = 70f) // 同时限制宽度和高度
                     .padding(bottom = 25f)
                     .border(all = 1f, color = Colors.PURPLE.argb)
-                    .padding(5f)
+                    .padding(5f),
+                fontSize = 30f,
+                textOverflow = TextOverflow.Wrap
             )
 
             // --- 图片溢出 ---
-            text("图片溢出策略 (原图 64x64)", modifier = Modifier.fontSize(28f).padding(bottom = 10f))
+            text("图片溢出策略 (原图 64x64)", modifier = Modifier.padding(bottom = 10f), fontSize = 28f)
             row(verticalAlignment = VerticalAlignment.Center) {
                 // 1. 按比例缩放 (Scale)
                 column(horizontalAlignment = HorizontalAlignment.Center, modifier = Modifier.padding(right = 20f)) {
@@ -504,9 +499,9 @@ class TestRender {
                     image(
                         image = imageForOverflow,
                         modifier = Modifier
-                            .maxSize(maxWidth = 40f, maxHeight = 40f)
-                            .imageOverflow(ImageOverflow.Scale)
-                            .border(all = 1f, color = Colors.GREEN.argb)
+                            .sizeIn(maxWidth = 40f, maxHeight = 40f)
+                            .border(all = 1f, color = Colors.GREEN.argb),
+                        imageOverflow = ImageOverflow.Scale
                     )
                 }
 
@@ -516,9 +511,9 @@ class TestRender {
                     image(
                         image = imageForOverflow,
                         modifier = Modifier
-                            .maxSize(maxWidth = 40f, maxHeight = 40f)
-                            .imageOverflow(ImageOverflow.Crop)
-                            .border(all = 1f, color = Colors.RED.argb)
+                            .sizeIn(maxWidth = 40f, maxHeight = 40f)
+                            .border(all = 1f, color = Colors.RED.argb),
+                        imageOverflow = ImageOverflow.Crop
                     )
                 }
             }
@@ -528,7 +523,7 @@ class TestRender {
     @Test
     fun test_box_alignment() = testCompose("box_alignment") {
         column(modifier = Modifier.padding(10f).background(Colors.BG.argb)) {
-            text("Box 对齐演示 (大框 100x100, 小框 30x30)", modifier = Modifier.fontSize(20f).padding(bottom = 10f))
+            text("Box 对齐演示 (大框 100x100, 小框 30x30)", modifier = Modifier.padding(bottom = 10f), fontSize = 20f)
 
             // Top Row
             row(modifier = Modifier.padding(bottom = 10f)) {
@@ -607,7 +602,7 @@ class TestRender {
     @Test
     fun test_table_layout() = testCompose("table_layout") {
         column(modifier = Modifier.padding(15f).background(Colors.BG.argb)) {
-            text("自动列宽表格演示", modifier = Modifier.fontSize(28f).padding(bottom = 15f))
+            text("自动列宽表格演示", modifier = Modifier.padding(bottom = 15f), fontSize = 28f)
 
             table(
                 modifier = Modifier.border(1f, Colors.GRAY.argb),
@@ -621,13 +616,13 @@ class TestRender {
                         .padding(8f)
                         .border(1f, Colors.YELLOW_GREEN.argb)
                     cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                        text("ID", modifier = Modifier.fontSize(20f))
+                        text("ID", fontSize = 20f)
                     }
                     cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                        text("用户名", modifier = Modifier.fontSize(20f))
+                        text("用户名", fontSize = 20f)
                     }
                     cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                        text("备注", modifier = Modifier.fontSize(20f))
+                        text("备注", fontSize = 20f)
                     }
                 }
 
@@ -667,7 +662,7 @@ class TestRender {
             box(Modifier.size(70f))
         }
         column(modifier = Modifier.padding(15f).background(Colors.BG.argb)) {
-            text("单元格修饰与对齐演示", modifier = Modifier.fontSize(28f).padding(bottom = 15f))
+            text("单元格修饰与对齐演示", modifier = Modifier.padding(bottom = 15f), fontSize = 28f)
 
             table(columnSpacing = 10f, rowSpacing = 10f) {
                 tableRow {
@@ -779,8 +774,8 @@ class TestRender {
                 .background(Colors.BG.argb),
         ) {
             // --- 演示 Column 的 horizontalAlignment ---
-            text("iconText 演示", modifier = Modifier.fontSize(28f).padding(10f))
-            iconText("带icon的text", modifier = Modifier.fontSize(28f).padding(10f))
+            text("iconText 演示", modifier = Modifier.padding(10f), fontSize = 28f)
+            iconText("带icon的text", fontSize = 28f, modifier = Modifier.padding(10f))
         }
     }
 
@@ -828,10 +823,7 @@ class TestRender {
                                 .clip(Shape.RoundedRect(50f))
                                 .background(color)
                             )
-                            text("${color.toHexString()} - $value", Modifier
-                                .fontSize(fontSize)
-                                .padding(left = 15f)
-                            )
+                            text("${color.toHexString()} - $value", Modifier.padding(left = 15f), fontSize = fontSize)
                         }
                     }
                 }
@@ -884,7 +876,7 @@ class TestRender {
                 ) {
                     icon(IconTheme(50f), svgContent)
                 }
-                text("测试图标", Modifier.fontSize(40f).padding(left = 10f))
+                text("测试图标", Modifier.padding(left = 10f), fontSize = 40f)
             }
         }
     }

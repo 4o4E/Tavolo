@@ -11,10 +11,8 @@ import top.e404.skiko.draw.compose.Modifier
 import top.e404.skiko.draw.compose.RecordingDrawCanvas
 import top.e404.skiko.draw.compose.TextMeasurer
 import top.e404.skiko.draw.compose.TextMetrics
-import top.e404.skiko.draw.compose.fontSize
 import top.e404.skiko.draw.compose.renderCommands
 import top.e404.skiko.draw.compose.text
-import top.e404.skiko.draw.compose.textColor
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -37,7 +35,7 @@ class ComposeRenderAbstractionTest {
         val root = Column()
 
         root.apply {
-            text("hello", Modifier.fontSize(20f))
+            text("hello", fontSize = 20f)
         }
         root.measure(MeasureContext(FixedTextMeasurer()))
         root.layout(0f, 0f)
@@ -52,7 +50,7 @@ class ComposeRenderAbstractionTest {
             backgroundColor = Color.WHITE,
             measureContext = MeasureContext(FixedTextMeasurer())
         ) {
-            text("hi", Modifier.fontSize(20f).textColor(Color.RED))
+            text("hi", fontSize = 20f, textColor = Color.RED)
         }
 
         assertEquals(DrawCommand.Clear(Color.WHITE), commands.first())

@@ -39,11 +39,12 @@ dependencies {
 
 常用 `Modifier`:
 
-- 尺寸：`size`、`width`、`height`、`maxSize`
+- 尺寸：`size`、`width`、`height`、`sizeIn`、`widthIn`、`heightIn`
 - 间距：`padding`
 - 样式：`background`、`border`、`clip`
-- 文本：`fontSize`、`fontFamily`、`textColor`、`textOverflow`
-- 图片：`imageOverflow`
+
+文本样式不属于通用 `Modifier`，应作为 `text`、`iconText` 这类文本组件的参数传入，例如 `fontSize`、`textColor`、`fontFamily`、`textOverflow`。
+图片溢出策略同样不属于通用 `Modifier`，应作为 `image` 的 `imageOverflow` 参数传入。
 
 `Modifier` 按链式顺序逐层应用，和 Jetpack Compose 一样可以用多层 `padding` 表达外部留白和内部留白：
 
@@ -55,6 +56,33 @@ Modifier
 ```
 
 `size` 也遵循链式顺序：`.size(100f).padding(10f)` 表示总尺寸为 `100f`，`.padding(10f).size(100f)` 表示内容尺寸为 `100f` 且总尺寸额外包含外层 `padding`。
+
+### 字体管理
+
+Compose DSL 的 `fontFamily` 只保存字体名，不再把 Skia `Typeface` 放进语法树。这样语法树和后续远程渲染协议可以序列化为字符串配置，渲染端再通过 `ComposeFontManager` 把名字解析成本地 `Typeface`。
+
+字体来源分两类：
+
+- 业务随请求或部署包提供的字体文件，使用 `ComposeFontManager.registerFile("LXGWWenKai", file)` 或 `registerBytes` 注册。
+- 渲染机器已有的系统字体，使用 `ComposeFontManager.registerSystem("ui", "Microsoft YaHei")` 建立稳定别名。
+
+渲染时通过名称引用字体：
+
+```kotlin
+ComposeFontManager.registerFile("LXGWWenKai", File("font/LXGWWenKai-Regular.ttf"))
+ComposeFontManager.registerSystem("ui", "Microsoft YaHei")
+ComposeFontManager.defaultFamily = "LXGWWenKai"
+
+render {
+    text(
+        "标题",
+        fontSize = 28f,
+        fontFamily = "LXGWWenKai"
+    )
+}
+```
+
+远程渲染协议应该传 `"fontFamily": "LXGWWenKai"` 这类名称。服务端启动或请求预处理阶段负责注册可用字体；如果名称没有注册，管理器会尝试按系统字体 family 查找，最后回退到默认字体。
 
 ### margin 迁移
 
@@ -113,16 +141,15 @@ fun main() {
         ) {
             text(
                 "skiko-util",
-                modifier = Modifier
-                    .fontSize(36f)
-                    .textColor(Color.makeRGB(32, 38, 46))
+                fontSize = 36f,
+                textColor = Color.makeRGB(32, 38, 46)
             )
             text(
                 "Compose style image rendering",
                 modifier = Modifier
-                    .padding(top = 8f)
-                    .fontSize(20f)
-                    .textColor(Color.makeRGB(91, 103, 120))
+                    .padding(top = 8f),
+                fontSize = 20f,
+                textColor = Color.makeRGB(91, 103, 120)
             )
             row(modifier = Modifier.padding(top = 20f)) {
                 box(
@@ -134,9 +161,9 @@ fun main() {
                     text(
                         "Button",
                         modifier = Modifier
-                            .padding(horizontal = 24f, vertical = 12f)
-                            .fontSize(22f)
-                            .textColor(Color.WHITE)
+                            .padding(horizontal = 24f, vertical = 12f),
+                        fontSize = 22f,
+                        textColor = Color.WHITE
                     )
                 }
             }

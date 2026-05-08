@@ -60,23 +60,59 @@ fun TableRow.cell(
 }
 
 @UiDsl
-fun UiElement.text(text: String, modifier: Modifier = Modifier) {
-    add(Text(text).apply { this.modifier = modifier })
+fun UiElement.text(
+    text: String,
+    modifier: Modifier = Modifier,
+    fontSize: Float? = null,
+    textColor: Int? = null,
+    fontFamily: String? = null,
+    textOverflow: TextOverflow? = null,
+    textOverflowPlaceholder: String? = null
+) {
+    add(
+        Text(
+            text = text,
+            fontSize = fontSize,
+            textColor = textColor,
+            fontFamily = fontFamily,
+            textOverflow = textOverflow,
+            textOverflowPlaceholder = textOverflowPlaceholder
+        ).apply { this.modifier = modifier }
+    )
 }
 
 @UiDsl
-fun UiElement.image(image: Image, modifier: Modifier = Modifier) {
-    add(ImageElement(image).apply { this.modifier = modifier })
+fun UiElement.image(
+    image: Image,
+    modifier: Modifier = Modifier,
+    imageOverflow: ImageOverflow = ImageOverflow.Scale
+) {
+    add(ImageElement(image, imageOverflow).apply { this.modifier = modifier })
 }
 
 @UiDsl
-fun UiElement.iconText(text: String, modifier: Modifier, iconColor: Int = Colors.LIGHT_BLUE.argb) = row(verticalAlignment = VerticalAlignment.Center) {
-    val fontSize = modifier.fold(FontSize(-1f)) { acc, m -> m as? FontSize ?: acc }
-    if (fontSize.size == -1f) error("iconText必须在modifier中指定FontSize")
+fun UiElement.iconText(
+    text: String,
+    fontSize: Float,
+    modifier: Modifier = Modifier,
+    textColor: Int? = null,
+    fontFamily: String? = null,
+    textOverflow: TextOverflow? = null,
+    textOverflowPlaceholder: String? = null,
+    iconColor: Int = Colors.LIGHT_BLUE.argb
+) = row(verticalAlignment = VerticalAlignment.Center) {
     box(Modifier
-        .size(fontSize.size / 2, fontSize.size)
-        .clip(Shape.RoundedRect(fontSize.size))
+        .size(fontSize / 2, fontSize)
+        .clip(Shape.RoundedRect(fontSize))
         .background(iconColor)
     )
-    text(text, modifier)
+    text(
+        text = text,
+        modifier = modifier,
+        fontSize = fontSize,
+        textColor = textColor,
+        fontFamily = fontFamily,
+        textOverflow = textOverflow,
+        textOverflowPlaceholder = textOverflowPlaceholder
+    )
 }

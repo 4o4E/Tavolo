@@ -13,6 +13,7 @@ import org.junit.Test
 import top.e404.skiko.draw.compose.Box
 import top.e404.skiko.draw.compose.CanvasElement
 import top.e404.skiko.draw.compose.Column
+import top.e404.skiko.draw.compose.ComposeFontManager
 import top.e404.skiko.draw.compose.DrawCommand
 import top.e404.skiko.draw.compose.DrawContext
 import top.e404.skiko.draw.compose.HorizontalAlignment
@@ -46,14 +47,11 @@ import top.e404.skiko.draw.compose.clip
 import top.e404.skiko.draw.compose.column
 import top.e404.skiko.draw.compose.debugBaseElement
 import top.e404.skiko.draw.compose.drawIcon
-import top.e404.skiko.draw.compose.fontSize
-import top.e404.skiko.draw.compose.fontFamily
 import top.e404.skiko.draw.compose.height
 import top.e404.skiko.draw.compose.icon
 import top.e404.skiko.draw.compose.iconText
 import top.e404.skiko.draw.compose.image
-import top.e404.skiko.draw.compose.imageOverflow
-import top.e404.skiko.draw.compose.maxSize
+import top.e404.skiko.draw.compose.sizeIn
 import top.e404.skiko.draw.compose.padding
 import top.e404.skiko.draw.compose.render
 import top.e404.skiko.draw.compose.renderCommands
@@ -63,8 +61,6 @@ import top.e404.skiko.draw.compose.tableRow
 import top.e404.skiko.draw.compose.cell
 import top.e404.skiko.draw.compose.table
 import top.e404.skiko.draw.compose.text
-import top.e404.skiko.draw.compose.textColor
-import top.e404.skiko.draw.compose.textOverflow
 import top.e404.skiko.draw.compose.width
 import top.e404.skiko.util.Colors
 import kotlin.math.abs
@@ -85,6 +81,18 @@ private class FixedTextMeasurer(
 
     override fun metrics(font: Font): TextMetrics =
         TextMetrics(ascent, descent)
+}
+
+private class CapturingTypefaceTextMeasurer : TextMeasurer {
+    var metricsTypefaceId: Int? = null
+
+    override fun measureTextWidth(text: String, font: Font, paint: Paint): Float =
+        text.length * 10f
+
+    override fun metrics(font: Font): TextMetrics {
+        metricsTypefaceId = font.typeface!!.uniqueId
+        return TextMetrics(-8f, 2f)
+    }
 }
 
 private fun assertFloatEquals(expected: Float, actual: Float) {
@@ -196,15 +204,15 @@ class ComposeLayoutUnitTest {
     @Test
     fun heatmapStyleLayoutUsesSingleAxisSizeAndHorizontalVerticalPadding() {
         val root = Column()
-        val typeface = Typeface.makeEmpty()
+        val fontName = ComposeFontManager.register("unit-heatmap-empty", Typeface.makeEmpty())
 
         root.apply {
             row(Modifier.padding(top = 20f)) {
                 column(Modifier.padding(right = 10f), horizontalAlignment = HorizontalAlignment.Right) {
-                    text(" ", Modifier.fontFamily(typeface).fontSize(10f))
-                    text("Mon", Modifier.fontFamily(typeface).fontSize(10f).padding(horizontal = 3f, vertical = 0f))
+                    text(" ", fontSize = 10f, fontFamily = fontName)
+                    text("Mon", Modifier.padding(horizontal = 3f, vertical = 0f), fontSize = 10f, fontFamily = fontName)
                     box(Modifier.height(16f))
-                    text("Wed", Modifier.fontFamily(typeface).fontSize(10f))
+                    text("Wed", fontSize = 10f, fontFamily = fontName)
                 }
                 column {
                     box(
@@ -314,6 +322,28 @@ class ComposeModifierCommandUnitTest {
     }
 
     @Test
+    fun sizeInConstrainsGenericElementMeasurement() {
+        val shrink = Box().apply {
+            modifier = Modifier
+                .sizeIn(maxWidth = 30f, maxHeight = 40f)
+                .size(50f)
+        }
+        val expand = Box().apply {
+            modifier = Modifier
+                .sizeIn(minWidth = 20f, minHeight = 30f)
+                .size(10f)
+        }
+
+        listOf(shrink, expand).forEach {
+            it.measure(MeasureContext(FixedTextMeasurer()))
+            it.layout(0f, 0f)
+        }
+
+        assertElementBounds(shrink, x = 0f, y = 0f, width = 30f, height = 40f)
+        assertElementBounds(expand, x = 0f, y = 0f, width = 20f, height = 30f)
+    }
+
+    @Test
     fun clipWrapsElementDrawingWithSaveAndRestore() {
         val commands = renderCommands(
             backgroundColor = Color.TRANSPARENT,
@@ -381,6 +411,30 @@ class ComposeModifierCommandUnitTest {
 
 class ComposeTextUnitTest {
     @Test
+    fun fontFamilyUsesRegisteredTypefaceName() {
+        val typeface = Typeface.makeEmpty()
+        val fontName = ComposeFontManager.register("unit-text-empty", typeface)
+        val measurer = CapturingTypefaceTextMeasurer()
+
+        renderCommands(measureContext = MeasureContext(measurer)) {
+            text("abc", fontSize = 12f, fontFamily = fontName)
+        }
+
+        assertEquals(typeface.uniqueId, measurer.metricsTypefaceId)
+    }
+
+    @Test
+    fun fontManagerResolvesSystemFamilyAndFallback() {
+        val families = ComposeFontManager.systemFamilies()
+        if (families.isNotEmpty()) {
+            ComposeFontManager.registerSystem("unit-system-font", families.first())
+            assertTrue(ComposeFontManager.resolve("unit-system-font").uniqueId >= 0)
+        }
+
+        assertTrue(ComposeFontManager.resolve("unit-missing-font").uniqueId >= 0)
+    }
+
+    @Test
     fun ellipsisTruncatesTextToFitMaxWidth() {
         val commands = renderCommands(
             measureContext = MeasureContext(FixedTextMeasurer())
@@ -388,9 +442,9 @@ class ComposeTextUnitTest {
             text(
                 "abcdef",
                 Modifier
-                    .maxSize(maxWidth = 30f)
-                    .textOverflow(TextOverflow.Ellipsis)
-                    .fontSize(20f)
+                    .sizeIn(maxWidth = 30f),
+                fontSize = 20f,
+                textOverflow = TextOverflow.Ellipsis
             )
         }
 
@@ -408,7 +462,7 @@ class ComposeTextUnitTest {
             text(
                 "aa bbbb c",
                 Modifier
-                    .maxSize(maxWidth = 40f, maxHeight = 20f)
+                    .sizeIn(maxWidth = 40f, maxHeight = 20f)
             )
         }
 
@@ -427,8 +481,8 @@ class ComposeTextUnitTest {
                 "hi",
                 Modifier
                     .padding(left = 3f, top = 4f)
-                    .border(left = 2f, top = 1f, color = Color.RED)
-                    .textColor(Color.GREEN)
+                    .border(left = 2f, top = 1f, color = Color.RED),
+                textColor = Color.GREEN
             )
         }
 
@@ -447,8 +501,8 @@ class ComposeImageUnitTest {
             image(
                 image,
                 Modifier
-                    .maxSize(maxWidth = 50f, maxHeight = 50f)
-                    .imageOverflow(ImageOverflow.Scale)
+                    .sizeIn(maxWidth = 50f, maxHeight = 50f),
+                imageOverflow = ImageOverflow.Scale
             )
         }
 
@@ -466,8 +520,8 @@ class ComposeImageUnitTest {
             image(
                 image,
                 Modifier
-                    .maxSize(maxWidth = 40f, maxHeight = 30f)
-                    .imageOverflow(ImageOverflow.Crop)
+                    .sizeIn(maxWidth = 40f, maxHeight = 30f),
+                imageOverflow = ImageOverflow.Crop
             )
         }
 
@@ -481,7 +535,7 @@ class ComposeImageUnitTest {
     }
 
     @Test
-    fun imageWithoutMaxSizeUsesOriginalSizeAndDslEntry() {
+    fun imageWithoutSizeInUsesOriginalSizeAndDslEntry() {
         val image = testImage(12, 8)
         val root = Column()
 
@@ -700,16 +754,17 @@ class ComposeIconUnitTest {
     @Test
     fun githubFooterStyleIconAndTextRowRecordsIconPathAndText() {
         val svg = """<svg viewBox="0 0 10 10"><path d="M 0 0 L 10 0 L 10 10 Z"/></svg>"""
+        val fontName = ComposeFontManager.register("unit-footer-empty", Typeface.makeEmpty())
         val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
             row(Modifier.padding(horizontal = 50f), VerticalAlignment.Center) {
                 icon(IconTheme(40f, color = Color.WHITE), svg)
                 text(
                     "42",
                     Modifier
-                        .fontSize(40f)
-                        .textColor(Color.WHITE)
-                        .padding(left = 20f, right = 50f)
-                        .fontFamily(Typeface.makeEmpty())
+                        .padding(left = 20f, right = 50f),
+                    fontSize = 40f,
+                    textColor = Color.WHITE,
+                    fontFamily = fontName
                 )
             }
         }
@@ -746,15 +801,9 @@ class ComposeDslAndRenderUnitTest {
 
     @Test
     fun iconTextRequiresFontSizeAndBuildsRow() {
-        val missing = assertFailsWith<IllegalStateException> {
-            renderCommands {
-                iconText("bad", Modifier)
-            }
-        }
-        assertTrue(missing.message!!.contains("FontSize"))
-
+        val fontName = ComposeFontManager.register("unit-icon-text-empty", Typeface.makeEmpty())
         val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
-            iconText("ok", Modifier.fontSize(20f).fontFamily(Typeface.makeEmpty()))
+            iconText("ok", fontSize = 20f, fontFamily = fontName)
         }
 
         val clipIndex = commands.indexOfFirst { it is DrawCommand.ClipPath }
@@ -823,7 +872,7 @@ class ComposeDslAndRenderUnitTest {
     fun debugBaseElementPrintsTreeAndModifiers() {
         val root = Column()
         root.apply {
-            text("x", Modifier.fontSize(12f))
+            text("x", Modifier.padding(1f), fontSize = 12f)
         }
         root.measure(MeasureContext(FixedTextMeasurer()))
         root.layout(0f, 0f)

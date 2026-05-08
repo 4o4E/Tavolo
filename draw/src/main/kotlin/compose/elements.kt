@@ -2,10 +2,6 @@ package top.e404.skiko.draw.compose
 
 import org.jetbrains.skia.*
 
-object DefaultTypefaceProvider {
-    var default: Typeface = Typeface.makeEmpty()
-}
-
 /**
  * UI 元素的基础接口，定义了所有 UI 组件共有的属性和行为。
  */
@@ -79,6 +75,16 @@ abstract class BaseElement : UiElement {
 
     private fun Border.asInsets() = ModifierInsets(top, right, bottom, left)
 
+    protected fun sizeIn(): SizeIn = modifier.fold(SizeIn()) { acc, m -> m as? SizeIn ?: acc }
+
+    private fun Float.coerceInConstraint(min: Float, max: Float): Float {
+        val constrainedMin = min.coerceAtLeast(0f)
+        val constrainedMax = if (max.isFinite()) max.coerceAtLeast(constrainedMin) else Float.POSITIVE_INFINITY
+        return this.coerceAtLeast(constrainedMin).let {
+            if (constrainedMax.isFinite()) it.coerceAtMost(constrainedMax) else it
+        }
+    }
+
     protected fun contentBounds(): Bounds {
         var bounds = Bounds(x, y, width, height)
         for (mod in modifier.toList()) {
@@ -104,6 +110,10 @@ abstract class BaseElement : UiElement {
                 is Size -> {
                     if (!mod.width.isNaN()) finalWidth = mod.width
                     if (!mod.height.isNaN()) finalHeight = mod.height
+                }
+                is SizeIn -> {
+                    finalWidth = finalWidth.coerceInConstraint(mod.minWidth, mod.maxWidth)
+                    finalHeight = finalHeight.coerceInConstraint(mod.minHeight, mod.maxHeight)
                 }
                 is Padding -> {
                     val insets = mod.asInsets()
@@ -408,7 +418,7 @@ class Table(
                 val content = cell.content
                 if (content != null) {
                     val originalModifier = content.modifier
-                    content.modifier = content.modifier.maxSize(maxWidth = constrainedWidth)
+                    content.modifier = content.modifier.sizeIn(maxWidth = constrainedWidth)
                     content.measure(context)
                     content.modifier = originalModifier
                 }
@@ -457,39 +467,42 @@ class Table(
     }
 }
 
-class Text(private val text: String) : BaseElement() {
+class Text(
+    private val text: String,
+    private val fontSize: Float? = null,
+    private val textColor: Int? = null,
+    private val fontFamily: String? = null,
+    private val textOverflow: TextOverflow? = null,
+    private val textOverflowPlaceholder: String? = null
+) : BaseElement() {
     private lateinit var font: Font
     private lateinit var paint: Paint
     private var textMetrics: TextMetrics = TextMetrics(0f, 0f)
     private var lines: List<String> = listOf()
+    private var overflow = TextOverflow.Wrap
+    private var overflowPlaceholder = TextDefaults.OVERFLOW_PLACEHOLDER
 
     private fun applyModifiers() {
-        var finalColor = Color.WHITE
-        var finalSize = 24f
-        var finalTypeface = DefaultTypefaceProvider.default
-        modifier.fold(Unit) { _, mod ->
-            when (mod) {
-                is TextColor -> finalColor = mod.color
-                is FontTypeface -> finalTypeface = mod.typeface
-                is FontSize -> finalSize = mod.size
-            }
-        }
+        val finalColor = textColor ?: Color.WHITE
+        val finalSize = fontSize ?: 24f
+        val finalFamily = fontFamily ?: ComposeFontManager.defaultFamily
+        overflow = textOverflow ?: TextOverflow.Wrap
+        overflowPlaceholder = textOverflowPlaceholder ?: TextDefaults.OVERFLOW_PLACEHOLDER
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
-        font = Font(finalTypeface, finalSize)
+        font = Font(ComposeFontManager.resolve(finalFamily), finalSize)
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
     }
 
     override fun measureContent(context: MeasureContext) {
         applyModifiers()
 
-        val maxSize = modifier.fold(MaxSize()) { acc, m -> m as? MaxSize ?: acc }
-        val overflow = modifier.fold(TextOverflowStrategy()) { acc, m -> m as? TextOverflowStrategy ?: acc }
+        val sizeIn = sizeIn()
         val measurer = context.textMeasurer
         val metrics = measurer.metrics(font)
         textMetrics = metrics
         val lineHeight = metrics.lineHeight
 
-        if (overflow.strategy == TextOverflow.Wrap && maxSize.maxWidth.isFinite()) {
+        if (overflow == TextOverflow.Wrap && sizeIn.maxWidth.isFinite()) {
             val words = text.split(Regex("\\s+"))
             val builtLines = mutableListOf<String>()
             var current = StringBuilder()
@@ -505,14 +518,14 @@ class Text(private val text: String) : BaseElement() {
                 if (w.isEmpty()) continue
                 val attempt = if (current.isEmpty()) w else "$current $w"
                 val widthAttempt = measurer.measureTextWidth(attempt, font, paint)
-                if (widthAttempt <= maxSize.maxWidth) {
+                if (widthAttempt <= sizeIn.maxWidth) {
                     if (current.isEmpty()) current.append(w) else current.append(" ").append(w)
                 } else {
                     if (current.isEmpty()) {
                         var acc = ""
                         for (ch in w) {
                             val tryAcc = acc + ch
-                            if (measurer.measureTextWidth(tryAcc, font, paint) <= maxSize.maxWidth) {
+                            if (measurer.measureTextWidth(tryAcc, font, paint) <= sizeIn.maxWidth) {
                                 acc = tryAcc
                             } else {
                                 if (acc.isNotEmpty()) builtLines.add(acc)
@@ -529,8 +542,8 @@ class Text(private val text: String) : BaseElement() {
             commitLine()
 
             // 受 maxHeight 限制：计算可显示最大行数
-            if (maxSize.maxHeight.isFinite()) {
-                val maxLines = (maxSize.maxHeight / lineHeight).toInt().coerceAtLeast(1)
+            if (sizeIn.maxHeight.isFinite()) {
+                val maxLines = (sizeIn.maxHeight / lineHeight).toInt().coerceAtLeast(1)
                 if (builtLines.size > maxLines) {
                     // 截断尾行并添加省略号
                     val visible = builtLines.subList(0, maxLines).toMutableList()
@@ -538,15 +551,15 @@ class Text(private val text: String) : BaseElement() {
                     val lastIndex = visible.lastIndex
                     val last = visible[lastIndex]
                     var truncated = last
-                    if (measurer.measureTextWidth("$truncated${overflow.placeholder}", font, paint) <= maxSize.maxWidth) {
-                        truncated += overflow.placeholder
+                    if (measurer.measureTextWidth("$truncated$overflowPlaceholder", font, paint) <= sizeIn.maxWidth) {
+                        truncated += overflowPlaceholder
                     } else {
                         // 逐字符去掉直到放得下
                         var t = truncated
-                        while (t.isNotEmpty() && measurer.measureTextWidth("${t}${overflow.placeholder}", font, paint) > maxSize.maxWidth) {
+                        while (t.isNotEmpty() && measurer.measureTextWidth("$t$overflowPlaceholder", font, paint) > sizeIn.maxWidth) {
                             t = t.dropLast(1)
                         }
-                        truncated = if (t.isEmpty()) overflow.placeholder else t + overflow.placeholder
+                        truncated = if (t.isEmpty()) overflowPlaceholder else t + overflowPlaceholder
                     }
                     visible[lastIndex] = truncated
                     lines = visible
@@ -563,7 +576,7 @@ class Text(private val text: String) : BaseElement() {
         } else {
             // Ellipsis 或者无 maxWidth 的情况：默认单行测量，必要时截断
             val measuredWidth = measurer.measureTextWidth(text, font, paint)
-            if (overflow.strategy == TextOverflow.Ellipsis && maxSize.maxWidth.isFinite() && measuredWidth > maxSize.maxWidth) {
+            if (overflow == TextOverflow.Ellipsis && sizeIn.maxWidth.isFinite() && measuredWidth > sizeIn.maxWidth) {
                 // 需要截断为能放下省略号的最长子串
                 var lo = 0
                 var hi = text.length
@@ -571,13 +584,13 @@ class Text(private val text: String) : BaseElement() {
                 while (lo <= hi) {
                     val mid = (lo + hi) / 2
                     val candidate = text.substring(0, mid)
-                    if (measurer.measureTextWidth("$candidate${overflow.placeholder}", font, paint) <= maxSize.maxWidth) {
+                    if (measurer.measureTextWidth("$candidate$overflowPlaceholder", font, paint) <= sizeIn.maxWidth) {
                         best = candidate; lo = mid + 1
                     } else {
                         hi = mid - 1
                     }
                 }
-                val finalLine = if (best.isEmpty()) overflow.placeholder else best + overflow.placeholder
+                val finalLine = if (best.isEmpty()) overflowPlaceholder else best + overflowPlaceholder
                 lines = listOf(finalLine)
                 contentWidth = measurer.measureTextWidth(finalLine, font, paint)
             } else {
@@ -588,8 +601,8 @@ class Text(private val text: String) : BaseElement() {
             // maxHeight 限制：如果有限且比单行高小则裁剪高度为 maxHeight（外部布局会看到该高度）
             val lineHeightSingle = metrics.lineHeight
             contentHeight = lineHeightSingle
-            if (maxSize.maxHeight.isFinite()) {
-                contentHeight = contentHeight.coerceAtMost(maxSize.maxHeight)
+            if (sizeIn.maxHeight.isFinite()) {
+                contentHeight = contentHeight.coerceAtMost(sizeIn.maxHeight)
                 // 如果 maxHeight 小于单行高度可以强制置为 maxHeight ，显示可能被裁剪
             }
         }
@@ -612,7 +625,10 @@ class Text(private val text: String) : BaseElement() {
     }
 }
 
-class ImageElement(private val image: Image) : BaseElement() {
+class ImageElement(
+    private val image: Image,
+    private val overflow: ImageOverflow = ImageOverflow.Scale
+) : BaseElement() {
     // 记录测量后的目标绘制尺寸与源裁剪 Rect（如果需要）
     private var targetWidth: Float = 0f
     private var targetHeight: Float = 0f
@@ -623,14 +639,13 @@ class ImageElement(private val image: Image) : BaseElement() {
         val iw = image.width.toFloat()
         val ih = image.height.toFloat()
 
-        val maxSize = modifier.fold(MaxSize()) { acc, m -> m as? MaxSize ?: acc }
-        val overflow = modifier.fold(ImageOverflowStrategy()) { acc, m -> m as? ImageOverflowStrategy ?: acc }
+        val sizeIn = sizeIn()
 
-        if (maxSize.maxWidth.isFinite() || maxSize.maxHeight.isFinite()) {
-            if (overflow.strategy == ImageOverflow.Scale) {
-                // 按比例缩放以适配 maxSize（保持纵横比）
-                val wLimit = if (maxSize.maxWidth.isFinite()) maxSize.maxWidth else iw
-                val hLimit = if (maxSize.maxHeight.isFinite()) maxSize.maxHeight else ih
+        if (sizeIn.maxWidth.isFinite() || sizeIn.maxHeight.isFinite()) {
+            if (overflow == ImageOverflow.Scale) {
+                // 按比例缩放以适配 sizeIn（保持纵横比）
+                val wLimit = if (sizeIn.maxWidth.isFinite()) sizeIn.maxWidth else iw
+                val hLimit = if (sizeIn.maxHeight.isFinite()) sizeIn.maxHeight else ih
                 val scale = minOf(wLimit / iw, hLimit / ih, 1f)
                 targetWidth = iw * scale
                 targetHeight = ih * scale
@@ -638,9 +653,9 @@ class ImageElement(private val image: Image) : BaseElement() {
                 contentHeight = targetHeight
                 srcRect = null
             } else {
-                // Crop：目标尺寸受限于 maxSize，但不放大图片；从中心裁剪源图
-                val dstW = if (maxSize.maxWidth.isFinite()) minOf(maxSize.maxWidth, iw) else iw
-                val dstH = if (maxSize.maxHeight.isFinite()) minOf(maxSize.maxHeight, ih) else ih
+                // Crop：目标尺寸受限于 sizeIn，但不放大图片；从中心裁剪源图
+                val dstW = if (sizeIn.maxWidth.isFinite()) minOf(sizeIn.maxWidth, iw) else iw
+                val dstH = if (sizeIn.maxHeight.isFinite()) minOf(sizeIn.maxHeight, ih) else ih
                 // 计算源裁剪区域（中心裁剪）
                 val srcLeft = ((iw - dstW) / 2f).coerceAtLeast(0f)
                 val srcTop = ((ih - dstH) / 2f).coerceAtLeast(0f)

@@ -68,7 +68,7 @@ data class RadarTheme(
     /** 网格坐标生成逻辑 */
     val gridFontProvider: (Int) -> String? = { it.toString() },
     /** 网格坐标字体 */
-    val gridFont: Font = Font(DefaultTypefaceProvider.default, 12f),
+    val gridFont: Font = Font(ComposeFontManager.resolve(), 12f),
     /** 网格坐标字体颜色 */
     val gridFontColor: Int = Color.WHITE,
     val gridFontPaint: Paint = Paint().apply {
@@ -80,7 +80,7 @@ data class RadarTheme(
     /** 标签位置修正 处理标签覆盖坐标的问题 */
     val labelFixPolicy: RadarFixPolicy = RadarFixPolicy.RATED_FIX,
     /** 标签字体 */
-    val labelFont: Font = Font(DefaultTypefaceProvider.default, 25f),
+    val labelFont: Font = Font(ComposeFontManager.resolve(), 25f),
     /** 标签字体颜色 */
     val labelFontColor: Int = Color.WHITE,
     val labelFontPaint: Paint = Paint().apply {
