@@ -2,7 +2,7 @@
 
 目标版本：`2.0.0`
 
-本文档描述 `draw` 模块中 Compose 风格绘图 DSL 的一次破坏性改造：把文本测量和绘制输出从 Skiko 原生 API 中抽出来，形成可替换、可记录、可 mock 的渲染接口。目标是让布局、文本换行、省略号、绘制命令等行为可以自动测试，而不是只靠人工查看生成图片。
+本文档描述 `graphics` 模块中 Compose 风格绘图 DSL 的一次破坏性改造：把文本测量和绘制输出从 Skiko 原生 API 中抽出来，形成可替换、可记录、可 mock 的渲染接口。目标是让布局、文本换行、省略号、绘制命令等行为可以自动测试，而不是只靠人工查看生成图片。
 
 ## 目标
 
@@ -467,11 +467,11 @@ fun drawIcon(canvas: DrawCanvas, ...)
 
 新增文件建议：
 
-- `draw/src/main/kotlin/compose/rendering/TextMeasurer.kt`
-- `draw/src/main/kotlin/compose/rendering/DrawCanvas.kt`
-- `draw/src/main/kotlin/compose/rendering/SkiaDrawCanvas.kt`
-- `draw/src/main/kotlin/compose/rendering/RecordingDrawCanvas.kt`
-- `draw/src/main/kotlin/compose/rendering/DrawCommand.kt`
+- `graphics/src/main/kotlin/compose/rendering/TextMeasurer.kt`
+- `graphics/src/main/kotlin/compose/rendering/DrawCanvas.kt`
+- `graphics/src/main/kotlin/compose/rendering/SkiaDrawCanvas.kt`
+- `graphics/src/main/kotlin/compose/rendering/RecordingDrawCanvas.kt`
+- `graphics/src/main/kotlin/compose/rendering/DrawCommand.kt`
 
 包名可以使用：
 
@@ -804,7 +804,7 @@ assertCommandEquals(expected, actual, epsilon = 0.01f)
 - `charts/radar.kt` 使用 `TextLine` 做标签测量和绘制，迁移时要决定保留 `TextLine` 包装方法，还是统一改用 `TextMeasurer + drawString`。
 - 直接记录 `Paint`、`Rect`、`Font`、`Path` 等可变或 native 对象会导致测试脆弱，recording 命令必须保存不可变快照。
 - `RecordingDrawCanvas` 第一阶段记录原始 transform 命令，不计算最终几何；测试作者需要按命令流语义写断言。
-- 破坏性变更会影响所有自定义 `UiElement` 用户，需要在 `draw/README.md` 和 release note 中说明。
+- 破坏性变更会影响所有自定义 `UiElement` 用户，需要在 `graphics/README.md` 和 release note 中说明。
 
 ## 完成标准
 

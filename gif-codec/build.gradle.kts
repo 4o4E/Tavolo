@@ -4,8 +4,7 @@ plugins {
 }
 
 dependencies {
-    // util
-    api(project(":util"))
+    api(project(":common"))
     // skiko
     compileOnly(skiko("windows-x64"))
     compileOnly(skiko("linux-x64"))

@@ -1,4 +1,4 @@
-# draw
+# graphics
 
 基于 Skiko/Skia 的图片绘制工具模块，包含 Compose 风格的 2D 图片 DSL、图表组件和一个 CPU 3D 渲染器。
 
@@ -6,11 +6,13 @@
 
 ```kotlin
 dependencies {
-    implementation("top.e404.tavolo:tavolo-draw:<version>")
+    implementation("top.e404.tavolo:tavolo-graphics:<version>")
 }
 ```
 
 ## 包结构
+
+模块名是 `graphics`，当前公开包名仍保留 `top.e404.tavolo.draw.*`，避免无关包名迁移影响已有调用方。
 
 - `top.e404.tavolo.draw.compose`: 推荐使用的 2D 绘图 DSL。
 - `top.e404.tavolo.draw.compose.charts`: 内置图表组件，目前包含环形图和雷达图。
@@ -19,9 +21,9 @@ dependencies {
 
 ## 测试分层
 
-- `./gradlew :draw:test` 只运行稳定单元测试，应使用断言验证布局、测量和绘制命令，不依赖人工查看图片。
-- `./gradlew :draw:manualTest` 运行人工测试，主要用于生成示例图片到 `run/out` 后人工检查渲染效果，允许依赖本地资源或网络资源。
-- `./gradlew :draw:jacocoTestReport` 生成单元测试覆盖率报告，HTML 报告位于 `draw/build/reports/jacoco/test/html/index.html`。
+- `./gradlew :graphics:test` 只运行稳定单元测试，应使用断言验证布局、测量和绘制命令，不依赖人工查看图片。
+- `./gradlew :graphics:manualTest` 运行人工测试，主要用于生成示例图片到 `run/out` 后人工检查渲染效果，允许依赖本地资源或网络资源。
+- `./gradlew :graphics:jacocoTestReport` 生成单元测试覆盖率报告，HTML 报告位于 `graphics/build/reports/jacoco/test/html/index.html`。
 
 ## 2D Compose DSL
 

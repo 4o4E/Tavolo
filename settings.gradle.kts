@@ -11,11 +11,11 @@ pluginManagement {
 rootProject.name = "Tavolo"
 include(
     ":annotation",
-    ":ksp",
     ":bdf-parser",
-    ":gif-codec",
-    ":draw",
+    ":common",
     ":core",
-    ":util",
+    ":gif-codec",
+    ":graphics",
     ":http-server",
+    ":ksp",
 )

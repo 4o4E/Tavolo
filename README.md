@@ -5,8 +5,8 @@
 基于[skiko](https://github.com/JetBrains/skiko)的绘图工具库, 包括
 
 - [gif编码](gif-codec/src/main/kotlin/gif)(参考[cssxsh/mirai-skia-plugin](https://github.com/cssxsh/mirai-skia-plugin))
-- [封装图片处理的抽象框架](gif-codec/src/main/kotlin/frame)
-- [文本转图片](draw/src/main/kotlin)
+- [图片逐帧处理框架](gif-codec/src/main/kotlin/frame)
+- [compose语法生成图片](graphics/src/main/kotlin)
 - [图片滤镜/特效](core/src/main/kotlin/handler/list)
 - [基于输入图片生成表情](core/src/main/kotlin/handler/face)
 - [基于输入生成图片](core/src/main/kotlin/generator/list)
@@ -22,16 +22,16 @@
 版本请在[release](https://github.com/4o4E/Tavolo/releases)中查看
 
 ```kotlin
-val version = "1.0.1"
+val version = "2.0.0"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("top.e404.tavolo:core:${version}")
-    implementation("top.e404.tavolo:draw:${version}")
-    implementation("top.e404.tavolo:gif-codec:${version}")
-    implementation("top.e404.tavolo:util:${version}")
+    implementation("top.e404.tavolo:tavolo-core:${version}")
+    implementation("top.e404.tavolo:tavolo-graphics:${version}")
+    implementation("top.e404.tavolo:tavolo-gif-codec:${version}")
+    implementation("top.e404.tavolo:tavolo-common:${version}")
 }
 ```

@@ -9,9 +9,9 @@ dependencies {
     ksp(project(":ksp"))
 
     api(project(":annotation"))
-    api(project(":util"))
+    api(project(":common"))
     api(project(":gif-codec"))
-    api(project(":draw"))
+    api(project(":graphics"))
     api(project(":bdf-parser"))
     // skiko
     compileOnly(skiko("windows-x64"))
