@@ -17,6 +17,11 @@ dependencies {
 - `top.e404.skiko.draw.render3d`: CPU 3D 渲染相关类型和渲染函数。
 - `top.e404.skiko.draw.element`: 旧版绘图元素，已废弃，不建议新增使用。
 
+## 测试分层
+
+- `./gradlew :draw:test` 只运行稳定单元测试，应使用断言验证布局、测量和绘制命令，不依赖人工查看图片。
+- `./gradlew :draw:manualTest` 运行人工测试，主要用于生成示例图片到 `run/out` 后人工检查渲染效果，允许依赖本地资源或网络资源。
+
 ## 2D Compose DSL
 
 `render` 会先测量根节点尺寸，再创建 Skia `Image` 并绘制内容。布局元素包括 `column`、`row`、`box`、`table`、`text`、`image` 等。
