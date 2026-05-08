@@ -192,6 +192,43 @@ class ComposeLayoutUnitTest {
         assertElementBounds(rowChild, x = 0f, y = 20f, width = 10f, height = 10f)
         assertElementBounds(boxChild, x = 10f, y = 10f, width = 10f, height = 10f)
     }
+
+    @Test
+    fun heatmapStyleLayoutUsesSingleAxisSizeAndHorizontalVerticalMargin() {
+        val root = Column()
+        val typeface = Typeface.makeEmpty()
+
+        root.apply {
+            row(Modifier.margin(top = 20f)) {
+                column(Modifier.margin(right = 10f), horizontalAlignment = HorizontalAlignment.Right) {
+                    text(" ", Modifier.fontFamily(typeface).fontSize(10f))
+                    text("Mon", Modifier.fontFamily(typeface).fontSize(10f).margin(horizontal = 3f, vertical = 0f))
+                    box(Modifier.height(16f))
+                    text("Wed", Modifier.fontFamily(typeface).fontSize(10f))
+                }
+                column {
+                    box(
+                        Modifier
+                            .size(15f)
+                            .background(Color.RED)
+                            .border(.5f, Color.BLACK)
+                            .clip(Shape.RoundedRect(3f))
+                            .margin(3f)
+                    )
+                }
+            }
+        }
+
+        root.measure(MeasureContext(FixedTextMeasurer()))
+        root.layout(0f, 0f)
+
+        val row = assertIs<Row>(root.children.single())
+        val labels = assertIs<Column>(row.children[0])
+        val heatmap = assertIs<Column>(row.children[1])
+        assertElementBounds(row, x = 0f, y = 20f, width = 68f, height = 46f)
+        assertElementBounds(labels.children[2], x = 36f, y = 40f, width = 0f, height = 16f)
+        assertElementBounds(heatmap.children.single(), x = 49f, y = 23f, width = 16f, height = 16f)
+    }
 }
 
 class ComposeModifierCommandUnitTest {
@@ -255,6 +292,34 @@ class ComposeModifierCommandUnitTest {
         assertTrue(commands[2] is DrawCommand.ClipPath)
         val rect = commands.filterIsInstance<DrawCommand.Rect>().single()
         assertEquals(false, rect.paint.antiAlias)
+    }
+
+    @Test
+    fun wakatimeStyleProgressBarRecordsBackgroundAndForegroundBars() {
+        val commands = renderCommands {
+            box(Modifier.width(100f)) {
+                box(
+                    Modifier
+                        .width(100f)
+                        .height(10f)
+                        .background(Color.makeRGB(128, 128, 128))
+                        .clip(Shape.RoundedRect(50f))
+                )
+                box(
+                    Modifier
+                        .width(25f)
+                        .height(10f)
+                        .background(Color.GREEN)
+                        .clip(Shape.RoundedRect(50f))
+                )
+            }
+        }
+
+        val rects = commands.filterIsInstance<DrawCommand.Rect>()
+        assertEquals(2, rects.size)
+        assertFloatEquals(100f, rects[0].rect.width)
+        assertFloatEquals(25f, rects[1].rect.width)
+        assertTrue(commands.filterIsInstance<DrawCommand.ClipPath>().size >= 2)
     }
 }
 
@@ -500,6 +565,29 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun radarFixPoliciesUsedByConsumersProduceFiniteLabelPositions() {
+        val line = org.jetbrains.skia.TextLine.make("Commit", Font(Typeface.makeEmpty(), 10f))
+        val theme = RadarTheme(width = 100f, height = 100f, radius = 30f, labelOuterLength = 10f)
+
+        listOf(
+            RadarFixPolicy.NONE,
+            RadarFixPolicy.MOVE_OUTSIDE,
+            RadarFixPolicy.TILT
+        ).forEach { policy ->
+            val (x, y) = policy.fix(
+                -Math.PI / 2,
+                1.5,
+                line,
+                50f,
+                50f,
+                theme
+            )
+            assertTrue(x.isFinite(), "$policy x 应为有限值")
+            assertTrue(y.isFinite(), "$policy y 应为有限值")
+        }
+    }
+
+    @Test
     fun radarDslAddsCanvasElementWithThemeSize() {
         val root = Column()
 
@@ -551,6 +639,29 @@ class ComposeIconUnitTest {
 
         assertTrue(commands.any { it is DrawCommand.Path })
         assertTrue(commands.any { it is DrawCommand.Scale })
+    }
+
+    @Test
+    fun githubFooterStyleIconAndTextRowRecordsIconPathAndText() {
+        val svg = """<svg viewBox="0 0 10 10"><path d="M 0 0 L 10 0 L 10 10 Z"/></svg>"""
+        val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
+            row(Modifier.margin(horizontal = 50f), VerticalAlignment.Center) {
+                icon(IconTheme(40f, color = Color.WHITE), svg)
+                text(
+                    "42",
+                    Modifier
+                        .fontSize(40f)
+                        .textColor(Color.WHITE)
+                        .margin(left = 20f, right = 50f)
+                        .fontFamily(Typeface.makeEmpty())
+                )
+            }
+        }
+
+        assertTrue(commands.any { it is DrawCommand.Path })
+        val text = commands.filterIsInstance<DrawCommand.Text>().single()
+        assertEquals("42", text.text)
+        assertFloatEquals(110f, text.x)
     }
 }
 
