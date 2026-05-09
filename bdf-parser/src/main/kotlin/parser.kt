@@ -5,6 +5,8 @@ package top.e404.tavolo.dbf
 import java.io.BufferedReader
 import java.io.File
 
+private val whitespaceRegex = Regex("\\s+")
+
 object BdfParser {
     /**
      * 文件开始, `BDF`标准版本号, 如`2.1`
@@ -65,7 +67,7 @@ object BdfParser {
     /**
      * 开始字符点阵
      */
-    const val BITMAP = "BITMAP "
+    const val BITMAP = "BITMAP"
 
     /**
      * 结束字符
@@ -82,85 +84,124 @@ object BdfParser {
     fun parse(text: String) = text.reader().buffered().use(::parse)
 
     fun parse(reader: BufferedReader): BdfFont {
-        val header = parseHeader(reader)
+        val source = BdfSource(reader)
+        val header = parseHeader(source)
         val map = HashMap<Int, BdfChar>(header.count)
         repeat(header.count) {
-            val bdfChar = parseFont(reader)
+            val bdfChar = parseFont(source)
             map[bdfChar.encoding] = bdfChar
         }
+        val endLine = source.readContentLine("文件结束")
+        source.requireLine(endLine == END_FONT) { "期望 $END_FONT, 实际为 $endLine" }
         return BdfFont(header, map)
     }
 
-    private fun parseHeader(reader: BufferedReader): BdfHeader {
-        val version = reader.readLine().removePrefix(START_FONT).trim()
+    private fun parseHeader(reader: BdfSource): BdfHeader {
+        val (startKey, version) = reader.readKeyValue("文件开始")
+        reader.requireLine(startKey == START_FONT) { "期望 $START_FONT, 实际为 $startKey" }
         val map = mutableMapOf<String, String>()
         var properties = mutableMapOf<String, String>()
         val count: Int
         while (true) {
-            var line = reader.readLine()
-            while (line.startsWith(COMMENT)) line = reader.readLine()
-            // properties
-            if (line.startsWith(START_PROPERTIES, true)) {
-                val size = line.substringAfterLast(" ").toInt()
+            val (key, value) = reader.readKeyValue("字体头")
+            if (key == START_PROPERTIES) {
+                val size = reader.parseInt(value, START_PROPERTIES)
                 properties = HashMap(size)
                 repeat(size) {
-                    var property = reader.readLine()
-                    while (property.startsWith(COMMENT)) property = reader.readLine()
-                    val index = property.indexOf(" ")
-                    require(index != -1)
-                    properties[property.substring(0, index)] = property.substring(index + 1)
+                    val (propertyKey, propertyValue) = reader.readKeyValue("字体属性")
+                    properties[propertyKey] = propertyValue
                 }
-                require(reader.readLine() == END_PROPERTIES)
+                val endProperties = reader.readContentLine("属性结束")
+                reader.requireLine(endProperties == END_PROPERTIES) {
+                    "期望 $END_PROPERTIES, 实际为 $endProperties"
+                }
+                continue
             }
-            val index = line.indexOf(' ')
-            require(index != -1)
-            val key = line.substring(0, index)
             if (key == CHARS) {
-                count = line.substring(index + 1).toInt()
+                count = reader.parseInt(value, CHARS)
                 break
             }
-            map[key] = line.substring(index + 1)
+            map[key] = value
         }
         return BdfHeader(
             version = version,
-            font = map[FONT]!!,
-            size = BdfSize(map[SIZE]!!),
-            boundingBox = FontBoundingBox(map[FONT_BOUNDING_BOX]!!),
+            font = reader.requireField(map, FONT),
+            size = BdfSize(reader.requireField(map, SIZE)),
+            boundingBox = FontBoundingBox(reader.requireField(map, FONT_BOUNDING_BOX)),
             properties = properties,
             count = count
         )
     }
 
-    private fun parseFont(reader: BufferedReader): BdfChar {
+    private fun parseFont(reader: BdfSource): BdfChar {
         val map = mutableMapOf<String, String>()
-        val split = reader.readLine().split(" ")
-        require(split.size == 2)
-        require(split[0] == START_CHAR)
-        val unicode = split[1]
+        val (startKey, unicode) = reader.readKeyValue("字符开始")
+        reader.requireLine(startKey == START_CHAR) { "期望 $START_CHAR, 实际为 $startKey" }
         var line: String
         while (true) {
-            line = reader.readLine()
+            line = reader.readContentLine("字符 $unicode")
             if (line == BITMAP) break
-            val index = line.indexOf(' ')
-            require(index != -1) { "unexpected line: $line, unicode: $unicode" }
-            val key = line.substring(0, index)
-            map[key] = line.substring(index + 1)
+            val (key, value) = reader.parseKeyValue(line, "字符 $unicode")
+            map[key] = value
         }
-        val bbx = FontBoundingBox(map["BBX"]!!)
+        val bbx = FontBoundingBox(reader.requireField(map, "BBX"))
         // bitmap
         val lines = (1..bbx.h).map {
-            reader.readLine()
+            reader.readRequiredLine("字符 $unicode 的点阵").trim()
         }
-        line = reader.readLine()
-        require(line == END_CHAR) { "unexpected line: $line, unicode: $unicode" }
+        line = reader.readContentLine("字符结束")
+        reader.requireLine(line == END_CHAR) { "期望 $END_CHAR, 实际为 $line, 字符: $unicode" }
         return BdfChar(
             unicode,
-            map["ENCODING"]!!.toInt(),
-            map["SWIDTH"]!!.split(" ").let { it[0].toInt() to it[1].toInt() },
-            map["DWIDTH"]!!.split(" ").let { it[0].toInt() to it[1].toInt() },
+            reader.parseInt(reader.requireField(map, "ENCODING"), "ENCODING"),
+            parseIntPair(reader.requireField(map, "SWIDTH"), "SWIDTH"),
+            parseIntPair(reader.requireField(map, "DWIDTH"), "DWIDTH"),
             bbx,
             BitMatrix(lines)
         )
+    }
+
+    private class BdfSource(private val reader: BufferedReader) {
+        private var lineNumber = 0
+
+        fun readRequiredLine(context: String): String {
+            val line = reader.readLine() ?: fail("读取 $context 时文件提前结束")
+            lineNumber += 1
+            return line
+        }
+
+        fun readContentLine(context: String): String {
+            while (true) {
+                val line = readRequiredLine(context).trim()
+                if (line.isEmpty() || line.startsWith(COMMENT)) continue
+                return line
+            }
+        }
+
+        fun readKeyValue(context: String): Pair<String, String> =
+            parseKeyValue(readContentLine(context), context)
+
+        fun parseKeyValue(line: String, context: String): Pair<String, String> {
+            val index = line.indexOfFirst { it.isWhitespace() }
+            if (index == -1) fail("$context 缺少字段值: $line")
+            val key = line.substring(0, index)
+            val value = line.substring(index + 1).trim()
+            return key to value
+        }
+
+        fun parseInt(value: String, field: String): Int =
+            value.toIntOrNull() ?: fail("$field 不是整数: $value")
+
+        fun requireField(map: Map<String, String>, field: String): String =
+            map[field] ?: fail("缺少 $field 字段")
+
+        fun requireLine(value: Boolean, message: () -> String) {
+            if (!value) fail(message())
+        }
+
+        fun fail(message: String): Nothing {
+            throw IllegalArgumentException("第 $lineNumber 行: $message")
+        }
     }
 }
 
@@ -168,18 +209,11 @@ data class BdfFont(
     val header: BdfHeader,
     val chars: Map<Int, BdfChar>
 ) {
-    private companion object {
-        fun String.toUnicode(ascii: Boolean) = buildString {
-            this@toUnicode.forEach { append(it.toUnicode(ascii)) }
-        }
-
-        fun Char.toUnicode(ascii: Boolean): String {
-            if (code in 0..127 && !ascii) return toString()
-            return "\\u${Integer.toHexString(code).padStart(4, '0')}"
-        }
+    fun getBitmap(string: String): BdfChar? {
+        require(string.isNotEmpty()) { "查询字符不能为空" }
+        return chars[string[0].code]
     }
 
-    fun getBitmap(string: String) = chars[string[0].code]
     fun getBitmaps(string: String) = string.toCharArray().map { chars[it.code] }
 }
 
@@ -206,9 +240,8 @@ data class BdfSize(
 ) {
     companion object {
         operator fun invoke(string: String): BdfSize {
-            val split = string.split(" ")
-            require(split.size == 3)
-            return BdfSize(split[0].toInt(), split[1].toInt(), split[2].toInt())
+            val split = parseIntFields(string, 3, "SIZE")
+            return BdfSize(split[0], split[1], split[2])
         }
     }
 }
@@ -229,9 +262,8 @@ data class FontBoundingBox(
 ) {
     companion object {
         operator fun invoke(string: String): FontBoundingBox {
-            val split = string.split(" ")
-            require(split.size == 4)
-            return FontBoundingBox(split[0].toInt(), split[1].toInt(), split[2].toInt(), split[3].toInt())
+            val split = parseIntFields(string, 4, "FONTBOUNDINGBOX")
+            return FontBoundingBox(split[0], split[1], split[2], split[3])
         }
     }
 }
@@ -244,3 +276,16 @@ class BdfChar(
     val bbx: FontBoundingBox,
     val bitMatrix: BitMatrix
 )
+
+private fun parseIntPair(value: String, field: String): Pair<Int, Int> {
+    val split = parseIntFields(value, 2, field)
+    return split[0] to split[1]
+}
+
+private fun parseIntFields(value: String, expectedSize: Int, field: String): List<Int> {
+    val split = value.trim().split(whitespaceRegex).filter { it.isNotEmpty() }
+    require(split.size == expectedSize) { "$field 需要 $expectedSize 个整数, 实际为 ${split.size} 个: $value" }
+    return split.map {
+        it.toIntOrNull() ?: throw IllegalArgumentException("$field 包含非整数值: $value")
+    }
+}
