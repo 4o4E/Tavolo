@@ -40,6 +40,7 @@ import top.e404.tavolo.draw.compose.charts.BarTheme
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.bar
+import top.e404.tavolo.draw.compose.charts.drawDonutChart
 import top.e404.tavolo.draw.compose.charts.drawRadarChart
 import top.e404.tavolo.draw.compose.charts.radar
 import top.e404.tavolo.draw.compose.clip
@@ -648,6 +649,56 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun donutChartRecordsExactCommandSequenceWithOffsetAndThemePaints() {
+        val recorder = RecordingDrawCanvas()
+        val theme = BarTheme(
+            outerRadius = 20f,
+            innerRadius = 8f,
+            strokeColor = Color.GREEN,
+            strokeWidth = 2f,
+            start = 10f
+        )
+
+        drawDonutChart(
+            canvas = recorder,
+            left = 5f,
+            top = 7f,
+            data = listOf(Color.RED to 2f, Color.BLUE to 1f),
+            theme = theme
+        )
+
+        assertIs<DrawCommand.Save>(recorder.commands[0])
+        assertIs<DrawCommand.ClipPath>(recorder.commands[1])
+        assertIs<DrawCommand.Restore>(recorder.commands[6])
+
+        val arcs = recorder.commands.filterIsInstance<DrawCommand.Arc>()
+        assertEquals(4, arcs.size)
+        assertFloatEquals(7f, arcs[0].left)
+        assertFloatEquals(9f, arcs[0].top)
+        assertFloatEquals(43f, arcs[0].right)
+        assertFloatEquals(45f, arcs[0].bottom)
+        assertFloatEquals(10f, arcs[0].startAngle)
+        assertFloatEquals(240f, arcs[0].sweepAngle)
+        assertEquals(true, arcs[0].includeCenter)
+        assertEquals(Color.RED, arcs[0].paint.color)
+        assertEquals(PaintMode.FILL, arcs[0].paint.mode)
+        assertEquals(Color.GREEN, arcs[1].paint.color)
+        assertEquals(PaintMode.STROKE, arcs[1].paint.mode)
+        assertFloatEquals(2f, arcs[1].paint.strokeWidth)
+        assertFloatEquals(250f, arcs[2].startAngle)
+        assertFloatEquals(120f, arcs[2].sweepAngle)
+        assertEquals(Color.BLUE, arcs[2].paint.color)
+
+        val circles = recorder.commands.filterIsInstance<DrawCommand.Circle>()
+        assertEquals(2, circles.size)
+        assertFloatEquals(25f, circles[0].x)
+        assertFloatEquals(27f, circles[0].y)
+        assertFloatEquals(18f, circles[0].radius)
+        assertEquals(PaintMode.STROKE, circles[0].paint.mode)
+        assertFloatEquals(8f, circles[1].radius)
+    }
+
+    @Test
     fun radarChartRecordsPathsLinesAndTextLines() {
         val recorder = RecordingDrawCanvas()
         val theme = RadarTheme(
@@ -672,6 +723,196 @@ class ComposeCanvasAndChartUnitTest {
         assertEquals(5, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
         assertEquals(3, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
         assertEquals(5, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun radarChartRecordsGridDataAndSkippedGridTextCommands() {
+        val recorder = RecordingDrawCanvas()
+        val theme = RadarTheme(
+            width = 100f,
+            height = 80f,
+            radius = 20f,
+            bgColor = Color.YELLOW,
+            fillOutlineColor = Color.RED,
+            gridCount = 2,
+            gridLineColor = Color.GREEN,
+            gridFontProvider = { if (it == 0) null else "g$it" },
+            gridFont = Font(Typeface.makeEmpty(), 8f),
+            gridFontColor = Color.BLUE,
+            labelFixPolicy = RadarFixPolicy.NONE,
+            labelFont = Font(Typeface.makeEmpty(), 10f),
+            labelFontColor = Color.WHITE
+        )
+
+        drawRadarChart(
+            canvas = recorder,
+            parentX = 10f,
+            parentY = 20f,
+            data = listOf("top" to 1f, "right" to 0.5f, "bottom" to 0.25f, "left" to 0.75f),
+            theme = theme
+        )
+
+        val paths = recorder.commands.filterIsInstance<DrawCommand.Path>()
+        assertEquals(5, paths.size)
+        assertEquals(Color.YELLOW, paths[0].paint.color)
+        assertEquals(Color.GREEN, paths[1].paint.color)
+        assertEquals(PaintMode.STROKE, paths[1].paint.mode)
+        assertEquals(Color.GREEN, paths[2].paint.color)
+        assertEquals(0x66FF0000, paths[3].paint.color)
+        assertEquals(PaintMode.FILL, paths[3].paint.mode)
+        assertEquals(Color.RED, paths[4].paint.color)
+        assertEquals(PaintMode.STROKE, paths[4].paint.mode)
+
+        val lines = recorder.commands.filterIsInstance<DrawCommand.Line>()
+        assertEquals(4, lines.size)
+        assertFloatEquals(60f, lines[0].x0)
+        assertFloatEquals(50f, lines[0].y0)
+        assertFloatEquals(60f, lines[0].x1)
+        assertFloatEquals(40f, lines[0].y1)
+        assertFloatEquals(70f, lines[1].x0)
+        assertFloatEquals(60f, lines[1].y0)
+        assertFloatEquals(80f, lines[1].x1)
+        assertFloatEquals(60f, lines[1].y1)
+
+        val textLines = recorder.commands.filterIsInstance<DrawCommand.TextLine>()
+        assertEquals(5, textLines.size)
+        assertFloatEquals(63f, textLines[0].x)
+        assertFloatEquals(37f, textLines[0].y)
+        assertEquals(Color.BLUE, textLines[0].paint.color)
+        textLines.drop(1).forEach {
+            assertEquals(Color.WHITE, it.paint.color)
+        }
+    }
+
+    @Test
+    fun radarChartAppliesLabelFixPolicyToRecordedTextLinePositions() {
+        val data = listOf("top" to 1f, "right" to 1f, "bottom" to 1f, "left" to 1f)
+        val labelFont = Font(Typeface.makeEmpty(), 10f)
+
+        listOf(RadarFixPolicy.MOVE_OUTSIDE, RadarFixPolicy.RATED_FIX).forEach { policy ->
+            val recorder = RecordingDrawCanvas()
+            val theme = RadarTheme(
+                width = 100f,
+                height = 100f,
+                radius = 20f,
+                gridCount = 1,
+                gridFontProvider = { null },
+                labelOuterLength = 10f,
+                labelFixPolicy = policy,
+                labelFont = labelFont
+            )
+
+            drawRadarChart(
+                canvas = recorder,
+                parentX = 0f,
+                parentY = 0f,
+                data = data,
+                theme = theme
+            )
+
+            val labels = recorder.commands.filterIsInstance<DrawCommand.TextLine>()
+            assertEquals(data.size, labels.size)
+            data.forEachIndexed { index, (label) ->
+                val angleStep = 2 * Math.PI / data.size
+                val angle = (index * angleStep + Math.PI / 2 * 3) % (2 * Math.PI)
+                val line = org.jetbrains.skia.TextLine.make(label, labelFont)
+                val (expectedX, expectedY) = policy.fix(
+                    angle,
+                    angle / Math.PI,
+                    line,
+                    50f,
+                    50f,
+                    theme
+                )
+                assertFloatEquals(expectedX, labels[index].x)
+                assertFloatEquals(expectedY, labels[index].y)
+            }
+        }
+    }
+
+    @Test
+    fun radarChartRecordsEmptyDataAndZeroGridWithoutGridOrLabelCommands() {
+        val recorder = RecordingDrawCanvas()
+        val theme = RadarTheme(
+            width = 100f,
+            height = 100f,
+            radius = 20f,
+            gridCount = 0,
+            gridFontProvider = { "g$it" },
+            labelFont = Font(Typeface.makeEmpty(), 10f)
+        )
+
+        drawRadarChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = emptyList(),
+            theme = theme
+        )
+
+        assertEquals(3, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun radarFixPoliciesCoverRightSideAndTiltIntersectionBranches() {
+        val line = org.jetbrains.skia.TextLine.make("Commit", Font(Typeface.makeEmpty(), 10f))
+        val theme = RadarTheme(width = 100f, height = 100f, radius = 20f, labelOuterLength = 10f)
+
+        listOf(RadarFixPolicy.MOVE_OUTSIDE, RadarFixPolicy.RATED_FIX).forEach { policy ->
+            val (x, y) = policy.fix(
+                Math.PI * 1.75,
+                1.75,
+                line,
+                50f,
+                50f,
+                theme
+            )
+            assertTrue(x.isFinite(), "$policy 右侧分支 x 应为有限值")
+            assertTrue(y.isFinite(), "$policy 右侧分支 y 应为有限值")
+        }
+
+        data class TiltCase(
+            val angle: Double,
+            val centerX: Float,
+            val centerY: Float,
+            val radius: Float,
+            val labelOuterLength: Float
+        )
+
+        val halfWidth = line.width / 2f
+        listOf(
+            // 文本中心和雷达中心重合，覆盖零向量分支。
+            TiltCase(0.0, 0f, 0f, 0f, 0f),
+            // 水平线命中或错过字体盒竖边，覆盖 dx 分支和 t 正负分支。
+            TiltCase(0.0, 0f, 0f, 20f, 10f),
+            TiltCase(0.0, 0f, 100f, 20f, 10f),
+            TiltCase(0.0, 0f, -100f, 20f, 10f),
+            TiltCase(0.0, -100f, 0f, 20f, 10f),
+            // 垂直线命中或错过字体盒横边，覆盖 dy 分支和范围判断。
+            TiltCase(Math.PI / 2, halfWidth, 0f, 20f, 10f),
+            TiltCase(Math.PI / 2, 0f, 0f, 20f, 10f),
+            TiltCase(Math.PI / 2, halfWidth + 100f, 0f, 20f, 10f),
+            TiltCase(Math.PI / 2, 0f, -100f, 20f, 10f)
+        ).forEach { case ->
+            val (x, y) = RadarFixPolicy.TILT.fix(
+                case.angle,
+                case.angle / Math.PI,
+                line,
+                case.centerX,
+                case.centerY,
+                RadarTheme(
+                    width = 100f,
+                    height = 100f,
+                    radius = case.radius,
+                    labelOuterLength = case.labelOuterLength,
+                    labelFont = Font(Typeface.makeEmpty(), 10f)
+                )
+            )
+            assertTrue(x.isFinite(), "TILT x 应为有限值: $case")
+            assertTrue(y.isFinite(), "TILT y 应为有限值: $case")
+        }
     }
 
     @Test

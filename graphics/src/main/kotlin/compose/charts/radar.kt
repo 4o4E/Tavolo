@@ -206,7 +206,7 @@ enum class RadarFixPolicy(val fix: (
             if (candidates.isEmpty()) return 0f
 
             // 选择最近的正交交点 (最小正 t)
-            val tMin = candidates.minOrNull() ?: return 0f
+            val tMin = candidates.min()
             val dist = sqrt(dx * dx + dy * dy) * tMin
             return dist
         }
