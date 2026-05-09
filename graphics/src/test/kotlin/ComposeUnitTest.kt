@@ -436,6 +436,29 @@ class ComposeModifierCommandUnitTest {
     }
 
     @Test
+    fun shapedBorderRecordsStrokePathWithPathEffect() {
+        val commands = renderCommands {
+            box(
+                Modifier
+                    .size(40f, 24f)
+                    .border(
+                        3f,
+                        Color.RED,
+                        strokeStyle = StrokeStyle.Dashed(listOf(6f, 3f)),
+                        shape = Shape.RoundedRect(8f)
+                    )
+            )
+        }
+
+        assertEquals(0, commands.filterIsInstance<DrawCommand.Line>().size)
+        val path = commands.filterIsInstance<DrawCommand.Path>().single()
+        assertEquals(Color.RED, path.paint.color)
+        assertEquals(PaintMode.STROKE, path.paint.mode)
+        assertFloatEquals(3f, path.paint.strokeWidth)
+        assertTrue(path.paint.hasPathEffect)
+    }
+
+    @Test
     fun shadowAndRotateWrapContainerDrawing() {
         val commands = renderCommands {
             box(

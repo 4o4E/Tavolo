@@ -42,15 +42,20 @@ fun Modifier.padding(horizontal: Float = 0f, vertical: Float = 0f): Modifier =
 fun Modifier.padding(top: Float = 0f, right: Float = 0f, bottom: Float = 0f, left: Float = 0f): Modifier =
     this.then(Padding(top, right, bottom, left))
 
-fun Modifier.border(all: Float, color: Int, strokeStyle: StrokeStyle = StrokeStyle.Solid): Modifier =
-    this.then(Border(all, all, all, all, color, strokeStyle))
+fun Modifier.border(
+    all: Float,
+    color: Int,
+    strokeStyle: StrokeStyle = StrokeStyle.Solid,
+    shape: Shape? = null
+): Modifier = this.then(Border(all, all, all, all, color, strokeStyle, shape))
 
 fun Modifier.border(
     horizontal: Float = 0f,
     vertical: Float = 0f,
     color: Int,
-    strokeStyle: StrokeStyle = StrokeStyle.Solid
-): Modifier = this.then(Border(vertical, horizontal, vertical, horizontal, color, strokeStyle))
+    strokeStyle: StrokeStyle = StrokeStyle.Solid,
+    shape: Shape? = null
+): Modifier = this.then(Border(vertical, horizontal, vertical, horizontal, color, strokeStyle, shape))
 
 fun Modifier.border(
     top: Float = 0f,
@@ -58,8 +63,9 @@ fun Modifier.border(
     bottom: Float = 0f,
     left: Float = 0f,
     color: Int,
-    strokeStyle: StrokeStyle = StrokeStyle.Solid
-): Modifier = this.then(Border(top, right, bottom, left, color, strokeStyle))
+    strokeStyle: StrokeStyle = StrokeStyle.Solid,
+    shape: Shape? = null
+): Modifier = this.then(Border(top, right, bottom, left, color, strokeStyle, shape))
 
 fun Modifier.antiAlias(enabled: Boolean = true) = this.then(AntiAlias(enabled))
 

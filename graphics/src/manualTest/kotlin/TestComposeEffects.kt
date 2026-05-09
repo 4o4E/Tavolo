@@ -368,16 +368,18 @@ class TestComposeEffects {
                     "虚线",
                     Modifier
                         .padding(right = 18f)
+                        .clip(Shape.RoundedRect(18f))
                         .background(Color.WHITE)
-                        .border(4f, Color.makeRGB(235, 88, 74), StrokeStyle.Dashed(listOf(14f, 7f)))
+                        .border(4f, Color.makeRGB(235, 88, 74), StrokeStyle.Dashed(listOf(14f, 7f)), shape = Shape.RoundedRect(18f))
                         .size(200f, 112f),
                     titleColor = Color.makeRGB(30, 35, 45)
                 )
                 sampleCard(
                     "点线",
                     Modifier
+                        .clip(Shape.RoundedRect(34f))
                         .background(Color.WHITE)
-                        .border(4f, Color.makeRGB(34, 158, 112), StrokeStyle.Dotted(dot = 2f, gap = 8f))
+                        .border(4f, Color.makeRGB(34, 158, 112), StrokeStyle.Dotted(dot = 2f, gap = 8f), shape = Shape.RoundedRect(34f))
                         .size(200f, 112f),
                     titleColor = Color.makeRGB(30, 35, 45)
                 )
@@ -400,11 +402,88 @@ class TestComposeEffects {
                     Modifier
                         .clip(Shape.RoundedRect(16f))
                         .background(Color.makeRGB(36, 42, 54))
-                        .border(5f, Color.makeRGB(255, 204, 77), StrokeStyle.Dashed(listOf(10f, 6f)))
+                        .border(5f, Color.makeRGB(255, 204, 77), StrokeStyle.Dashed(listOf(10f, 6f)), shape = Shape.RoundedRect(16f))
                         .size(280f, 120f)
                 ) {
                     text("用于卡片、标签、气泡边缘", modifier = Modifier.padding(top = 16f), fontSize = 17f, textColor = Color.WHITE, fontFamily = uiFont)
                 }
+            }
+
+            text(
+                "不同圆角弧度",
+                modifier = Modifier.padding(top = 26f, bottom = 14f),
+                fontSize = 23f,
+                textColor = Color.makeRGB(30, 35, 45),
+                fontFamily = uiFont
+            )
+            row(modifier = Modifier.padding(bottom = 28f), verticalAlignment = VerticalAlignment.Center) {
+                listOf(
+                    0f to "0",
+                    10f to "10",
+                    24f to "24",
+                    44f to "44"
+                ).forEachIndexed { index, (radius, label) ->
+                    box(
+                        modifier = Modifier
+                            .padding(right = if (index == 3) 0f else 18f)
+                            .clip(Shape.RoundedRect(radius))
+                            .background(Color.WHITE)
+                            .border(
+                                4f,
+                                Color.makeRGB(44, 101, 255),
+                                StrokeStyle.Dashed(listOf(12f, 6f)),
+                                shape = Shape.RoundedRect(radius)
+                            )
+                            .size(134f, 76f),
+                        horizontalAlignment = HorizontalAlignment.Center,
+                        verticalAlignment = VerticalAlignment.Center
+                    ) {
+                        text("R$label", fontSize = 22f, textColor = Color.makeRGB(30, 35, 45), fontFamily = uiFont)
+                    }
+                }
+            }
+
+            text(
+                "多层边框 + padding + 不同圆角",
+                modifier = Modifier.padding(bottom = 14f),
+                fontSize = 23f,
+                textColor = Color.makeRGB(30, 35, 45),
+                fontFamily = uiFont
+            )
+            box(
+                modifier = Modifier
+                    .shadow(blurRadius = 16f, color = Color.makeARGB(90, 0, 0, 0), offsetY = 8f, shape = Shape.RoundedRect(34f))
+                    .clip(Shape.RoundedRect(34f))
+                    .background(Color.WHITE)
+                    .border(6f, Color.makeRGB(44, 101, 255), shape = Shape.RoundedRect(34f))
+                    .padding(10f)
+                    .clip(Shape.RoundedRect(24f))
+                    .background(Color.makeRGB(235, 241, 255))
+                    .border(4f, Color.makeRGB(235, 88, 74), StrokeStyle.Dashed(listOf(14f, 7f)), shape = Shape.RoundedRect(24f))
+                    .padding(10f)
+                    .clip(Shape.RoundedRect(14f))
+                    .background(Color.makeRGB(36, 42, 54))
+                    .border(3f, Color.WHITE, StrokeStyle.Dotted(dot = 2f, gap = 7f), shape = Shape.RoundedRect(14f))
+                    .padding(horizontal = 28f, vertical = 20f),
+                horizontalAlignment = HorizontalAlignment.Center,
+                verticalAlignment = VerticalAlignment.Center
+            ) {
+                text(
+                    "三层圆角边框",
+                    style = TextStyle(
+                        fontSize = 28f,
+                        textColor = Color.WHITE,
+                        fontFamily = uiFont,
+                        underline = TextUnderline(
+                            color = Color.makeRGB(255, 204, 77),
+                            thickness = 10f,
+                            offset = 3f,
+                            mode = TextUnderlineMode.Block,
+                            startPadding = 3f,
+                            endPadding = 3f
+                        )
+                    )
+                )
             }
         }
     }

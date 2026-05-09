@@ -45,7 +45,7 @@ dependencies {
 - 间距：`padding`
 - 样式：`background`、`border`、`clip`、`shadow`、`rotate`
 
-`border` 默认绘制实线，也可以通过 `StrokeStyle.Dashed` 或 `StrokeStyle.Dotted` 绘制虚线、点线边框。
+`border` 默认绘制实线，也可以通过 `StrokeStyle.Dashed` 或 `StrokeStyle.Dotted` 绘制虚线、点线边框。需要让边框沿圆角路径绘制时，传入 `shape = Shape.RoundedRect(...)`；不传 `shape` 时保持旧的矩形分边绘制行为。
 
 文本样式不属于通用 `Modifier`，应作为 `text`、`iconText` 这类文本组件的参数传入，例如 `fontSize`、`textColor`、`fontFamily`、`textOverflow`。需要复用样式时可以传入 `TextStyle`，下划线可通过 `TextUnderline` 定义颜色、粗细、偏移、虚线样式，也可以使用 `TextUnderlineMode.Block` 绘制色块下划线。
 图片溢出策略同样不属于通用 `Modifier`，应作为 `image` 的 `imageOverflow` 参数传入。
@@ -69,7 +69,12 @@ box(
     Modifier
         .size(180f, 80f)
         .rotate(-3f)
-        .border(2f, Color.WHITE, StrokeStyle.Dashed(listOf(8f, 4f)))
+        .border(
+            2f,
+            Color.WHITE,
+            StrokeStyle.Dashed(listOf(8f, 4f)),
+            shape = Shape.RoundedRect(16f)
+        )
 ) {
     text(
         "强调文本",
@@ -87,6 +92,24 @@ box(
         )
     )
 }
+```
+
+多层圆角边框可以通过 `border + padding + clip/background` 逐层组合：
+
+```kotlin
+Modifier
+    .clip(Shape.RoundedRect(32f))
+    .background(Color.WHITE)
+    .border(6f, Color.BLUE, shape = Shape.RoundedRect(32f))
+    .padding(10f)
+    .clip(Shape.RoundedRect(22f))
+    .background(Color.LTGRAY)
+    .border(4f, Color.RED, StrokeStyle.Dashed(listOf(12f, 6f)), shape = Shape.RoundedRect(22f))
+    .padding(10f)
+    .clip(Shape.RoundedRect(12f))
+    .background(Color.DKGRAY)
+    .border(3f, Color.WHITE, StrokeStyle.Dotted(dot = 2f, gap = 7f), shape = Shape.RoundedRect(12f))
+    .padding(20f)
 ```
 
 ### 字体管理

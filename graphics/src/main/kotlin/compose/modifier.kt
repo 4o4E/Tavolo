@@ -97,7 +97,8 @@ data class Border(
     val bottom: Float = 0f,
     val left: Float = 0f,
     val color: Int,
-    val strokeStyle: StrokeStyle = StrokeStyle.Solid
+    val strokeStyle: StrokeStyle = StrokeStyle.Solid,
+    val shape: Shape? = null
 ) : ElementModifier
 
 data class AntiAlias(

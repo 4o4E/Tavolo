@@ -238,6 +238,10 @@ abstract class BaseElement : UiElement {
 
     private fun drawBorder(context: DrawContext, bounds: Bounds, border: Border, antiAlias: AntiAlias) {
         if (border.color == Color.TRANSPARENT) return
+        if (border.shape != null) {
+            drawShapeBorder(context, bounds, border, antiAlias)
+            return
+        }
         if (border.strokeStyle == StrokeStyle.Solid) {
             val paint = Paint().apply {
                 color = border.color
@@ -261,6 +265,25 @@ abstract class BaseElement : UiElement {
         if (border.bottom > 0) context.canvas.drawLine(bounds.x, bounds.y + bounds.height - border.bottom / 2f, bounds.x + bounds.width, bounds.y + bounds.height - border.bottom / 2f, strokePaint(border.bottom))
         if (border.left > 0) context.canvas.drawLine(bounds.x + border.left / 2f, bounds.y, bounds.x + border.left / 2f, bounds.y + bounds.height, strokePaint(border.left))
         if (border.right > 0) context.canvas.drawLine(bounds.x + bounds.width - border.right / 2f, bounds.y, bounds.x + bounds.width - border.right / 2f, bounds.y + bounds.height, strokePaint(border.right))
+    }
+
+    private fun drawShapeBorder(context: DrawContext, bounds: Bounds, border: Border, antiAlias: AntiAlias) {
+        val strokeWidth = maxOf(border.top, border.right, border.bottom, border.left)
+        if (strokeWidth <= 0f) return
+        val pathWidth = (bounds.width - strokeWidth).coerceAtLeast(0f)
+        val pathHeight = (bounds.height - strokeWidth).coerceAtLeast(0f)
+        if (pathWidth <= 0f || pathHeight <= 0f) return
+        val path = border.shape!!.createPath(pathWidth, pathHeight).apply {
+            transform(Matrix33.makeTranslate(bounds.x + strokeWidth / 2f, bounds.y + strokeWidth / 2f))
+        }
+        val paint = Paint().apply {
+            color = border.color
+            mode = PaintMode.STROKE
+            this.strokeWidth = strokeWidth
+            isAntiAlias = antiAlias.enabled
+            applyStrokeStyle(border.strokeStyle)
+        }
+        context.canvas.drawPath(path, paint)
     }
 
     /**
