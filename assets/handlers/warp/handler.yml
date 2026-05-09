@@ -1,0 +1,5 @@
+﻿id: warp
+type: kotlin
+version: 1
+name: "扭曲"
+regex: "扭曲|(?i)warp"

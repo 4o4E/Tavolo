@@ -1,0 +1,5 @@
+﻿id: injection
+type: kotlin
+version: 1
+name: "打针"
+regex: "打针|(?i)dz"

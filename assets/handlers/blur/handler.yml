@@ -1,0 +1,5 @@
+﻿id: blur
+type: kotlin
+version: 1
+name: "高斯模糊"
+regex: "(高斯)?模糊|(?i)blur|(gs)?mh"

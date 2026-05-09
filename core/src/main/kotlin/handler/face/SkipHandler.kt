@@ -1,12 +1,12 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.handler.DrawData
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.pmapIndexed
 import top.e404.tavolo.util.round
 import top.e404.tavolo.util.withCanvas
@@ -14,14 +14,14 @@ import top.e404.tavolo.util.withCanvas
 /**
  * 浪
  */
-@ImageHandler
+@ImageHandler("skip")
 object SkipHandler : FramesHandler {
     private const val w = 316
     private const val h = 178
     private const val count = 7
     private val range = 0..count
-    private val bgList = range.map { getJarImage(this::class.java, "statistic/skip/$it.png") }
-    private val ddList = DrawData.loadFromJar("statistic/skip/skip.yml")
+    private val bgList = range.map { Assets.image("handlers/skip/assets/skip/$it.png") }
+    private val ddList = DrawData.loadFromAssets("handlers/skip/assets/skip/skip.yml")
 
     override val name = "skip"
     override val regex = Regex("(?i)skip")

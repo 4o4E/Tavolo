@@ -1,0 +1,5 @@
+﻿id: resize
+type: kotlin
+version: 1
+name: "缩放"
+regex: "(?i)缩放|resize|sf"

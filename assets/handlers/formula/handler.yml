@@ -1,0 +1,5 @@
+﻿id: formula
+type: kotlin
+version: 1
+name: "formula"
+regex: "(?i)formula|公式"

@@ -15,7 +15,7 @@ import top.e404.tavolo.util.withCanvas
 /**
  * 彩色浮雕效果
  */
-@ImageHandler
+@ImageHandler("emboss_color")
 object EmbossColorHandler : FramesHandler {
     override val name = "彩色浮雕"
     override val regex = Regex("(?i)彩色浮雕|cfd|fdc|EmbossColor|EmbossC")

@@ -1,0 +1,5 @@
+﻿id: bw
+type: kotlin
+version: 1
+name: "Bw"
+regex: "(?i)bw"

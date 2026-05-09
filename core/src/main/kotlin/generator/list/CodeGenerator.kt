@@ -1,5 +1,6 @@
 package top.e404.tavolo.generator.list
 
+import top.e404.tavolo.annotation.ImageGenerator
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.TextLine
@@ -9,14 +10,15 @@ import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.util.argb
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.util.choose
 import top.e404.tavolo.util.fill
 import top.e404.tavolo.util.withCanvas
 import kotlin.math.abs
 import kotlin.random.Random
 
-object CodeGenerator : ImageGenerator {
+@ImageGenerator("code")
+object CodeGenerator : FramesGenerator {
     private const val padding = 50
     private const val fontSize = 150
     private const val fontSpacing = 30

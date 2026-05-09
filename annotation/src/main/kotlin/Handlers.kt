@@ -5,4 +5,15 @@ package top.e404.tavolo.annotation
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
-annotation class ImageHandler
+annotation class ImageHandler(
+    val id: String
+)
+
+/**
+ * 标记为图片生成器
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.SOURCE)
+annotation class ImageGenerator(
+    val id: String
+)

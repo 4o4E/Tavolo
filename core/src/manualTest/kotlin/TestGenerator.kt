@@ -2,7 +2,7 @@ package top.e404.tavolo
 
 import kotlinx.coroutines.runBlocking
 import top.e404.tavolo.frame.encodeToBytes
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.generator.list.*
 import java.io.File
 import kotlin.test.Test
@@ -16,7 +16,7 @@ class TestGenerator {
 
     private val outPng = File("out/out.png")
     private val outGif = File("out/out.gif")
-    private fun testGenerator(generator: ImageGenerator, args: MutableMap<String, String>) {
+    private fun testGenerator(generator: FramesGenerator, args: MutableMap<String, String>) {
         runBlocking {
             val frames = generator.generate(args)
             val f = if (frames.size == 1) outPng else outGif

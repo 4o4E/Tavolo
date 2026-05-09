@@ -1,0 +1,5 @@
+﻿id: low_poly
+type: kotlin
+version: 1
+name: "晶格化"
+regex: "晶格化(?i)|lowPoly"

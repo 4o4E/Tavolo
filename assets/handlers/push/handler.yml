@@ -1,0 +1,5 @@
+﻿id: push
+type: kotlin
+version: 1
+name: "推"
+regex: "(?i)推|tui|push"

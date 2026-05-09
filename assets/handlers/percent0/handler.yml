@@ -1,0 +1,5 @@
+﻿id: percent0
+type: kotlin
+version: 1
+name: "Percent0"
+regex: "(\\d{1,2}|100)%"

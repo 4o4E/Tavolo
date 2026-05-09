@@ -1,0 +1,5 @@
+﻿id: reverse
+type: kotlin
+version: 1
+name: "反相"
+regex: "(?i)反相|fx|reverse"

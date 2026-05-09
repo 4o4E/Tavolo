@@ -1,0 +1,5 @@
+﻿id: cyberpunk
+type: kotlin
+version: 1
+name: "赛博朋克"
+regex: "(?i)赛博朋克|cyberpunk|sbpk|cbpk"

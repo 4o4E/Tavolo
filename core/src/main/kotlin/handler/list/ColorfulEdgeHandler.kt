@@ -18,7 +18,7 @@ import kotlin.math.abs
 /**
  * 彩色边缘效果
  */
-@ImageHandler
+@ImageHandler("colorful_edge")
 object ColorfulEdgeHandler : FramesHandler {
     override val name = "彩色边缘"
     override val regex = Regex("(?i)彩色边缘|ColorfulEdge|ce")

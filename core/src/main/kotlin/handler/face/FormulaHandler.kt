@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
@@ -9,11 +10,11 @@ import top.e404.tavolo.util.*
 /**
  * 铁咩
  */
-@ImageHandler
+@ImageHandler("formula")
 object FormulaHandler : FramesHandler {
     private const val count = 67
     private val bgList by lazy {
-        (0..count).map { getJarImage(this::class.java, "statistic/formula/$it.png") }
+        (0..count).map { Assets.image("handlers/formula/assets/formula/$it.png") }
     }
 
     override val name = "formula"

@@ -1,0 +1,5 @@
+﻿id: dislike
+type: kotlin
+version: 1
+name: "嫌弃"
+regex: "(?i)嫌弃|xq"

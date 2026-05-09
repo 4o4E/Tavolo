@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.util.Colors
@@ -14,9 +15,9 @@ import top.e404.tavolo.util.*
 /**
  * 龙鸣
  */
-@ImageHandler
+@ImageHandler("long_ming")
 object LongMingHandler : FramesHandler {
-    private val bg = getJarImage(this::class.java, "statistic/lm.png")
+    private val bg = Assets.image("handlers/long_ming/assets/lm.png")
     private val bgRect = Rect.makeWH(bg.width.toFloat(), bg.height.toFloat())
     private val paint = Paint().apply {
         color = Colors.WHITE.argb

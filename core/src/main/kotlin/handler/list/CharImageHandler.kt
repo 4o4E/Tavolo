@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-@ImageHandler
+@ImageHandler("char_image")
 object CharImageHandler : FramesHandler {
     private const val limit = 100F
     private const val base = "圆回田五三十〇彡二一辶丿丶"

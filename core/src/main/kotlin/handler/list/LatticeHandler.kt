@@ -11,7 +11,7 @@ import top.e404.tavolo.util.*
 /**
  * 方格化
  */
-@ImageHandler
+@ImageHandler("lattice")
 object LatticeHandler : FramesHandler {
     override val name = "Lattice"
     override val regex = Regex("(?i)lattice|方格化?|fgh?")

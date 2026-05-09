@@ -19,7 +19,7 @@ import top.e404.tavolo.util.withCanvas
 /**
  * 群青
  */
-@ImageHandler
+@ImageHandler("qun_qing")
 object QunQingHandler : FramesHandler {
     private val paint = Paint().apply {
         color = Colors.WHITE.argb

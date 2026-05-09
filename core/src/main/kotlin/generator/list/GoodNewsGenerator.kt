@@ -1,18 +1,20 @@
 package top.e404.tavolo.generator.list
 
+import top.e404.tavolo.assets.Assets
+import top.e404.tavolo.annotation.ImageGenerator
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.util.autoSize
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.withCanvas
 import kotlin.math.min
 
-object GoodNewsGenerator : ImageGenerator {
-    private val bg = getJarImage(this::class.java, "statistic/goodnews.jpg")
+@ImageGenerator("good_news")
+object GoodNewsGenerator : FramesGenerator {
+    private val bg = Assets.image("generators/good_news/assets/goodnews.jpg")
     private val maxWidth = (bg.width * .9).toInt()
     private const val minSize = 20
     private const val maxSize = 100

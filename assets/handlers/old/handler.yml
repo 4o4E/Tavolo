@@ -1,0 +1,5 @@
+﻿id: old
+type: kotlin
+version: 1
+name: "旧照片滤镜"
+regex: "(?i)old|旧照片(滤镜)?"

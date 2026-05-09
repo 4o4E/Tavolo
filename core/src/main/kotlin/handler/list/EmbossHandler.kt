@@ -17,7 +17,7 @@ import top.e404.tavolo.util.toImage
 /**
  * 浮雕效果
  */
-@ImageHandler
+@ImageHandler("emboss")
 object EmbossHandler : FramesHandler {
     override val name = "浮雕"
     override val regex = Regex("(?i)浮雕|fd|emboss")

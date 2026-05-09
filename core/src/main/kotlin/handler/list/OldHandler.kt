@@ -11,7 +11,7 @@ import top.e404.tavolo.util.handlePixel
 /**
  * 老化
  */
-@ImageHandler
+@ImageHandler("old")
 object OldHandler : FramesHandler {
     override val name = "旧照片滤镜"
     override val regex = Regex("(?i)old|旧照片(滤镜)?")

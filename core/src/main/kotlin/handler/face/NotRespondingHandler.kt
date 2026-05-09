@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.TavoloFonts
@@ -9,12 +10,11 @@ import top.e404.tavolo.frame.FramesHandler
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("not_responding")
 object NotRespondingHandler : FramesHandler {
-    private val rt = getJarImage(this::class.java, "statistic/not_responding.png")
+    private val rt = Assets.image("handlers/not_responding/assets/not_responding.png")
     private val rect by lazy { Rect.makeXYWH(2F, 3F, 16F, 16F) }
     private val colorPaint by lazy {
         Paint().apply {

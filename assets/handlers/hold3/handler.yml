@@ -1,0 +1,5 @@
+﻿id: hold3
+type: kotlin
+version: 1
+name: "Hold3"
+regex: "(?i)Hold3"

@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.decodeFromString
 import org.jetbrains.skia.Rect
@@ -13,14 +14,14 @@ import top.e404.tavolo.util.*
 /**
  * reo
  */
-@ImageHandler
+@ImageHandler("reo")
 object ReoHandler : FramesHandler {
     private const val w = 480
     private const val h = 270
     private const val count = 36
     private val range = 0..count
-    private val bgList by lazy { range.map { getJarImage(this::class.java, "statistic/reo/$it.png") } }
-    private val ddList by lazy { Yaml.default.decodeFromString<List<List<DrawData>>>(readJarFile(this::class.java, "statistic/reo/reo.yml")) }
+    private val bgList by lazy { range.map { Assets.image("handlers/reo/assets/reo/$it.png") } }
+    private val ddList by lazy { Yaml.default.decodeFromString<List<List<DrawData>>>(Assets.text("handlers/reo/assets/reo/reo.yml")) }
 
     override val name = "Reo"
     override val regex = Regex("(?i)reo")

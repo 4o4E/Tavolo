@@ -1,0 +1,4 @@
+﻿id: dot_matrix_char_image
+version: 1
+name: "DotMatrixCharImage"
+regex: "DotMatrixCharImage"

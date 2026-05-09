@@ -1,0 +1,5 @@
+﻿id: touch
+type: kotlin
+version: 1
+name: "Touch"
+regex: "摸|(?i)mo|touch"

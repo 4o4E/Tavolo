@@ -15,7 +15,7 @@ import kotlin.math.sqrt
 /**
  * 生成转动gif
  */
-@ImageHandler
+@ImageHandler("turn")
 object TurnHandler : FramesHandler {
     override val name = "转动"
     override val regex = Regex("转动?|(?i)zhuan|turn|zd")

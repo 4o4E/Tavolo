@@ -1,0 +1,5 @@
+﻿id: eat
+type: kotlin
+version: 1
+name: "eat"
+regex: "(?i)eat"

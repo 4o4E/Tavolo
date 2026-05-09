@@ -8,7 +8,7 @@ import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.util.pmapIndexed
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("shake")
 object ShakeHandler : FramesHandler {
     override val name = "ShakeImage"
     override val regex = Regex("(?i)shakeImage|shakeImg|si")

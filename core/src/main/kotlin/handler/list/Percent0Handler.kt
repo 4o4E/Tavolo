@@ -13,7 +13,7 @@ import kotlin.math.min
 /**
  * 0%
  */
-@ImageHandler
+@ImageHandler("percent0")
 object Percent0Handler : FramesHandler {
     override val name = "Percent0"
     override val regex = Regex("(\\d{1,2}|100)%")

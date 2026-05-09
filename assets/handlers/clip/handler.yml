@@ -1,0 +1,5 @@
+﻿id: clip
+type: kotlin
+version: 1
+name: "裁剪"
+regex: "(?i)(裁剪|sub|cj)(图片|img)?"

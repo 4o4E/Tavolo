@@ -11,7 +11,7 @@ import top.e404.tavolo.util.*
 /**
  * RGB
  */
-@ImageHandler
+@ImageHandler("rgb")
 object RgbHandler : FramesHandler {
     override val name = "Rgb"
     override val regex = Regex("(?i)rgb")

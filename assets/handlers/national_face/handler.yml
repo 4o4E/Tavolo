@@ -1,0 +1,5 @@
+﻿id: national_face
+type: kotlin
+version: 1
+name: "国庆头像"
+regex: "(?i)(国庆|gq)(头像|face|tx)"

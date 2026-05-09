@@ -15,7 +15,7 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("dot_matrix")
 object DotMatrixHandler : FramesHandler {
     private val font = TavoloFonts.font(TavoloFonts.HEI, 20F)
     private val fullHeight = font.height()

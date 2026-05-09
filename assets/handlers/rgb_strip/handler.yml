@@ -1,0 +1,5 @@
+﻿id: rgb_strip
+type: kotlin
+version: 1
+name: "RgbStrip"
+regex: "(?i)rgbstrip"

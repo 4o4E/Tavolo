@@ -5,7 +5,7 @@ import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.lowpoly.LowPoly.lowpoly
 
-@ImageHandler
+@ImageHandler("low_poly")
 object LowPolyHandler : FramesHandler {
     override val name = "晶格化"
     override val regex = Regex("晶格化(?i)|lowPoly")

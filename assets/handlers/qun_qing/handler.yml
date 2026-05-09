@@ -1,0 +1,5 @@
+﻿id: qun_qing
+type: kotlin
+version: 1
+name: "群青"
+regex: "(?i)群青"

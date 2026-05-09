@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
@@ -9,9 +10,9 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("addiction")
 object AddictionHandler : FramesHandler {
-    private val cover by lazy { getJarImage(this::class.java, "statistic/addiction.png") }
+    private val cover by lazy { Assets.image("handlers/addiction/assets/addiction.png") }
     private const val size = 350
     private val faceRect = Rect.makeXYWH(0F, 0F, size.toFloat(), size.toFloat())
 

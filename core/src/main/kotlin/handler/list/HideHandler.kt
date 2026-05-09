@@ -13,7 +13,7 @@ import top.e404.tavolo.util.handlePixel
 /**
  * 隐藏
  */
-@ImageHandler
+@ImageHandler("hide")
 object HideHandler : FramesHandler {
     override val name = "隐藏"
     override val regex = Regex("(?i)hide|隐藏")

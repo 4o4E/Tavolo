@@ -1,16 +1,15 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.*
 import org.jetbrains.skia.paragraph.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.FramesHandler
 import top.e404.tavolo.frame.HandleResult
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.frame.handle
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.newSurface
 import top.e404.tavolo.util.subCenter
 import top.e404.tavolo.util.withCanvas
@@ -18,31 +17,31 @@ import top.e404.tavolo.util.withCanvas
 /**
  * 球拍
  */
-@ImageHandler
+@ImageHandler("ygo")
 object YgoHandler : FramesHandler {
     override val name = "Ygo"
     override val regex = Regex("(?i)ygo")
 
     // 卡片背景
-    private val monsterRh by lazy { getJarImage(this::class.java, "statistic/ygo/card/monster_rh.jpg") }
-    private val monsterTc by lazy { getJarImage(this::class.java, "statistic/ygo/card/monster_tc.jpg") }
-    private val monsterTt by lazy { getJarImage(this::class.java, "statistic/ygo/card/monster_tt.jpg") }
-    private val monsterXg by lazy { getJarImage(this::class.java, "statistic/ygo/card/monster_xg.jpg") }
-    private val monsterYs by lazy { getJarImage(this::class.java, "statistic/ygo/card/monster_ys.jpg") }
-    private val spell by lazy { getJarImage(this::class.java, "statistic/ygo/card/spell.jpg") }
-    private val trap by lazy { getJarImage(this::class.java, "statistic/ygo/card/trap.jpg") }
+    private val monsterRh by lazy { Assets.image("handlers/ygo/assets/ygo/card/monster_rh.jpg") }
+    private val monsterTc by lazy { Assets.image("handlers/ygo/assets/ygo/card/monster_tc.jpg") }
+    private val monsterTt by lazy { Assets.image("handlers/ygo/assets/ygo/card/monster_tt.jpg") }
+    private val monsterXg by lazy { Assets.image("handlers/ygo/assets/ygo/card/monster_xg.jpg") }
+    private val monsterYs by lazy { Assets.image("handlers/ygo/assets/ygo/card/monster_ys.jpg") }
+    private val spell by lazy { Assets.image("handlers/ygo/assets/ygo/card/spell.jpg") }
+    private val trap by lazy { Assets.image("handlers/ygo/assets/ygo/card/trap.jpg") }
 
     // 属性
-    private val attrDivine by lazy { getJarImage(this::class.java, "statistic/ygo/attr/divine.png") }
-    private val attrLight by lazy { getJarImage(this::class.java, "statistic/ygo/attr/light.png") }
-    private val attrDark by lazy { getJarImage(this::class.java, "statistic/ygo/attr/dark.png") }
-    private val attrEarth by lazy { getJarImage(this::class.java, "statistic/ygo/attr/earth.png") }
-    private val attrFire by lazy { getJarImage(this::class.java, "statistic/ygo/attr/fire.png") }
-    private val attrWind by lazy { getJarImage(this::class.java, "statistic/ygo/attr/wind.png") }
-    private val attrWater by lazy { getJarImage(this::class.java, "statistic/ygo/attr/water.png") }
+    private val attrDivine by lazy { Assets.image("handlers/ygo/assets/ygo/attr/divine.png") }
+    private val attrLight by lazy { Assets.image("handlers/ygo/assets/ygo/attr/light.png") }
+    private val attrDark by lazy { Assets.image("handlers/ygo/assets/ygo/attr/dark.png") }
+    private val attrEarth by lazy { Assets.image("handlers/ygo/assets/ygo/attr/earth.png") }
+    private val attrFire by lazy { Assets.image("handlers/ygo/assets/ygo/attr/fire.png") }
+    private val attrWind by lazy { Assets.image("handlers/ygo/assets/ygo/attr/wind.png") }
+    private val attrWater by lazy { Assets.image("handlers/ygo/assets/ygo/attr/water.png") }
 
-    private val attrSpell by lazy { getJarImage(this::class.java, "statistic/ygo/attr/spell.png") }
-    private val attrTrap by lazy { getJarImage(this::class.java, "statistic/ygo/attr/trap.png") }
+    private val attrSpell by lazy { Assets.image("handlers/ygo/assets/ygo/attr/spell.png") }
+    private val attrTrap by lazy { Assets.image("handlers/ygo/assets/ygo/attr/trap.png") }
 
     private val monsterAttrAllow = mapOf(
         "神" to { attrDivine },
@@ -70,21 +69,21 @@ object YgoHandler : FramesHandler {
     )
 
     // 特殊 魔法陷阱卡
-    private val iconCd by lazy { getJarImage(this::class.java, "statistic/ygo/icon/cd.png") }
-    private val iconFj by lazy { getJarImage(this::class.java, "statistic/ygo/icon/fj.png") }
-    private val iconSg by lazy { getJarImage(this::class.java, "statistic/ygo/icon/sg.png") }
-    private val iconYs by lazy { getJarImage(this::class.java, "statistic/ygo/icon/ys.png") }
-    private val iconYx by lazy { getJarImage(this::class.java, "statistic/ygo/icon/yx.png") }
-    private val iconZb by lazy { getJarImage(this::class.java, "statistic/ygo/icon/zb.png") }
+    private val iconCd by lazy { Assets.image("handlers/ygo/assets/ygo/icon/cd.png") }
+    private val iconFj by lazy { Assets.image("handlers/ygo/assets/ygo/icon/fj.png") }
+    private val iconSg by lazy { Assets.image("handlers/ygo/assets/ygo/icon/sg.png") }
+    private val iconYs by lazy { Assets.image("handlers/ygo/assets/ygo/icon/ys.png") }
+    private val iconYx by lazy { Assets.image("handlers/ygo/assets/ygo/icon/yx.png") }
+    private val iconZb by lazy { Assets.image("handlers/ygo/assets/ygo/icon/zb.png") }
 
     // 其他
-    private val logo by lazy { getJarImage(this::class.java, "statistic/ygo/logo.png") }
-    private val level by lazy { getJarImage(this::class.java, "statistic/ygo/level.png") }
+    private val logo by lazy { Assets.image("handlers/ygo/assets/ygo/logo.png") }
+    private val level by lazy { Assets.image("handlers/ygo/assets/ygo/level.png") }
 
     // 字体
-    private val fontAttr = TavoloFonts.font(TavoloFonts.YGODIY_MATRIXBOLDSMALLCAPS, 35F)
-    private val fontId = TavoloFonts.font(TavoloFonts.YGODIY_MATRIXBOLDSMALLCAPS, 25F)
-    private val fontCopyright = TavoloFonts.font(TavoloFonts.FOT_RODIN, 20F)
+    private val fontAttr by lazy { ygoFont("YGODIY-MatrixBoldSmallCaps.ttf", 35F) }
+    private val fontId by lazy { ygoFont("YGODIY-MatrixBoldSmallCaps.ttf", 25F) }
+    private val fontCopyright by lazy { ygoFont("FOT-Rodin Pro M.ttf", 20F) }
 
     // paint
     private val paint = Paint().apply { color = Colors.BLACK.argb }
@@ -97,18 +96,28 @@ object YgoHandler : FramesHandler {
     private val rectLogo = Rect.makeXYWH(743F, 1115F, 43F, 43F)
 
 
-    private val mgr = TypefaceFontProvider()
-        .registerTypeface(TavoloFonts.typeface(TavoloFonts.DF_LEISHO_SB), "YGO-1")
-        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGO_DIY_2_BIG5), "YGO-2")
-        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGO_DIY_GB), "YGO-3")
-        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGODIY_JP), "YGO-4")
-        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGODIY_MATRIXBOLDSMALLCAPS), "YGO-5")
-    private val fonts = FontCollection()
-        .setDynamicFontManager(mgr)
-        .setDefaultFontManager(FontMgr.default)
+    private val mgr by lazy {
+        TypefaceFontProvider()
+            .registerTypeface(ygoTypeface("DFLeiSho-SB.ttf"), "YGO-1")
+            .registerTypeface(ygoTypeface("YGO-DIY-2-BIG5.ttf"), "YGO-2")
+            .registerTypeface(ygoTypeface("YGO-DIY-GB.ttf"), "YGO-3")
+            .registerTypeface(ygoTypeface("YGODIY-JP.otf"), "YGO-4")
+            .registerTypeface(ygoTypeface("YGODIY-MatrixBoldSmallCaps.ttf"), "YGO-5")
+    }
+    private val fonts by lazy {
+        FontCollection()
+            .setDynamicFontManager(mgr)
+            .setDefaultFontManager(FontMgr.default)
+    }
 
     // context
     private val families = arrayOf("YGO-1", "YGO-2", "YGO-3", "YGO-4", "YGO-5")
+
+    private fun ygoTypeface(fileName: String): Typeface =
+        Assets.typeface("handlers/ygo/fonts/$fileName")
+
+    private fun ygoFont(fileName: String, size: Float): Font =
+        Font(ygoTypeface(fileName), size)
 
     private val contextTitle = ParagraphStyle().apply {
         maxLinesCount = 1

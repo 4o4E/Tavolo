@@ -5,7 +5,7 @@ import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.util.resize
 
-@ImageHandler
+@ImageHandler("dpx")
 object DpxHandler : FramesHandler {
     override val name = "动态像素画"
     override val regex = Regex("(?i)dpx|dPixel")

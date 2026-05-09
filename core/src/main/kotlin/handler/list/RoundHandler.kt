@@ -7,7 +7,7 @@ import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.frame.common
 import top.e404.tavolo.util.round
 
-@ImageHandler
+@ImageHandler("round")
 object RoundHandler : FramesHandler {
     override val name = "Round"
     override val regex = Regex("(?i)round")

@@ -7,13 +7,6 @@ import java.awt.Color
 import kotlin.math.PI
 import kotlin.random.Random
 
-fun getJarFileStream(cls: Class<*>, path: String) = cls.classLoader.getResourceAsStream(path)
-    ?: throw IllegalArgumentException("Jar file: $path is null")
-
-fun getJarFile(cls: Class<*>, path: String) = getJarFileStream(cls, path).use { it.readBytes() }
-fun getJarImage(cls: Class<*>, path: String) = Image.makeFromEncoded(getJarFile(cls, path))
-fun readJarFile(cls: Class<*>, path: String) = getJarFileStream(cls, path).use { String(it.readBytes()) }
-
 fun Double.toRadian() = this * PI / 180
 fun Float.toRadian() = this * PI / 180
 fun Long.toRadian() = this * PI / 180

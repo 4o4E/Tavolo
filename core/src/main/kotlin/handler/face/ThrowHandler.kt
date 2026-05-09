@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.annotation.ImageHandler
@@ -10,10 +11,10 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("throw")
 object ThrowHandler : FramesHandler {
     private const val size = 448
-    private val bg = getJarImage(this::class.java, "statistic/throw.png")
+    private val bg = Assets.image("handlers/throw/assets/throw.png")
 
     override val name = "丢"
     override val regex = Regex("(?i)丢|diu|throw")

@@ -1,0 +1,5 @@
+﻿id: crawl
+type: kotlin
+version: 1
+name: "爬"
+regex: "(?i)爬|pa|crawl"

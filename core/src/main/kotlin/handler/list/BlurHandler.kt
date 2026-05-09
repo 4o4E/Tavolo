@@ -7,7 +7,7 @@ import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 
-@ImageHandler
+@ImageHandler("blur")
 object BlurHandler : FramesHandler {
     override val name = "高斯模糊"
     override val regex = Regex("(高斯)?模糊|(?i)blur|(gs)?mh")

@@ -1,0 +1,5 @@
+﻿id: hide
+type: kotlin
+version: 1
+name: "隐藏"
+regex: "(?i)hide|隐藏"

@@ -13,7 +13,7 @@ import kotlin.math.min
 /**
  * 方格化1
  */
-@ImageHandler
+@ImageHandler("pane")
 object PaneHandler : FramesHandler {
     override val name = "Pane"
     override val regex = Regex("(?i)pane")

@@ -10,7 +10,7 @@ import top.e404.tavolo.util.toImage
 import kotlin.math.min
 import kotlin.math.sqrt
 
-@ImageHandler
+@ImageHandler("d_raise")
 object DRaiseHandler : FramesHandler {
     override val name = "DRaise"
     override val regex = Regex("(?i)DRaise")

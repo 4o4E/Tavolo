@@ -1,0 +1,5 @@
+﻿id: not_responding
+type: kotlin
+version: 1
+name: "NotResponding"
+regex: "未响应|无响应|(?i)NotResponding|wxy"

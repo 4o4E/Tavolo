@@ -1,0 +1,5 @@
+﻿id: turn
+type: kotlin
+version: 1
+name: "转动"
+regex: "转动?|(?i)zhuan|turn|zd"

@@ -1,0 +1,5 @@
+﻿id: rgb
+type: kotlin
+version: 1
+name: "Rgb"
+regex: "(?i)rgb"

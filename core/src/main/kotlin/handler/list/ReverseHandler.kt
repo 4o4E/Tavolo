@@ -11,7 +11,7 @@ import top.e404.tavolo.util.handlePixel
 /**
  * 反相
  */
-@ImageHandler
+@ImageHandler("reverse")
 object ReverseHandler : FramesHandler {
     override val name = "反相"
     override val regex = Regex("(?i)反相|fx|reverse")

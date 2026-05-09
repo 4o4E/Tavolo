@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.annotation.ImageHandler
@@ -11,14 +12,14 @@ import top.e404.tavolo.util.*
 /**
  * 拍
  */
-@ImageHandler
+@ImageHandler("pat_melon")
 object PatMelonHandler : FramesHandler {
     private const val w = 926
     private const val h = 650
     private const val count = 12
     private val range = 0..count
-    private val bgList = range.map { getJarImage(this::class.java, "statistic/gua/$it.png") }
-    private val ddList = DrawData.loadFromJar("statistic/gua/gua.yml")
+    private val bgList = range.map { Assets.image("handlers/pat_melon/assets/gua/$it.png") }
+    private val ddList = DrawData.loadFromAssets("handlers/pat_melon/assets/gua/gua.yml")
     private val bgSrcList = bgList.map { Rect.makeWH(it.width.toFloat(), it.height.toFloat()) }
     private val imgSrc = Rect.makeWH(w.toFloat(), h.toFloat())
 

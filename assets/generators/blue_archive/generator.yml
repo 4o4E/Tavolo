@@ -1,0 +1,9 @@
+﻿id: blue_archive
+version: 1
+name: "BlueArchive"
+regex: "BlueArchive"
+fonts:
+  - name: glow-sans-sc-normal-heavy
+    file: fonts/GlowSansSC-Normal-Heavy.otf
+  - name: rog-sans-srf-std-bold
+    file: fonts/RoGSanSrfStd-Bd.otf

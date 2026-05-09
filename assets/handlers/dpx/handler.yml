@@ -1,0 +1,5 @@
+﻿id: dpx
+type: kotlin
+version: 1
+name: "动态像素画"
+regex: "(?i)dpx|dPixel"

@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.util.Colors
@@ -11,9 +12,9 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("doubt")
 object DoubtHandler : FramesHandler {
-    private val cover = getJarImage(this::class.java, "statistic/doubt.png")
+    private val cover = Assets.image("handlers/doubt/assets/doubt.png")
     private const val size = 167
     private val faceRect = Rect.makeXYWH(86F, 272F, size.toFloat(), size.toFloat())
     private val imgRect = Rect.makeWH(cover.width.toFloat(), cover.height.toFloat())

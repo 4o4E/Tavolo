@@ -1,0 +1,5 @@
+﻿id: raise
+type: kotlin
+version: 1
+name: "raise"
+regex: "(?i)raise"

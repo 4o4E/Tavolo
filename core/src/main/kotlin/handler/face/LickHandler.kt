@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Matrix33
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
@@ -9,9 +10,9 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("lick")
 object LickHandler : FramesHandler {
-    private val cover by lazy { getJarImage(this::class.java, "statistic/lick.png") }
+    private val cover by lazy { Assets.image("handlers/lick/assets/lick.png") }
     private const val s = 530
     private val matrix by lazy {
         Matrix33(

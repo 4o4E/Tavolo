@@ -1,0 +1,5 @@
+﻿id: like
+type: kotlin
+version: 1
+name: "喜欢"
+regex: "(?i)喜欢|like"

@@ -1,0 +1,5 @@
+﻿id: long_ming
+type: kotlin
+version: 1
+name: "龙鸣"
+regex: "龙鸣|(?i)lm"

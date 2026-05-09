@@ -9,7 +9,7 @@ import top.e404.tavolo.util.*
 /**
  * 带状RGB
  */
-@ImageHandler
+@ImageHandler("rgb_strip")
 object RgbStripHandler : FramesHandler {
     override val name = "RgbStrip"
     override val regex = Regex("(?i)rgbstrip")

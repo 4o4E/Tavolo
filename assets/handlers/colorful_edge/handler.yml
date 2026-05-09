@@ -1,0 +1,5 @@
+﻿id: colorful_edge
+type: kotlin
+version: 1
+name: "彩色边缘"
+regex: "(?i)彩色边缘|ColorfulEdge|ce"

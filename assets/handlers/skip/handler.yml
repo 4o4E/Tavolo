@@ -1,0 +1,5 @@
+﻿id: skip
+type: kotlin
+version: 1
+name: "skip"
+regex: "(?i)skip"

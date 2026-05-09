@@ -1,25 +1,25 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.newSurface
 import top.e404.tavolo.util.round
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("crawl")
 object CrawlHandler : FramesHandler {
-    private const val path = "statistic/crawl/{i}.jpg"
+    private const val path = "handlers/crawl/assets/crawl/{i}.jpg"
     private val range = 1..73
     private val map = HashMap<Int, Image>()
     private val rect = Rect.makeWH(720F, 720F)
 
     private fun getBg(index: Int) = map.getOrPut(index) {
-        getJarImage(this::class.java, path.replace("{i}", index.toString()))
+        Assets.image(path.replace("{i}", index.toString()))
     }
 
     override val name = "爬"

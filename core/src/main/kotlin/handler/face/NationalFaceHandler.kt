@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.annotation.ImageHandler
@@ -7,10 +8,10 @@ import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("national_face")
 object NationalFaceHandler : FramesHandler {
     private val range = 0..5
-    private val coverList = range.map { getJarImage(this::class.java, "statistic/national/$it.png") }
+    private val coverList = range.map { Assets.image("handlers/national_face/assets/national/$it.png") }
 
     override val name = "国庆头像"
     override val regex = Regex("(?i)(国庆|gq)(头像|face|tx)")

@@ -11,7 +11,7 @@ import top.e404.tavolo.util.sub
 /**
  * 通过xywh裁剪图片
  */
-@ImageHandler
+@ImageHandler("clip")
 object ClipHandler : FramesHandler {
 
     override val name = "裁剪"

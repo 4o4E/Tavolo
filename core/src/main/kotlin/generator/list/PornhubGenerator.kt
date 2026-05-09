@@ -1,5 +1,6 @@
 package top.e404.tavolo.generator.list
 
+import top.e404.tavolo.annotation.ImageGenerator
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.RRect
 import org.jetbrains.skia.Surface
@@ -8,10 +9,11 @@ import top.e404.tavolo.util.Colors
 import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.util.withCanvas
 
-object PornhubGenerator : ImageGenerator {
+@ImageGenerator("pornhub")
+object PornhubGenerator : FramesGenerator {
     private const val space = 30F
     private const val height = 170
     private const val radius = 20F

@@ -1,0 +1,5 @@
+﻿id: rotate
+type: kotlin
+version: 1
+name: "旋转"
+regex: "旋转|(?i)xz|rotate"

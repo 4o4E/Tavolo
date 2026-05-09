@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -14,14 +15,14 @@ import top.e404.tavolo.util.*
 /**
  * 嫌弃
  */
-@ImageHandler
+@ImageHandler("peas")
 object PeasHandler : FramesHandler {
     private const val w = 320
     private const val h = 164
     private const val count = 7
     private val range = 0..count
-    private val bgList = range.map { getJarImage(this::class.java, "statistic/peas/$it.png") }
-    private val pdList = Yaml.default.decodeFromString<List<PeasData>>(readJarFile(this::class.java, "statistic/peas/peas.yml"))
+    private val bgList = range.map { Assets.image("handlers/peas/assets/peas/$it.png") }
+    private val pdList = Yaml.default.decodeFromString<List<PeasData>>(Assets.text("handlers/peas/assets/peas/peas.yml"))
     private val bgSrcList = bgList.map { Rect.makeWH(it.width.toFloat(), it.height.toFloat()) }
 
     @Serializable

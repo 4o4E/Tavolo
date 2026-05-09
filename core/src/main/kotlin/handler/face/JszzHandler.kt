@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
@@ -9,9 +10,9 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("jszz")
 object JszzHandler : FramesHandler {
-    private val bg = getJarImage(this::class.java, "statistic/zz.png")
+    private val bg = Assets.image("handlers/jszz/assets/zz.png")
 
     override val name = "精神支柱"
     override val regex = Regex("(?i)精神支柱|精神|支柱|jszz|js|zz")

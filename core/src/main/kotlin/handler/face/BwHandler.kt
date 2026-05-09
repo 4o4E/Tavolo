@@ -15,7 +15,7 @@ import top.e404.tavolo.util.fill
 import top.e404.tavolo.util.grayMatrix
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("bw")
 object BwHandler : FramesHandler {
     override val name = "Bw"
     override val regex = Regex("(?i)bw")

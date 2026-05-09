@@ -12,7 +12,7 @@ import top.e404.tavolo.util.handlePixel
 /**
  * 交换色相
  */
-@ImageHandler
+@ImageHandler("swap")
 object SwapHandler : FramesHandler {
     override val name = "交换色相"
     override val regex = Regex("(?i)swap|交换色相")

@@ -1,0 +1,5 @@
+﻿id: char_image
+type: kotlin
+version: 1
+name: "字符画"
+regex: "(?i)字符画|zfh"

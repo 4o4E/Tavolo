@@ -14,7 +14,7 @@ import top.e404.tavolo.util.withCanvas
 /**
  * 水平翻转 `b -> p`
  */
-@ImageHandler
+@ImageHandler("flip_horizontal")
 object FlipHorizontalHandler : FramesHandler {
     override val name = "水平翻转"
     override val regex = Regex("(?i)(水平|上下)翻转|spfz|sxfz")

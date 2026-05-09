@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -14,12 +15,12 @@ import top.e404.tavolo.util.*
 /**
  * 拳击
  */
-@ImageHandler
+@ImageHandler("boxing")
 object BoxingHandler : FramesHandler {
     private const val size = 500
     private const val count = 8
-    private val list by lazy { Yaml.default.decodeFromString<List<BoxingData>>(readJarFile(this::class.java, "statistic/boxing/boxing.yml")) }
-    private val hand by lazy { getJarImage(this::class.java, "statistic/boxing/fisted-hand.png") }
+    private val list by lazy { Yaml.default.decodeFromString<List<BoxingData>>(Assets.text("handlers/boxing/assets/boxing/boxing.yml")) }
+    private val hand by lazy { Assets.image("handlers/boxing/assets/boxing/fisted-hand.png") }
     private val handSrc by lazy { Rect.makeWH(hand.width.toFloat(), hand.height.toFloat()) }
 
     @Serializable

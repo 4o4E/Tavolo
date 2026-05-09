@@ -9,10 +9,10 @@ import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.handler.DrawData.Companion.FlipMode.*
+import top.e404.tavolo.assets.Assets
 import top.e404.tavolo.handler.list.FlipHorizontalHandler.flipHorizontal
 import top.e404.tavolo.handler.list.FlipVerticalHandler.flipVertical
 import top.e404.tavolo.util.drawImageRectNearest
-import top.e404.tavolo.util.readJarFile
 import top.e404.tavolo.util.rotateKeepSize
 
 @Serializable
@@ -26,7 +26,7 @@ data class DrawData(
     val flip: FlipMode = NONE
 ) {
     companion object {
-        fun loadFromJar(path: String) = Yaml.default.decodeFromString<List<DrawData>>(readJarFile(this::class.java, path))
+        fun loadFromAssets(path: String) = Yaml.default.decodeFromString<List<DrawData>>(Assets.text(path))
 
         @Serializable
         enum class FlipMode {

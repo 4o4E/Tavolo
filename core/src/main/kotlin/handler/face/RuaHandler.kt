@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -9,17 +10,15 @@ import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.handler.DrawData
-import top.e404.tavolo.util.getJarImage
-import top.e404.tavolo.util.readJarFile
 import top.e404.tavolo.util.round
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("rua")
 object RuaHandler : FramesHandler {
     private const val size = 448
     private const val count = 4
-    private val bgList = (0..count).map { getJarImage(this::class.java, "statistic/rua/$it.png") }
-    private val ddList = RuaInfo.fromJar()
+    private val bgList = (0..count).map { Assets.image("handlers/rua/assets/rua/$it.png") }
+    private val ddList = RuaInfo.fromAssets()
     private val bgSrc = Rect.makeWH(bgList[0].width.toFloat(), bgList[0].height.toFloat())
 
     override val name = "rua"
@@ -45,8 +44,8 @@ object RuaHandler : FramesHandler {
         val face: List<DrawData>,
     ) {
         companion object {
-            fun fromJar(): RuaInfo {
-                val text = readJarFile(this::class.java, "statistic/rua/rua.yml")
+            fun fromAssets(): RuaInfo {
+                val text = Assets.text("handlers/rua/assets/rua/rua.yml")
                 return Yaml.default.decodeFromString(text)
             }
         }

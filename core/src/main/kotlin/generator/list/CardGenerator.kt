@@ -1,15 +1,17 @@
 package top.e404.tavolo.generator.list
 
+import top.e404.tavolo.annotation.ImageGenerator
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.util.withCanvas
 import kotlin.math.max
 
-object CardGenerator : ImageGenerator {
+@ImageGenerator("card")
+object CardGenerator : FramesGenerator {
     // 背景颜色
     private const val bgColor = 0xfff31e3e.toInt()
 

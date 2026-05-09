@@ -1,0 +1,5 @@
+﻿id: jszz
+type: kotlin
+version: 1
+name: "精神支柱"
+regex: "(?i)精神支柱|精神|支柱|jszz|js|zz"

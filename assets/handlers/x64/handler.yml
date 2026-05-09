@@ -1,0 +1,5 @@
+﻿id: x64
+type: kotlin
+version: 1
+name: "x64"
+regex: "(?i)x64|64x"

@@ -8,7 +8,7 @@ import top.e404.tavolo.util.rotate
 /**
  * 旋转图片
  */
-@ImageHandler
+@ImageHandler("rotate")
 object RotateHandler : FramesHandler {
     override val name = "旋转"
     override val regex = Regex("旋转|(?i)xz|rotate")

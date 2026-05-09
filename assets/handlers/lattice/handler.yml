@@ -1,0 +1,5 @@
+﻿id: lattice
+type: kotlin
+version: 1
+name: "Lattice"
+regex: "(?i)lattice|方格化?|fgh?"

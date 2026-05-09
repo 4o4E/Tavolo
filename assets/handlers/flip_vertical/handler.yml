@@ -1,0 +1,5 @@
+﻿id: flip_vertical
+type: kotlin
+version: 1
+name: "垂直翻转"
+regex: "(?i)垂直翻转|左右翻转|czfz|sxfz|szfz"

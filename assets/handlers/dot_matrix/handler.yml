@@ -1,0 +1,5 @@
+﻿id: dot_matrix
+type: kotlin
+version: 1
+name: "点阵字符画"
+regex: "(?i)点阵字符画|dot"

@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.annotation.ImageHandler
@@ -10,9 +11,9 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("knock")
 object KnockHandler : FramesHandler {
-    private val bg = getJarImage(this::class.java, "statistic/knock.png")
+    private val bg = Assets.image("handlers/knock/assets/knock.png")
     private val bgRect = Rect.makeWH(bg.width.toFloat(), bg.height.toFloat())
     private val paint = Paint().apply {
         color = Colors.WHITE.argb

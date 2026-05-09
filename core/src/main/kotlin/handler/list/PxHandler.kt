@@ -8,7 +8,7 @@ import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.frame.common
 import top.e404.tavolo.util.resize
 
-@ImageHandler
+@ImageHandler("px")
 object PxHandler : FramesHandler {
     override val name = "像素画"
     override val regex = Regex("(?i)px|pixel")

@@ -17,7 +17,7 @@ import top.e404.tavolo.util.toImage
 /**
  * 赛博朋克效果
  */
-@ImageHandler
+@ImageHandler("cyberpunk")
 object CyberpunkHandler : FramesHandler {
     override val name = "赛博朋克"
     override val regex = Regex("(?i)赛博朋克|cyberpunk|sbpk|cbpk")

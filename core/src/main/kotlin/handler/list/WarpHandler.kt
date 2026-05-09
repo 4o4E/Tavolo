@@ -8,7 +8,7 @@ import top.e404.tavolo.util.Noise
 import top.e404.tavolo.util.*
 import kotlin.math.*
 
-@ImageHandler
+@ImageHandler("warp")
 object WarpHandler : FramesHandler {
     override val name = "扭曲"
     override val regex = Regex("扭曲|(?i)warp")

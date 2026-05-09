@@ -1,15 +1,17 @@
 package top.e404.tavolo.generator.list
 
+import top.e404.tavolo.annotation.ImageGenerator
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.util.asColor
 import top.e404.tavolo.util.withCanvas
 import kotlin.random.Random
 
-object ShakeTextGenerator : ImageGenerator {
+@ImageGenerator("shake_text")
+object ShakeTextGenerator : FramesGenerator {
     private const val fontSpace = 5
     private const val padding = 10
     private const val fontSize = 60F

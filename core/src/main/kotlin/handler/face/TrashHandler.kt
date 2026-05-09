@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.util.Colors
@@ -10,18 +11,17 @@ import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.drawImageRectNearest
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.round
 import top.e404.tavolo.util.withCanvas
 
 /**
  * 垃圾
  */
-@ImageHandler
+@ImageHandler("trash")
 object TrashHandler : FramesHandler {
     private const val w = 116
     private const val h = 118
-    private val bg by lazy { getJarImage(this::class.java, "statistic/trash.png") }
+    private val bg by lazy { Assets.image("handlers/trash/assets/trash.png") }
     private val rect = Rect.makeXYWH(41F, 30F, 68F, 68F)
 
     override val name = "Trash"

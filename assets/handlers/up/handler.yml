@@ -1,0 +1,5 @@
+﻿id: up
+type: kotlin
+version: 1
+name: "up"
+regex: "(?i)up"

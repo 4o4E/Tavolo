@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
@@ -10,9 +11,9 @@ import kotlin.math.min
 /**
  * 附魔特效
  */
-@ImageHandler
+@ImageHandler("enchant")
 object EnchantHandler : FramesHandler {
-    private val bg by lazy { getJarImage(this::class.java, "statistic/enchant.png") }
+    private val bg by lazy { Assets.image("handlers/enchant/assets/enchant.png") }
 
     override val name = "enchant"
     override val regex = Regex("附魔|(?i)enchant")

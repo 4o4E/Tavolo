@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.annotation.ImageHandler
@@ -9,21 +10,20 @@ import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.replenish
 import top.e404.tavolo.handler.DrawData
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.pmapIndexed
 import top.e404.tavolo.util.withCanvas
 
 /**
  * 磕蛋
  */
-@ImageHandler
+@ImageHandler("egg")
 object EggHandler : FramesHandler {
     private const val w = 272
     private const val h = 212
     private const val count = 3
     private val range = 0..count
-    private val bgList = range.map { getJarImage(this::class.java, "statistic/egg/$it.png") }
-    private val ddList = DrawData.loadFromJar("statistic/egg/egg.yml")
+    private val bgList = range.map { Assets.image("handlers/egg/assets/egg/$it.png") }
+    private val ddList = DrawData.loadFromAssets("handlers/egg/assets/egg/egg.yml")
 
     override val name = "egg"
     override val regex = Regex("(?i)egg")

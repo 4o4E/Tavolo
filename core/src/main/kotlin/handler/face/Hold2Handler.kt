@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import top.e404.tavolo.util.Colors
@@ -11,9 +12,9 @@ import top.e404.tavolo.frame.common
 import top.e404.tavolo.frame.handle
 import top.e404.tavolo.util.*
 
-@ImageHandler
+@ImageHandler("hold2")
 object Hold2Handler : FramesHandler {
-    private val cover = getJarImage(this::class.java, "statistic/hold/2.png")
+    private val cover = Assets.image("handlers/hold2/assets/hold/2.png")
     private const val size = 220
     private val faceRect = Rect.makeXYWH(148F, 296F, 220F, 220F)
     private val imgRect = Rect.makeWH(cover.width.toFloat(), cover.height.toFloat())

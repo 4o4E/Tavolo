@@ -1,24 +1,45 @@
 package top.e404.tavolo.generator.list
 
+import top.e404.tavolo.assets.Assets
+import top.e404.tavolo.annotation.ImageGenerator
 import org.jetbrains.skia.*
 import org.jetbrains.skia.paragraph.ParagraphBuilder
 import org.jetbrains.skia.paragraph.ParagraphStyle
 import org.jetbrains.skia.paragraph.TextStyle
+import org.jetbrains.skia.paragraph.FontCollection
+import org.jetbrains.skia.paragraph.TypefaceFontProvider
 import org.jetbrains.skia.svg.SVGDOM
 import top.e404.tavolo.frame.Frame
-import top.e404.tavolo.generator.ImageGenerator
+import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.util.*
 import kotlin.math.max
 
-object BlueArchiveGenerator : ImageGenerator {
+@ImageGenerator("blue_archive")
+object BlueArchiveGenerator : FramesGenerator {
     private val families = arrayOf("GlowSansSC-Normal-Heavy.otf", "RoGSanSrfStd-Bd.otf")
     private const val FONT_SIZE = 80F
     private const val FONT_SIZE_BOTTOM = 40F
+    private val fontProvider by lazy {
+        TypefaceFontProvider()
+            .registerTypeface(
+                Assets.typeface("generators/blue_archive/fonts/GlowSansSC-Normal-Heavy.otf"),
+                "GlowSansSC-Normal-Heavy.otf"
+            )
+            .registerTypeface(
+                Assets.typeface("generators/blue_archive/fonts/RoGSanSrfStd-Bd.otf"),
+                "RoGSanSrfStd-Bd.otf"
+            )
+    }
+    private val fonts by lazy {
+        FontCollection()
+            .setDynamicFontManager(fontProvider)
+            .setDefaultFontManager(FontMgr.default)
+    }
     private val cross by lazy {
-        SVGDOM(Data.makeFromBytes(getJarFile(this.javaClass, "statistic/blue_archive/cross.svg")))
+        SVGDOM(Data.makeFromBytes(Assets.bytes("generators/blue_archive/assets/blue_archive/cross.svg")))
     }
     private val ring by lazy {
-        SVGDOM(Data.makeFromBytes(getJarFile(this.javaClass, "statistic/blue_archive/ring.svg")))
+        SVGDOM(Data.makeFromBytes(Assets.bytes("generators/blue_archive/assets/blue_archive/ring.svg")))
     }
 
     override suspend fun generate(args: MutableMap<String, String>): MutableList<Frame> {
@@ -46,13 +67,13 @@ object BlueArchiveGenerator : ImageGenerator {
             .setColor(0xff2b2b2b.toInt())
             .setFontStyle(FontStyle(FontWeight.BOLD, FontWidth.NORMAL, FontSlant.OBLIQUE))
             .setFontSize(FONT_SIZE_BOTTOM)
-        val w = ParagraphBuilder(ParagraphStyle(), FontManager.fonts)
+        val w = ParagraphBuilder(ParagraphStyle(), fonts)
             .pushStyle(lStyle)
             .addText(l)
             .build()
             .layout(10000F)
             .maxIntrinsicWidth
-        val w2 = ParagraphBuilder(ParagraphStyle(), FontManager.fonts)
+        val w2 = ParagraphBuilder(ParagraphStyle(), fonts)
             .pushStyle(lStyle)
             .addText(l)
             .popStyle()
@@ -61,7 +82,7 @@ object BlueArchiveGenerator : ImageGenerator {
             .build()
             .layout(10000F)
             .maxIntrinsicWidth
-        val paragraph = ParagraphBuilder(ParagraphStyle(), FontManager.fonts)
+        val paragraph = ParagraphBuilder(ParagraphStyle(), fonts)
             .pushStyle(lStyle)
             .addText(l)
             .popStyle()
@@ -71,7 +92,7 @@ object BlueArchiveGenerator : ImageGenerator {
             .addText(r2)
             .build()
             .layout(10000F)
-        val paragraphBottom = ParagraphBuilder(ParagraphStyle(), FontManager.fonts)
+        val paragraphBottom = ParagraphBuilder(ParagraphStyle(), fonts)
             .pushStyle(bStyle)
             .addText(b)
             .build()

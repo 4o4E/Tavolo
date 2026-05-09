@@ -1,21 +1,21 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.util.drawImageRectNearest
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("hold3")
 object Hold3Handler : FramesHandler {
     private const val w = 222
     private const val h = 219
     private const val count = 1
     private val range = 0..count
-    private val cover = range.map { getJarImage(this::class.java, "statistic/hold/3.$it.png") }
+    private val cover = range.map { Assets.image("handlers/hold3/assets/hold/3.$it.png") }
     private val dstRect = Rect.makeXYWH(53F, 143F, 95F, 95F)
 
     override val name = "Hold3"

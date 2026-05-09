@@ -1,0 +1,18 @@
+﻿id: ygo
+type: kotlin
+version: 1
+name: "Ygo"
+regex: "(?i)ygo"
+fonts:
+  - name: df-leisho-sb
+    file: fonts/DFLeiSho-SB.ttf
+  - name: ygo-diy-2-big5
+    file: fonts/YGO-DIY-2-BIG5.ttf
+  - name: ygo-diy-gb
+    file: fonts/YGO-DIY-GB.ttf
+  - name: ygodiy-jp
+    file: fonts/YGODIY-JP.otf
+  - name: ygodiy-matrix-bold-small-caps
+    file: fonts/YGODIY-MatrixBoldSmallCaps.ttf
+  - name: fot-rodin-pro-m
+    file: fonts/FOT-Rodin Pro M.ttf

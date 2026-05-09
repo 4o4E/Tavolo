@@ -13,7 +13,7 @@ import top.e404.tavolo.handler.face.WriteHandler.Location.*
 import top.e404.tavolo.util.*
 import kotlin.math.min
 
-@ImageHandler
+@ImageHandler("write")
 object WriteHandler : FramesHandler {
     private const val MIN_SIZE = 20
     private const val MAX_SIZE = 1000

@@ -9,7 +9,7 @@ import top.e404.tavolo.frame.common
 /**
  * 缩放图片, 若数字为负数则作为百分比处理
  */
-@ImageHandler
+@ImageHandler("resize")
 object ResizeHandler : FramesHandler {
     override val name = "缩放"
     override val regex = Regex("(?i)缩放|resize|sf")

@@ -1,5 +1,6 @@
 package top.e404.tavolo.handler.face
 
+import top.e404.tavolo.assets.Assets
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
@@ -8,17 +9,16 @@ import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
 import top.e404.tavolo.handler.DrawData
-import top.e404.tavolo.util.getJarImage
 import top.e404.tavolo.util.round
 import top.e404.tavolo.util.withCanvas
 
-@ImageHandler
+@ImageHandler("touch")
 object TouchHandler : FramesHandler {
     private const val w = 480
     private const val h = 270
     private const val count = 9
-    private val bgList = (0..count).map { getJarImage(this::class.java, "statistic/touch/$it.png") }
-    private val ddList = DrawData.loadFromJar("statistic/touch/touch.yml")
+    private val bgList = (0..count).map { Assets.image("handlers/touch/assets/touch/$it.png") }
+    private val ddList = DrawData.loadFromAssets("handlers/touch/assets/touch/touch.yml")
     private val bgRect = Rect.makeWH(w.toFloat(), h.toFloat())
     private val paint = Paint().apply { color = Colors.WHITE.argb }
 

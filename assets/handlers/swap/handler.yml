@@ -1,0 +1,5 @@
+﻿id: swap
+type: kotlin
+version: 1
+name: "交换色相"
+regex: "(?i)swap|交换色相"

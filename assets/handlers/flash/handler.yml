@@ -1,0 +1,5 @@
+﻿id: flash
+type: kotlin
+version: 1
+name: "flash"
+regex: "闪照|(?i)flash"
