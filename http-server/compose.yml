@@ -1,6 +1,6 @@
 services:
   tavolo-http-server:
-    image: ${HTTP_SERVER_IMAGE:-skiko-util-http-server:latest}
+    image: ${HTTP_SERVER_IMAGE:-tavolo-http-server:latest}
     build:
       context: ..
       dockerfile: http-server/Dockerfile
