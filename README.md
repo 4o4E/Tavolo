@@ -11,12 +11,14 @@
 - [基于输入图片生成表情](core/src/main/kotlin/handler/face)
 - [基于输入生成图片](core/src/main/kotlin/generator/list)
 - [bdf点阵字体解析](bdf-parser/src/main/kotlin)
+- [HTTP 指令服务](http-server)
 
-## 未来计划
+## 设计文档
 
-- [ ] 嵌套的图片处理功能
-- [ ] 绘图指令序列化协议
-- [ ] http server
+- [指令资源与能力注册设计](docs/指令资源与能力注册设计.md)
+- [HTTP 指令服务设计](docs/HTTP指令服务设计.md)
+- [Compose 绘图 DSL 与渲染抽象设计](docs/Compose绘图DSL与渲染抽象设计.md)
+- [TODO](docs/TODO.md)
 
 ## 引入依赖
 

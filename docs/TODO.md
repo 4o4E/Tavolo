@@ -1,9 +1,28 @@
 # TODO
 
+本文档只记录当前尚未完成或需要继续打磨的事项。
+
+## 指令资源与注册
+
+- 接入 `type: template` handler 的运行时执行链路，避免配置校验和运行时能力不一致。
+- 将当前轻量 key-value 配置解析替换为正式 YAML 解析，支持更复杂的资源、字体和布局配置。
+- 为资源包增加变更清单或校验信息，方便外部系统做版本比对和增量更新。
+- 梳理 generator 配置中的 `fonts` 字段加载策略，统一注册时机和错误提示。
+
 ## HTTP 服务
 
-- 提供获取所有指令定义的接口，例如 `GET /commands`。
-- 返回内容至少包含 `id`、`category`、`type`、`name`、`regex`、`version`；`category` 表示 `handler` 或 `generator`，`type` 表示实现类型，handler 为 `template` 或 `kotlin`，generator 固定派生为 `kotlin`。
-- handler 和 generator 都从统一 registry 暴露，外部服务不需要区分它来自 KSP 还是配置注册。
-- 外部对接服务可以直接复用 `regex` 做指令匹配，不需要重新维护别名表。
-- HTTP 服务只消费当前 core 的指令描述信息，不在资源包实施阶段单独设计一套指令模型。
+- 增加可选鉴权、请求体大小限制和超时配置。
+- 补充 OpenAPI 或等价接口描述，降低外部服务接入成本。
+- 为 Docker 镜像增加 CI 构建和发布流程。
+- 评估是否需要暴露资源包版本校验接口或更细粒度的能力查询接口。
+
+## Compose 绘图 DSL
+
+- 补充少量 golden image / 像素容差测试，覆盖 Skiko 后端真实渲染效果。
+- 继续完善 `TextModifier`，评估是否需要字重、斜体、行高、字间距等文本专用属性。
+- 评估是否需要序列化 Compose 绘图树，用于远程渲染或跨进程绘制。
+- 梳理图表组件主题 API，使其与 `DrawCanvas` 和文本测量抽象保持一致。
+
+## 其他
+
+- 继续评估嵌套图片处理能力。
