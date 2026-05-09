@@ -3,6 +3,29 @@ package top.e404.tavolo.draw.compose
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.FontManager
 
+private fun Paint.applyStrokeStyle(style: StrokeStyle) {
+    val dashIntervals = when (style) {
+        StrokeStyle.Solid -> null
+        is StrokeStyle.Dashed -> style.intervals
+            .map { it.coerceAtLeast(0.1f) }
+            .let { if (it.size % 2 == 0) it else it + it }
+            .takeIf { it.isNotEmpty() }
+            ?.toFloatArray()
+        is StrokeStyle.Dotted -> floatArrayOf(
+            style.dot.coerceAtLeast(0.1f),
+            style.gap.coerceAtLeast(0.1f)
+        )
+    }
+    pathEffect = dashIntervals?.let {
+        val phase = when (style) {
+            is StrokeStyle.Dashed -> style.phase
+            is StrokeStyle.Dotted -> style.phase
+            StrokeStyle.Solid -> 0f
+        }
+        PathEffect.makeDash(it, phase)
+    }
+}
+
 /**
  * UI 元素的基础接口，定义了所有 UI 组件共有的属性和行为。
  */
@@ -153,10 +176,20 @@ abstract class BaseElement : UiElement {
     final override fun draw(context: DrawContext) {
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
         var bounds = Bounds(x, y, width, height)
-        var clipCount = 0
+        var saveCount = 0
         for (mod in modifier.toList()) {
             when (mod) {
                 is Padding -> bounds = bounds.inset(mod.asInsets())
+                is Shadow -> drawShadow(context, bounds, mod, antiAlias)
+                is Rotate -> {
+                    val pivotX = mod.pivotX ?: bounds.x + bounds.width / 2f
+                    val pivotY = mod.pivotY ?: bounds.y + bounds.height / 2f
+                    context.canvas.save()
+                    context.canvas.translate(pivotX, pivotY)
+                    context.canvas.rotate(mod.degrees)
+                    context.canvas.translate(-pivotX, -pivotY)
+                    saveCount += 1
+                }
                 is Background -> {
                     val paint = Paint().apply { color = mod.color; isAntiAlias = antiAlias.enabled }
                     context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, bounds.width, bounds.height), paint)
@@ -170,7 +203,7 @@ abstract class BaseElement : UiElement {
                         .apply { transform(Matrix33.makeTranslate(bounds.x, bounds.y)) }
                     context.canvas.save()
                     context.canvas.clipPath(clipPath, true)
-                    clipCount += 1
+                    saveCount += 1
                 }
             }
         }
@@ -179,23 +212,55 @@ abstract class BaseElement : UiElement {
             drawContent(context)
             children.forEach { it.draw(context) }
         } finally {
-            repeat(clipCount) {
+            repeat(saveCount) {
                 context.canvas.restore()
             }
         }
     }
 
+    private fun drawShadow(context: DrawContext, bounds: Bounds, shadow: Shadow, antiAlias: AntiAlias) {
+        if (shadow.color == Color.TRANSPARENT) return
+        val shadowWidth = bounds.width + shadow.spread * 2f
+        val shadowHeight = bounds.height + shadow.spread * 2f
+        if (shadowWidth <= 0f || shadowHeight <= 0f) return
+        val path = shadow.shape.createPath(shadowWidth, shadowHeight).apply {
+            transform(Matrix33.makeTranslate(bounds.x + shadow.offsetX - shadow.spread, bounds.y + shadow.offsetY - shadow.spread))
+        }
+        val paint = Paint().apply {
+            color = shadow.color
+            isAntiAlias = antiAlias.enabled
+            if (shadow.blurRadius > 0f) {
+                maskFilter = MaskFilter.makeBlur(FilterBlurMode.NORMAL, shadow.blurRadius)
+            }
+        }
+        context.canvas.drawPath(path, paint)
+    }
+
     private fun drawBorder(context: DrawContext, bounds: Bounds, border: Border, antiAlias: AntiAlias) {
         if (border.color == Color.TRANSPARENT) return
-        val paint = Paint().apply {
-            color = border.color
-            mode = PaintMode.FILL
-            isAntiAlias = antiAlias.enabled
+        if (border.strokeStyle == StrokeStyle.Solid) {
+            val paint = Paint().apply {
+                color = border.color
+                mode = PaintMode.FILL
+                isAntiAlias = antiAlias.enabled
+            }
+            if (border.top > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, bounds.width, border.top), paint)
+            if (border.bottom > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y + bounds.height - border.bottom, bounds.width, border.bottom), paint)
+            if (border.left > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, border.left, bounds.height), paint)
+            if (border.right > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x + bounds.width - border.right, bounds.y, border.right, bounds.height), paint)
+            return
         }
-        if (border.top > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, bounds.width, border.top), paint)
-        if (border.bottom > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y + bounds.height - border.bottom, bounds.width, border.bottom), paint)
-        if (border.left > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, border.left, bounds.height), paint)
-        if (border.right > 0) context.canvas.drawRect(Rect.makeXYWH(bounds.x + bounds.width - border.right, bounds.y, border.right, bounds.height), paint)
+        fun strokePaint(strokeWidth: Float) = Paint().apply {
+            color = border.color
+            mode = PaintMode.STROKE
+            this.strokeWidth = strokeWidth
+            isAntiAlias = antiAlias.enabled
+            applyStrokeStyle(border.strokeStyle)
+        }
+        if (border.top > 0) context.canvas.drawLine(bounds.x, bounds.y + border.top / 2f, bounds.x + bounds.width, bounds.y + border.top / 2f, strokePaint(border.top))
+        if (border.bottom > 0) context.canvas.drawLine(bounds.x, bounds.y + bounds.height - border.bottom / 2f, bounds.x + bounds.width, bounds.y + bounds.height - border.bottom / 2f, strokePaint(border.bottom))
+        if (border.left > 0) context.canvas.drawLine(bounds.x + border.left / 2f, bounds.y, bounds.x + border.left / 2f, bounds.y + bounds.height, strokePaint(border.left))
+        if (border.right > 0) context.canvas.drawLine(bounds.x + bounds.width - border.right / 2f, bounds.y, bounds.x + bounds.width - border.right / 2f, bounds.y + bounds.height, strokePaint(border.right))
     }
 
     /**
@@ -474,21 +539,26 @@ class Text(
     private val textColor: Int? = null,
     private val fontFamily: String? = null,
     private val textOverflow: TextOverflow? = null,
-    private val textOverflowPlaceholder: String? = null
+    private val textOverflowPlaceholder: String? = null,
+    private val style: TextStyle? = null,
+    private val underline: TextUnderline? = null
 ) : BaseElement() {
     private lateinit var font: Font
     private lateinit var paint: Paint
     private var textMetrics: TextMetrics = TextMetrics(0f, 0f)
     private var lines: List<String> = listOf()
+    private var lineWidths: List<Float> = listOf()
     private var overflow = TextOverflow.Wrap
     private var overflowPlaceholder = TextDefaults.OVERFLOW_PLACEHOLDER
+    private var underlineStyle: TextUnderline? = null
 
     private fun applyModifiers() {
-        val finalColor = textColor ?: Color.WHITE
-        val finalSize = fontSize ?: 24f
-        val finalFamily = fontFamily ?: FontManager.defaultFamily
+        val finalColor = textColor ?: style?.textColor ?: Color.WHITE
+        val finalSize = fontSize ?: style?.fontSize ?: 24f
+        val finalFamily = fontFamily ?: style?.fontFamily ?: FontManager.defaultFamily
         overflow = textOverflow ?: TextOverflow.Wrap
         overflowPlaceholder = textOverflowPlaceholder ?: TextDefaults.OVERFLOW_PLACEHOLDER
+        underlineStyle = underline ?: style?.underline
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
         font = Font(FontManager.resolve(finalFamily), finalSize)
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
@@ -607,6 +677,7 @@ class Text(
                 // 如果 maxHeight 小于单行高度可以强制置为 maxHeight ，显示可能被裁剪
             }
         }
+        lineWidths = lines.map { measurer.measureTextWidth(it, font, paint) }
     }
 
     override fun layoutChildren(content: Bounds) {}
@@ -619,9 +690,52 @@ class Text(
         val lineHeight = textMetrics.lineHeight
         var yCursor = drawY - textMetrics.ascent // 第一行基线
         // 绘制每一行（可能已经包括了省略号）
-        for (line in lines) {
+        for ((index, line) in lines.withIndex()) {
+            val underline = underlineStyle
+            val lineWidth = lineWidths.getOrElse(index) { 0f }
+            if (underline != null && underline.mode == TextUnderlineMode.Block) {
+                drawUnderline(context, underline, drawX, yCursor, lineWidth)
+            }
             context.canvas.drawString(line, drawX, yCursor, font, paint)
+            if (underline != null && underline.mode == TextUnderlineMode.Line) {
+                drawUnderline(context, underline, drawX, yCursor, lineWidth)
+            }
             yCursor += lineHeight
+        }
+    }
+
+    private fun drawUnderline(
+        context: DrawContext,
+        underline: TextUnderline,
+        x: Float,
+        baselineY: Float,
+        textWidth: Float
+    ) {
+        val thickness = underline.thickness ?: maxOf(font.size * 0.08f, 1f)
+        val offset = underline.offset ?: maxOf(thickness, 1f)
+        val underlineX = x - underline.startPadding
+        val underlineWidth = textWidth + underline.startPadding + underline.endPadding
+        if (underlineWidth <= 0f || thickness <= 0f) return
+        val underlinePaint = Paint().apply {
+            color = underline.color ?: paint.color
+            isAntiAlias = paint.isAntiAlias
+        }
+        when (underline.mode) {
+            TextUnderlineMode.Block -> {
+                context.canvas.drawRect(
+                    Rect.makeXYWH(underlineX, baselineY + offset - thickness, underlineWidth, thickness),
+                    underlinePaint
+                )
+            }
+            TextUnderlineMode.Line -> {
+                underlinePaint.apply {
+                    mode = PaintMode.STROKE
+                    strokeWidth = thickness
+                    applyStrokeStyle(underline.strokeStyle)
+                }
+                val lineY = baselineY + offset
+                context.canvas.drawLine(underlineX, lineY, underlineX + underlineWidth, lineY, underlinePaint)
+            }
         }
     }
 }

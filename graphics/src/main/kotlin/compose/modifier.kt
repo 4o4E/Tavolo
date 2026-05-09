@@ -54,6 +54,36 @@ sealed interface Shape {
 data class Background(val color: Int) : ElementModifier
 data class Clip(val shape: Shape) : ElementModifier
 
+sealed interface StrokeStyle {
+    data object Solid : StrokeStyle
+
+    data class Dashed(
+        val intervals: List<Float> = listOf(8f, 4f),
+        val phase: Float = 0f
+    ) : StrokeStyle
+
+    data class Dotted(
+        val dot: Float = 1f,
+        val gap: Float = 3f,
+        val phase: Float = 0f
+    ) : StrokeStyle
+}
+
+data class Shadow(
+    val blurRadius: Float,
+    val color: Int = 0x66000000,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+    val spread: Float = 0f,
+    val shape: Shape = Shape.RoundedRect(0f)
+) : ElementModifier
+
+data class Rotate(
+    val degrees: Float,
+    val pivotX: Float? = null,
+    val pivotY: Float? = null
+) : ElementModifier
+
 data class Padding(
     val top: Float = 0f,
     val right: Float = 0f,
@@ -66,7 +96,8 @@ data class Border(
     val right: Float = 0f,
     val bottom: Float = 0f,
     val left: Float = 0f,
-    val color: Int
+    val color: Int,
+    val strokeStyle: StrokeStyle = StrokeStyle.Solid
 ) : ElementModifier
 
 data class AntiAlias(

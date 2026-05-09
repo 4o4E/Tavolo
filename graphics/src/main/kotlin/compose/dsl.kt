@@ -67,7 +67,9 @@ fun UiElement.text(
     textColor: Int? = null,
     fontFamily: String? = null,
     textOverflow: TextOverflow? = null,
-    textOverflowPlaceholder: String? = null
+    textOverflowPlaceholder: String? = null,
+    style: TextStyle? = null,
+    underline: TextUnderline? = null
 ) {
     add(
         Text(
@@ -76,7 +78,9 @@ fun UiElement.text(
             textColor = textColor,
             fontFamily = fontFamily,
             textOverflow = textOverflow,
-            textOverflowPlaceholder = textOverflowPlaceholder
+            textOverflowPlaceholder = textOverflowPlaceholder,
+            style = style,
+            underline = underline
         ).apply { this.modifier = modifier }
     )
 }
@@ -99,6 +103,8 @@ fun UiElement.iconText(
     fontFamily: String? = null,
     textOverflow: TextOverflow? = null,
     textOverflowPlaceholder: String? = null,
+    style: TextStyle? = null,
+    underline: TextUnderline? = null,
     iconColor: Int = Colors.LIGHT_BLUE.argb
 ) = row(verticalAlignment = VerticalAlignment.Center) {
     box(Modifier
@@ -113,6 +119,8 @@ fun UiElement.iconText(
         textColor = textColor,
         fontFamily = fontFamily,
         textOverflow = textOverflow,
-        textOverflowPlaceholder = textOverflowPlaceholder
+        textOverflowPlaceholder = textOverflowPlaceholder,
+        style = style,
+        underline = underline
     )
 }

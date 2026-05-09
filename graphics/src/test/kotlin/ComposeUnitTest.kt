@@ -25,8 +25,12 @@ import top.e404.tavolo.draw.compose.Row
 import top.e404.tavolo.draw.compose.Shape
 import top.e404.tavolo.draw.compose.SkiaDrawCanvas
 import top.e404.tavolo.draw.compose.SkiaTextMeasurer
+import top.e404.tavolo.draw.compose.StrokeStyle
 import top.e404.tavolo.draw.compose.Table
 import top.e404.tavolo.draw.compose.TableRow
+import top.e404.tavolo.draw.compose.TextStyle
+import top.e404.tavolo.draw.compose.TextUnderline
+import top.e404.tavolo.draw.compose.TextUnderlineMode
 import top.e404.tavolo.draw.compose.TextMeasurer
 import top.e404.tavolo.draw.compose.TextMetrics
 import top.e404.tavolo.draw.compose.TextOverflow
@@ -56,6 +60,8 @@ import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.renderCommands
 import top.e404.tavolo.draw.compose.row
+import top.e404.tavolo.draw.compose.rotate
+import top.e404.tavolo.draw.compose.shadow
 import top.e404.tavolo.draw.compose.size
 import top.e404.tavolo.draw.compose.tableRow
 import top.e404.tavolo.draw.compose.cell
@@ -408,6 +414,48 @@ class ComposeModifierCommandUnitTest {
         assertFloatEquals(25f, rects[1].rect.width)
         assertTrue(commands.filterIsInstance<DrawCommand.ClipPath>().size >= 2)
     }
+
+    @Test
+    fun dashedBorderRecordsStrokeLinesWithPathEffect() {
+        val commands = renderCommands {
+            box(
+                Modifier
+                    .size(20f)
+                    .border(2f, Color.RED, StrokeStyle.Dashed(listOf(3f, 2f)))
+            )
+        }
+
+        val lines = commands.filterIsInstance<DrawCommand.Line>()
+        assertEquals(4, lines.size)
+        lines.forEach {
+            assertEquals(Color.RED, it.paint.color)
+            assertEquals(PaintMode.STROKE, it.paint.mode)
+            assertFloatEquals(2f, it.paint.strokeWidth)
+            assertTrue(it.paint.hasPathEffect)
+        }
+    }
+
+    @Test
+    fun shadowAndRotateWrapContainerDrawing() {
+        val commands = renderCommands {
+            box(
+                Modifier
+                    .size(20f, 10f)
+                    .shadow(blurRadius = 4f, color = Color.BLACK, offsetX = 2f, offsetY = 3f)
+                    .rotate(15f)
+                    .background(Color.WHITE)
+            )
+        }
+
+        val shadow = commands.filterIsInstance<DrawCommand.Path>().single()
+        assertEquals(Color.BLACK, shadow.paint.color)
+        assertTrue(shadow.paint.hasMaskFilter)
+        assertTrue(commands.any { it is DrawCommand.Save })
+        assertTrue(commands.any { it == DrawCommand.Rotate(15f) })
+        assertTrue(commands.last() is DrawCommand.Restore)
+        val rect = commands.filterIsInstance<DrawCommand.Rect>().single()
+        assertEquals(Color.WHITE, rect.paint.color)
+    }
 }
 
 class ComposeTextUnitTest {
@@ -491,6 +539,64 @@ class ComposeTextUnitTest {
         assertFloatEquals(5f, command.x)
         assertFloatEquals(13f, command.baselineY)
         assertEquals(Color.GREEN, command.paint.color)
+    }
+
+    @Test
+    fun textSupportsBlockUnderlineStyle() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "hi",
+                fontSize = 20f,
+                textColor = Color.WHITE,
+                underline = TextUnderline(
+                    color = Color.YELLOW,
+                    thickness = 4f,
+                    offset = 1f,
+                    mode = TextUnderlineMode.Block,
+                    startPadding = 2f,
+                    endPadding = 3f
+                )
+            )
+        }
+
+        val rect = commands.filterIsInstance<DrawCommand.Rect>().single()
+        val text = commands.filterIsInstance<DrawCommand.Text>().single()
+        assertTrue(commands.indexOf(rect) < commands.indexOf(text))
+        assertEquals(Color.YELLOW, rect.paint.color)
+        assertFloatEquals(-2f, rect.rect.left)
+        assertFloatEquals(5f, rect.rect.top)
+        assertFloatEquals(25f, rect.rect.width)
+        assertFloatEquals(4f, rect.rect.height)
+        assertEquals("hi", text.text)
+    }
+
+    @Test
+    fun textStyleSupportsDashedUnderline() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "ok",
+                style = TextStyle(
+                    fontSize = 20f,
+                    textColor = Color.WHITE,
+                    underline = TextUnderline(
+                        color = Color.RED,
+                        thickness = 2f,
+                        offset = 3f,
+                        strokeStyle = StrokeStyle.Dashed(listOf(4f, 2f))
+                    )
+                )
+            )
+        }
+
+        val line = commands.filterIsInstance<DrawCommand.Line>().single()
+        assertEquals(Color.RED, line.paint.color)
+        assertEquals(PaintMode.STROKE, line.paint.mode)
+        assertFloatEquals(2f, line.paint.strokeWidth)
+        assertTrue(line.paint.hasPathEffect)
     }
 }
 
@@ -1096,6 +1202,7 @@ class ComposeDslAndRenderUnitTest {
             canvas.clear(Color.TRANSPARENT)
             canvas.save()
             canvas.translate(1f, 1f)
+            canvas.rotate(0f)
             canvas.scale(1f, 1f)
             canvas.clipPath(path)
             canvas.drawRect(Rect.makeXYWH(0f, 0f, 1f, 1f), paint)

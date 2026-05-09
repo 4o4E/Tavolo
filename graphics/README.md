@@ -43,9 +43,11 @@ dependencies {
 
 - 尺寸：`size`、`width`、`height`、`sizeIn`、`widthIn`、`heightIn`
 - 间距：`padding`
-- 样式：`background`、`border`、`clip`
+- 样式：`background`、`border`、`clip`、`shadow`、`rotate`
 
-文本样式不属于通用 `Modifier`，应作为 `text`、`iconText` 这类文本组件的参数传入，例如 `fontSize`、`textColor`、`fontFamily`、`textOverflow`。
+`border` 默认绘制实线，也可以通过 `StrokeStyle.Dashed` 或 `StrokeStyle.Dotted` 绘制虚线、点线边框。
+
+文本样式不属于通用 `Modifier`，应作为 `text`、`iconText` 这类文本组件的参数传入，例如 `fontSize`、`textColor`、`fontFamily`、`textOverflow`。需要复用样式时可以传入 `TextStyle`，下划线可通过 `TextUnderline` 定义颜色、粗细、偏移、虚线样式，也可以使用 `TextUnderlineMode.Block` 绘制色块下划线。
 图片溢出策略同样不属于通用 `Modifier`，应作为 `image` 的 `imageOverflow` 参数传入。
 
 `Modifier` 按链式顺序逐层应用，和 Jetpack Compose 一样可以用多层 `padding` 表达外部留白和内部留白：
@@ -53,11 +55,39 @@ dependencies {
 ```kotlin
 Modifier
     .padding(12f)      // 外层留白
+    .shadow(blurRadius = 8f, offsetX = 0f, offsetY = 3f, shape = Shape.RoundedRect(8f))
     .background(color)
     .padding(8f)       // 背景内的内容留白
 ```
 
 `size` 也遵循链式顺序：`.size(100f).padding(10f)` 表示总尺寸为 `100f`，`.padding(10f).size(100f)` 表示内容尺寸为 `100f` 且总尺寸额外包含外层 `padding`。
+
+例如绘制虚线边框和色块下划线：
+
+```kotlin
+box(
+    Modifier
+        .size(180f, 80f)
+        .rotate(-3f)
+        .border(2f, Color.WHITE, StrokeStyle.Dashed(listOf(8f, 4f)))
+) {
+    text(
+        "强调文本",
+        style = TextStyle(
+            fontSize = 28f,
+            textColor = Color.WHITE,
+            underline = TextUnderline(
+                color = Color.YELLOW,
+                thickness = 8f,
+                offset = 2f,
+                mode = TextUnderlineMode.Block,
+                startPadding = 3f,
+                endPadding = 3f
+            )
+        )
+    )
+}
+```
 
 ### 字体管理
 

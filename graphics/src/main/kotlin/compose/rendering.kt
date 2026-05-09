@@ -35,6 +35,7 @@ interface DrawCanvas {
     fun save()
     fun restore()
     fun translate(dx: Float, dy: Float)
+    fun rotate(degrees: Float)
     fun scale(sx: Float, sy: Float)
     fun clipPath(path: Path, antiAlias: Boolean = true)
     fun drawRect(rect: Rect, paint: Paint)
@@ -68,6 +69,9 @@ class SkiaDrawCanvas(private val canvas: Canvas) : DrawCanvas {
     }
     override fun translate(dx: Float, dy: Float) {
         canvas.translate(dx, dy)
+    }
+    override fun rotate(degrees: Float) {
+        canvas.rotate(degrees)
     }
     override fun scale(sx: Float, sy: Float) {
         canvas.scale(sx, sy)
@@ -114,14 +118,18 @@ data class PaintSnapshot(
     val color: Int,
     val mode: PaintMode,
     val strokeWidth: Float,
-    val antiAlias: Boolean
+    val antiAlias: Boolean,
+    val hasPathEffect: Boolean,
+    val hasMaskFilter: Boolean
 ) {
     companion object {
         fun from(paint: Paint) = PaintSnapshot(
             color = paint.color,
             mode = paint.mode,
             strokeWidth = paint.strokeWidth,
-            antiAlias = paint.isAntiAlias
+            antiAlias = paint.isAntiAlias,
+            hasPathEffect = paint.pathEffect != null,
+            hasMaskFilter = paint.maskFilter != null
         )
     }
 }
@@ -157,6 +165,7 @@ sealed interface DrawCommand {
     data class Save(val depth: Int) : DrawCommand
     data class Restore(val depth: Int) : DrawCommand
     data class Translate(val dx: Float, val dy: Float) : DrawCommand
+    data class Rotate(val degrees: Float) : DrawCommand
     data class Scale(val sx: Float, val sy: Float) : DrawCommand
     data class ClipPath(val path: PathSnapshot, val antiAlias: Boolean) : DrawCommand
     data class Rect(val rect: RectSnapshot, val paint: PaintSnapshot) : DrawCommand
@@ -213,6 +222,9 @@ class RecordingDrawCanvas : DrawCanvas {
     }
     override fun translate(dx: Float, dy: Float) {
         commands += DrawCommand.Translate(dx, dy)
+    }
+    override fun rotate(degrees: Float) {
+        commands += DrawCommand.Rotate(degrees)
     }
     override fun scale(sx: Float, sy: Float) {
         commands += DrawCommand.Scale(sx, sy)
