@@ -1,140 +1,52 @@
 package top.e404.tavolo.draw.test
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.runBlocking
-import org.jetbrains.skia.*
+import org.jetbrains.skia.Color
+import org.jetbrains.skia.Image
 import org.junit.Test
-import top.e404.tavolo.TavoloFonts
-import top.e404.tavolo.draw.compose.charts.BarTheme
-import top.e404.tavolo.draw.compose.charts.bar
-import top.e404.tavolo.draw.compose.*
-import top.e404.tavolo.draw.compose.charts.RadarTheme
-import top.e404.tavolo.draw.compose.charts.radar
-import top.e404.tavolo.util.Colors
-import top.e404.tavolo.util.FontManager
-import top.e404.tavolo.util.hsb
-import java.io.File
-import java.net.URL
+import top.e404.tavolo.draw.compose.Composable
+import top.e404.tavolo.draw.compose.HorizontalAlignment
+import top.e404.tavolo.draw.compose.IconTheme
+import top.e404.tavolo.draw.compose.Modifier
+import top.e404.tavolo.draw.compose.Shape
+import top.e404.tavolo.draw.compose.UiDsl
+import top.e404.tavolo.draw.compose.UiElement
+import top.e404.tavolo.draw.compose.VerticalAlignment
+import top.e404.tavolo.draw.compose.background
+import top.e404.tavolo.draw.compose.bold
+import top.e404.tavolo.draw.compose.border
+import top.e404.tavolo.draw.compose.box
+import top.e404.tavolo.draw.compose.clip
+import top.e404.tavolo.draw.compose.column
+import top.e404.tavolo.draw.compose.debugBaseElement
+import top.e404.tavolo.draw.compose.font
+import top.e404.tavolo.draw.compose.icon
+import top.e404.tavolo.draw.compose.iconText
+import top.e404.tavolo.draw.compose.image
+import top.e404.tavolo.draw.compose.padding
+import top.e404.tavolo.draw.compose.row
+import top.e404.tavolo.draw.compose.size
+import top.e404.tavolo.draw.compose.sizeIn
+import top.e404.tavolo.draw.compose.text
+import top.e404.tavolo.draw.compose.TextModifier
 
 class TestRender {
+    private val uiFont = ManualTestSupport.uiFont
+    private val avatars = ManualTestSupport.drawnAvatars(8, 72, 72)
+    private val titleText = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont).bold()
+    private val bodyText = TextModifier.font(fontSize = 18f, textColor = ink, fontFamily = uiFont)
+    private val mutedText = TextModifier.font(fontSize = 15f, textColor = muted, fontFamily = uiFont)
 
-    fun toImage(url: String) = Image.makeFromEncoded(URL(url).readBytes())
+    private val cards = listOf(
+        UserCard(avatars[0], "Base64", "编码状态正常，最近一次输出耗时 12 ms", blue),
+        UserCard(avatars[1], "Sha256", "摘要任务完成，结果已写入缓存", green),
+        UserCard(avatars[2], "URL Encode", "包含中文与空格的参数已完成转义", yellow),
+        UserCard(avatars[3], "HTML Decode", "实体字符已恢复为可读文本", red),
+        UserCard(avatars[4], "Unicode", "长文本保留两行显示，超出部分受尺寸约束", purple),
+        UserCard(avatars[5], "Markdown", "预览内容使用统一卡片样式展示", cyan)
+    )
 
-    val image1 = toImage("https://i1.hdslb.com/bfs/face/c1733474892caa45952b2c09a89323157df7129a.jpg@64w_64h.jpg")
-    val image2 = toImage("https://i1.hdslb.com/bfs/face/16377ca32f0b4b801bc760862893d8cb986facf3.jpg@64w_64h.jpg")
-    val images = listOf(
-        "https://i1.hdslb.com/bfs/face/e36645536f50dd57382dc625d35dad029af199a8.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/70c8b553e79e42c2ca93084ffbfce20af7a5ac9a.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/fa29937ea0ded3aabcf829f02297f2f2afbc6c46.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/a324cc9783ef6aba742a5c6dbf055eda8372a30f.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/cf77e0afb1bb23b6ab3cbfe52aff3c269cff9a35.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/8e99f38a57020d77cc9e3f6f369104e85583bebb.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/f119348814f30c6bbbcc60bd63c12b8215d19d2f.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/201834c47130b96b2dc207e6042ff4765291d702.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/dcb24f8f5dd29ab819f6e0450663b0d0134e6e1b.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/f864ffb0264cfac8a1ad1364a337006763f15958.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/e9035c3a7089ce7e11d72cb0cf15fa92064b14ef.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/c133da90bbc40d332126353107085f81ba593a11.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/881134664f54e95cab471a314273627a7529a4f8.jpg@64w_64h.jpg",
-        "https://i1.hdslb.com/bfs/face/66ff1b32a6b480279e0c4812f820d247305ac05c.jpg@64w_64h.jpg",
-    ).map { toImage(it) }
-    val names = listOf("Base64", "Sha256", "MD5", "URL Encode", "URL Decode", "HTML Encode", "HTML Decode", "Unicode Encode", "Unicode Decode")
-    val cards = (1..20).map {
-        val name = names.random()
-        Triple(images.random(), name, (0..10).joinToString(" ") { name })
-    }
-
-    init {
-        TavoloFonts.fontDir = "font"
-        TavoloFonts.register(TavoloFonts.LW)
-        FontManager.defaultFamily = TavoloFonts.LW
-    }
-    @UiDsl
-    fun UiElement.profileCard(index: Int, name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
-        row(
-            verticalAlignment = VerticalAlignment.Center,
-            modifier = modifier
-                // .border(all = 1f, color = Color.makeRGB(220, 220, 220))
-                // .background(Color.WHITE)
-                .padding(all = 12f)
-        ) {
-            // 序号
-            box(Modifier.padding(right = 10f).size(60f),
-                horizontalAlignment = HorizontalAlignment.Center,
-                verticalAlignment = VerticalAlignment.Center
-            ) {
-                box(Modifier.size(60f),
-                    horizontalAlignment = HorizontalAlignment.Center,
-                    verticalAlignment = VerticalAlignment.Center
-                ) {
-                    text(
-                        "$index",
-                        fontSize = 30F
-                    )
-                }
-                box(Modifier.size(60f),
-                    horizontalAlignment = HorizontalAlignment.Left,
-                    verticalAlignment = VerticalAlignment.Center
-                ) {
-                    text(
-                        "[",
-                        fontSize = 30F
-                    )
-                }
-                box(Modifier.size(60f),
-                    horizontalAlignment = HorizontalAlignment.Right,
-                    verticalAlignment = VerticalAlignment.Center
-                ) {
-                    text(
-                        "]",
-                        fontSize = 30F
-                    )
-                }
-            }
-            image(
-                image = image,
-                modifier = Modifier
-                    .padding(right = 12f)
-                    .clip(Shape.Circle) // 使用圆形裁剪
-            )
-            column {
-                text(
-                    name, Modifier
-                        .sizeIn(maxWidth = 500f, maxHeight = 40f),
-                    fontSize = 28f,
-                    textColor = Color.WHITE
-                )
-                text(
-                    desc, Modifier
-                        .sizeIn(maxWidth = 500f, maxHeight = 40f),
-                    fontSize = 20f,
-                    textColor = Color.WHITE
-                )
-            }
-        }
-    }
-
-    @UiDsl
-    fun UiElement.cards() {
-        column(
-            horizontalAlignment = HorizontalAlignment.Left,
-            modifier = Modifier.padding(20f)
-                .background(Colors.BG.argb)
-        ) {
-            cards.forEachIndexed { index, (image, name, desc) ->
-                profileCard(index, name, desc, image)
-            }
-        }
-    }
-
-    fun testCompose(name: String, content: Composable) {
-        val root = Column()
-        render(Color.TRANSPARENT, root, content).let {
-            val bytes = it.encodeToData(EncodedImageFormat.PNG)!!.bytes
-            File("out/compose/$name.png").also { it.parentFile.mkdirs() }.writeBytes(bytes)
-        }
+    private fun testCompose(name: String, content: Composable) {
+        val root = ManualTestSupport.saveCompose(name, content)
         buildString {
             debugBaseElement(0, root, this)
         }.let {
@@ -143,744 +55,256 @@ class TestRender {
     }
 
     @Test
-    fun testAll() {
-        runBlocking(Dispatchers.IO) {
-            listOf(
-                ::test_align,
-                ::test_compose,
-                ::test_padding,
-                ::test_modifier_order,
-                ::test_clip,
-                ::test_overflow,
-                ::test_box_alignment,
-                ::test_table_layout,
-                ::test_table_cell_modifiers
-            ).map {
-                async {
-                    it.invoke()
+    fun test_compose() {
+        testCompose("基础-01-组合卡片列表") {
+            page("基础组件", "卡片列表、状态标签和按钮组合，使用本地绘图头像") {
+                row(verticalAlignment = VerticalAlignment.Top) {
+                    column {
+                        cards.take(3).forEachIndexed { index, card ->
+                            profileCard(index + 1, card)
+                        }
+                    }
+                    column(modifier = Modifier.padding(left = 18f)) {
+                        cards.drop(3).forEachIndexed { index, card ->
+                            profileCard(index + 4, card)
+                        }
+                    }
+                    column(modifier = Modifier.padding(left = 24f)) {
+                        summaryPanel()
+                    }
                 }
-            }.awaitAll()
+            }
         }
     }
 
     @Test
-    fun test_align() = testCompose("align") {
-        column(
-            modifier = Modifier
-                .padding(10f)
-                .background(Colors.BG.argb)
-        ) {
-            // --- 演示 Column 的 horizontalAlignment ---
-            text("Column 水平对齐演示", modifier = Modifier.padding(10f), fontSize = 28f)
-
-            // 居左对齐 (Start)
-            column(
-                horizontalAlignment = HorizontalAlignment.Left,
-                modifier = Modifier.padding(10f).border(2f, Color.makeRGB(0, 150, 136)).padding(8f)
-            ) {
-                text("左对齐(Start)")
-                text("短文本")
-                text("这是一个非常非常长的文本")
+    fun test_icon_text() {
+        testCompose("组件-01-图标与图标文本") {
+            page("图标组件", "SVG icon、iconText 和状态徽标合并到同一张组件测试图", width = 1120f, height = 520f) {
+                row(verticalAlignment = VerticalAlignment.Top) {
+                    componentCard("图标按钮", 330f, 330f) {
+                        row(modifier = Modifier.padding(top = 18f), verticalAlignment = VerticalAlignment.Center) {
+                            iconBadge(blue, arrowSvg)
+                            iconBadge(green, checkSvg)
+                            iconBadge(yellow, starSvg)
+                        }
+                        row(modifier = Modifier.padding(top = 24f), verticalAlignment = VerticalAlignment.Center) {
+                            iconBadge(red, syncSvg)
+                            iconBadge(purple, boltSvg)
+                            iconBadge(cyan, layersSvg)
+                        }
+                    }
+                    componentCard("图标文本", 360f, 330f, modifier = Modifier.padding(left = 22f)) {
+                        iconText(
+                            "构建成功",
+                            fontSize = 28f,
+                            modifier = Modifier.padding(top = 22f),
+                            textModifier = TextModifier.font(textColor = ink, fontFamily = uiFont).bold(),
+                            iconColor = green
+                        )
+                        iconText(
+                            "等待同步",
+                            fontSize = 24f,
+                            modifier = Modifier.padding(top = 22f),
+                            textModifier = TextModifier.font(textColor = ink, fontFamily = uiFont),
+                            iconColor = yellow
+                        )
+                        iconText(
+                            "需要检查",
+                            fontSize = 24f,
+                            modifier = Modifier.padding(top = 22f),
+                            textModifier = TextModifier.font(textColor = ink, fontFamily = uiFont),
+                            iconColor = red
+                        )
+                    }
+                    componentCard("组合状态", 330f, 330f, modifier = Modifier.padding(left = 22f)) {
+                        statusRow(green, checkSvg, "通过", "12 个组件")
+                        statusRow(yellow, syncSvg, "排队", "3 个任务")
+                        statusRow(red, boltSvg, "阻塞", "1 个告警")
+                    }
+                }
             }
+        }
+    }
 
-            // 居中对齐 (Center)
-            column(
+    @UiDsl
+    private fun UiElement.page(title: String, subtitle: String, width: Float = 1180f, height: Float = 650f, block: UiElement.() -> Unit) {
+        box(
+            modifier = Modifier
+                .size(width, height)
+                .background(bg)
+                .padding(28f)
+        ) {
+            column {
+                text(title, textModifier = titleText)
+                text(subtitle, modifier = Modifier.padding(top = 8f, bottom = 24f), textModifier = TextModifier.font(17f, muted, uiFont))
+                block()
+            }
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.profileCard(index: Int, card: UserCard) {
+        row(
+            verticalAlignment = VerticalAlignment.Center,
+            modifier = Modifier
+                .padding(bottom = 14f)
+                .size(390f, 132f)
+                .clip(Shape.RoundedRect(14f))
+                .background(surface)
+                .border(1.5f, border, shape = Shape.RoundedRect(14f))
+                .padding(18f)
+        ) {
+            box(
+                modifier = Modifier
+                    .size(46f)
+                    .clip(Shape.Circle)
+                    .background(card.color),
                 horizontalAlignment = HorizontalAlignment.Center,
-                modifier = Modifier.padding(10f).border(2f, Color.makeRGB(255, 87, 34)).padding(8f)
+                verticalAlignment = VerticalAlignment.Center
             ) {
-                text("居中对齐(Center)")
-                text("短文本")
-                text("这是一个非常非常长的文本")
+                text(index.toString(), textModifier = TextModifier.font(18f, Color.WHITE, uiFont).bold())
             }
-
-            // 居右对齐 (End)
-            column(
-                horizontalAlignment = HorizontalAlignment.Right,
-                modifier = Modifier.padding(10f).border(2f, Color.makeRGB(33, 150, 243)).padding(8f)
-            ) {
-                text("右对齐(End)")
-                text("短文本")
-                text("这是一个非常非常长的文本")
-            }
-
-            // --- 演示 Row 的 verticalAlignment ---
-            text("Row 垂直对齐演示", modifier = Modifier.padding(10f), fontSize = 28f)
-
-            row(
-                verticalAlignment = VerticalAlignment.Top,
-                modifier = Modifier.padding(10f).border(2f, Color.makeRGB(156, 39, 176)).padding(8f)
-            ) {
-                text("顶对齐(Top)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
-                image(
-                    image1,
-                    modifier = Modifier
-                        .clip(Shape.RoundedRect(15f))
-                        .background(Color.makeARGB(128, 255, 193, 7))
-                        .padding(horizontal = 18f, vertical = 48f)
-                )
-            }
-
-            row(
-                verticalAlignment = VerticalAlignment.Center,
-                modifier = Modifier.padding(10f).border(2f, Color.makeRGB(233, 30, 99)).padding(8f)
-            ) {
-                text("中对齐(Center)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
-                image(
-                    image1,
-                    modifier = Modifier
-                        .clip(Shape.RoundedRect(15f))
-                        .background(Color.makeARGB(128, 255, 193, 7))
-                        .padding(horizontal = 18f, vertical = 48f)
-                )
-            }
-
-            row(
-                verticalAlignment = VerticalAlignment.Bottom,
-                modifier = Modifier.padding(10f).border(2f, Color.makeRGB(76, 175, 80)).padding(8f)
-            ) {
-                text("底对齐(Bottom)", modifier = Modifier.background(Color.makeARGB(50, 0, 0, 255)))
-                image(
-                    image1,
-                    modifier = Modifier
-                        .clip(Shape.RoundedRect(15f))
-                        .background(Color.makeARGB(128, 255, 193, 7))
-                        .padding(horizontal = 18f, vertical = 48f)
-                )
+            image(
+                image = card.avatar,
+                modifier = Modifier
+                    .padding(left = 14f, right = 14f)
+                    .sizeIn(maxWidth = 62f, maxHeight = 62f)
+                    .clip(Shape.Circle)
+            )
+            column {
+                text(card.name, textModifier = TextModifier.font(24f, ink, uiFont).bold())
+                text(card.description, modifier = Modifier.padding(top = 8f).sizeIn(maxWidth = 210f, maxHeight = 48f), textModifier = mutedText)
             }
         }
     }
 
-    @Test
-    fun test_compose() = testCompose("compose") {
+    @UiDsl
+    private fun UiElement.summaryPanel() {
+        componentCard("操作区", 300f, 470f) {
+            text("批处理队列", modifier = Modifier.padding(top = 18f), textModifier = TextModifier.font(24f, ink, uiFont).bold())
+            text("本图只保留基础组件组合，布局、文本、Modifier 和图表细节由主题测试覆盖。", modifier = Modifier.padding(top = 12f).sizeIn(maxWidth = 236f), textModifier = bodyText)
+            row(modifier = Modifier.padding(top = 26f), verticalAlignment = VerticalAlignment.Center) {
+                metricPill(green, "成功", "18")
+                metricPill(yellow, "等待", "4")
+            }
+            row(modifier = Modifier.padding(top = 12f), verticalAlignment = VerticalAlignment.Center) {
+                metricPill(red, "失败", "1")
+                metricPill(blue, "总数", "23")
+            }
+            box(
+                modifier = Modifier
+                    .padding(top = 28f)
+                    .size(236f, 58f)
+                    .clip(Shape.RoundedRect(12f))
+                    .background(blue),
+                horizontalAlignment = HorizontalAlignment.Center,
+                verticalAlignment = VerticalAlignment.Center
+            ) {
+                text("执行操作", textModifier = TextModifier.font(22f, Color.WHITE, uiFont).bold())
+            }
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.componentCard(title: String, width: Float, height: Float, modifier: Modifier = Modifier, block: UiElement.() -> Unit) {
         column(
+            modifier = modifier
+                .size(width, height)
+                .clip(Shape.RoundedRect(14f))
+                .background(surface)
+                .border(1.5f, border, shape = Shape.RoundedRect(14f))
+                .padding(22f)
+        ) {
+            text(title, textModifier = TextModifier.font(22f, ink, uiFont).bold())
+            block()
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.metricPill(color: Int, label: String, value: String) {
+        column(
+            modifier = Modifier
+                .padding(right = 10f)
+                .size(106f, 70f)
+                .clip(Shape.RoundedRect(12f))
+                .background(color)
+                .padding(10f),
+            horizontalAlignment = HorizontalAlignment.Center
+        ) {
+            text(value, textModifier = TextModifier.font(24f, Color.WHITE, uiFont).bold())
+            text(label, modifier = Modifier.padding(top = 3f), textModifier = TextModifier.font(14f, Color.WHITE, uiFont))
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.iconBadge(color: Int, svg: String) {
+        box(
+            modifier = Modifier
+                .padding(right = 16f)
+                .size(74f)
+                .clip(Shape.RoundedRect(16f))
+                .background(color),
             horizontalAlignment = HorizontalAlignment.Center,
-            modifier = Modifier.padding(20f)
-                .background(Colors.BG.argb)
+            verticalAlignment = VerticalAlignment.Center
         ) {
-            // --- 演示封装的自定义组件 ---
-            text(
-                "自定义组件演示", modifier = Modifier
-                    .padding(bottom = 16f),
-                fontSize = 28f
-            )
-
-            cards()
-
-            text(
-                "按钮", modifier = Modifier
-                    .padding(50F)
-                    .clip(Shape.RoundedRect(15f))
-                    .background(Color.BLUE)
-                    .padding(150F, 20F),
-                fontSize = 28f,
-                textColor = Color.WHITE
-            )
+            icon(IconTheme(size = 42f, color = Color.WHITE), svg)
         }
     }
 
-    @Test
-    fun test_padding() = testCompose("padding") {
-        column(
-            horizontalAlignment = HorizontalAlignment.Left,
-            modifier = Modifier.padding(20f).background(Colors.BG.argb)
+    @UiDsl
+    private fun UiElement.statusRow(color: Int, svg: String, label: String, value: String) {
+        row(
+            modifier = Modifier
+                .padding(top = 20f)
+                .size(246f, 64f)
+                .clip(Shape.RoundedRect(12f))
+                .background(Color.makeRGB(244, 247, 252))
+                .padding(12f),
+            verticalAlignment = VerticalAlignment.Center
         ) {
-            // --- 演示分边距 Padding 和 Border ---
-            text("分边距与裁剪演示", modifier = Modifier.padding(top = 30f, bottom = 16f), fontSize = 28f)
             box(
                 modifier = Modifier
-                    .background(Color.makeRGB(207, 226, 255))
-                    .border(top = 4f, bottom = 12f, color = Color.makeRGB(66, 133, 244))
-                    .padding(left = 20f, right = 40f, top = 10f, bottom = 10f)
+                    .size(40f)
+                    .clip(Shape.RoundedRect(10f))
+                    .background(color),
+                horizontalAlignment = HorizontalAlignment.Center,
+                verticalAlignment = VerticalAlignment.Center
             ) {
-                text("我有不同的边框和内边距")
+                icon(IconTheme(size = 24f, color = Color.WHITE), svg)
+            }
+            column(modifier = Modifier.padding(left = 12f)) {
+                text(label, textModifier = TextModifier.font(18f, ink, uiFont).bold())
+                text(value, modifier = Modifier.padding(top = 4f), textModifier = mutedText)
             }
         }
     }
 
-    @Test
-    fun test_modifier_order() = testCompose("modifier_order") {
-        column(
-            modifier = Modifier
-                .padding(24f)
-                .background(Colors.BG.argb)
-        ) {
-            text(
-                "Modifier 链式顺序演示",
-                modifier = Modifier
-                    .padding(bottom = 16f),
-                fontSize = 28f,
-                textColor = Color.WHITE
-            )
-            text(
-                "左侧用外层 padding + background + 内层 padding + border + size；右侧把 size 放在最外层，总尺寸会被固定。",
-                modifier = Modifier
-                    .padding(bottom = 18f),
-                fontSize = 18f,
-                textColor = Colors.LIGHT_GRAY.argb
-            )
+    private data class UserCard(
+        val avatar: Image,
+        val name: String,
+        val description: String,
+        val color: Int
+    )
 
-            row(verticalAlignment = VerticalAlignment.Top) {
-                column(Modifier.padding(right = 24f)) {
-                    text(
-                        "推荐：padding 在外，size 在内",
-                        modifier = Modifier
-                            .padding(bottom = 8f),
-                        fontSize = 18f,
-                        textColor = Color.WHITE
-                    )
-                    box(
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Center,
-                        modifier = Modifier
-                            .background(Color.makeRGB(255, 255, 255))
-                            .padding(16f)
-                            .background(Color.makeRGB(41, 98, 255))
-                            .padding(12f)
-                            .border(4f, Color.WHITE)
-                            .clip(Shape.RoundedRect(18f))
-                            .size(220f, 96f)
-                    ) {
-                        text(
-                            "内容区域 220 x 96",
-                            fontSize = 22f,
-                            textColor = Color.WHITE
-                        )
-                    }
-                }
+    private companion object {
+        val bg: Int = Color.makeRGB(27, 34, 46)
+        val surface: Int = Color.makeRGB(255, 255, 255)
+        val border: Int = Color.makeRGB(216, 224, 236)
+        val ink: Int = Color.makeRGB(39, 49, 66)
+        val muted: Int = Color.makeRGB(105, 119, 140)
+        val blue: Int = Color.makeRGB(48, 104, 255)
+        val green: Int = Color.makeRGB(41, 178, 123)
+        val yellow: Int = Color.makeRGB(245, 177, 48)
+        val red: Int = Color.makeRGB(229, 83, 72)
+        val purple: Int = Color.makeRGB(126, 91, 220)
+        val cyan: Int = Color.makeRGB(35, 167, 197)
 
-                column {
-                    text(
-                        "对比：size 在外，后续 padding 向内收缩",
-                        modifier = Modifier
-                            .padding(bottom = 8f),
-                        fontSize = 18f,
-                        textColor = Color.WHITE
-                    )
-                    box(
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Center,
-                        modifier = Modifier
-                            .size(220f, 96f)
-                            .background(Color.makeRGB(255, 255, 255))
-                            .padding(16f)
-                            .background(Color.makeRGB(0, 150, 136))
-                            .padding(12f)
-                            .border(4f, Color.WHITE)
-                            .clip(Shape.RoundedRect(18f))
-                    ) {
-                        text(
-                            "总尺寸固定",
-                            fontSize = 22f,
-                            textColor = Color.WHITE
-                        )
-                    }
-                }
-            }
-
-            text(
-                "下方每个色块使用多层 padding 表达外部和内部留白：灰色背景表示父容器，彩色背景从 padding 后开始绘制。",
-                modifier = Modifier
-                    .padding(top = 24f, bottom = 10f),
-                fontSize = 18f,
-                textColor = Colors.LIGHT_GRAY.argb
-            )
-            row(
-                modifier = Modifier
-                    .background(Color.makeRGB(48, 54, 64))
-                    .padding(14f)
-            ) {
-                listOf(
-                    Color.makeRGB(66, 133, 244) to "外 8 / 内 8",
-                    Color.makeRGB(52, 168, 83) to "外 16 / 内 4",
-                    Color.makeRGB(251, 188, 5) to "外 4 / 内 16"
-                ).forEachIndexed { index, (color, label) ->
-                    box(
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Center,
-                        modifier = Modifier
-                            .padding(right = if (index == 2) 0f else 12f)
-                            .padding(if (index == 0) 8f else if (index == 1) 16f else 4f)
-                            .background(color)
-                            .padding(if (index == 0) 8f else if (index == 1) 4f else 16f)
-                            .size(120f, 48f)
-                    ) {
-                        text(
-                            label,
-                            fontSize = 18f,
-                            textColor = Color.BLACK
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun test_clip() = testCompose("clip") {
-        column(
-            horizontalAlignment = HorizontalAlignment.Left,
-            modifier = Modifier
-                .padding(20f)
-                .background(Colors.BG.argb)
-        ) {
-            // --- 演示 Box 布局和圆角裁剪 ---
-            box(
-                modifier = Modifier
-                    .padding(top = 20f)
-                    .clip(Shape.RoundedRect(20f))
-            ) {
-                // Box 内的子元素会堆叠
-                image(image1)
-                box(
-                    modifier = Modifier
-                        .background(Color.makeARGB(128, 0, 0, 0))
-                        .padding(12f)
-                ) {
-                    text("圆角裁剪 + 内容覆盖", textColor = Color.WHITE)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun test_overflow() = testCompose("overflow") {
-        column(
-            modifier = Modifier
-                .padding(15f)
-                .background(Colors.BG.argb)
-        ) {
-            val longText = "这是一段非常非常非常长的文本，它需要足够的空间来展示，否则就会触发溢出策略。"
-            val imageForOverflow = image2 // 使用一个已加载的图片
-
-            // --- 文本溢出 ---
-            text("文本溢出策略", modifier = Modifier.padding(bottom = 10f), fontSize = 28f)
-
-            // 1. 自动换行 (Wrap)
-            text("1. Wrap: 自动换行", modifier = Modifier.padding(bottom = 5f), fontSize = 20f)
-            text(
-                longText,
-                modifier = Modifier
-                    .sizeIn(maxWidth = 300f) // 限制最大宽度
-                    .padding(bottom = 15f)
-                    .border(all = 1f, color = Colors.LIGHT_BLUE.argb)
-                    .padding(5f),
-                textOverflow = TextOverflow.Wrap
-            )
-
-            // 2. 省略号截断 (Ellipsis)
-            text("2. Ellipsis: 省略号截断", modifier = Modifier.padding(bottom = 5f), fontSize = 20f)
-            text(
-                longText,
-                modifier = Modifier
-                    .sizeIn(maxWidth = 300f) // 限制最大宽度
-                    .padding(bottom = 15f)
-                    .border(all = 1f, color = Colors.ORANGE.argb)
-                    .padding(5f),
-                fontSize = 30f,
-                textOverflow = TextOverflow.Ellipsis
-            )
-
-            // 3. 换行 + 高度限制 (导致行数截断)
-            text("3. Wrap + MaxHeight: 限制行数", modifier = Modifier.padding(bottom = 5f), fontSize = 20f)
-            text(
-                longText + longText, // 使用更长的文本
-                modifier = Modifier
-                    .sizeIn(maxWidth = 300f, maxHeight = 70f) // 同时限制宽度和高度
-                    .padding(bottom = 25f)
-                    .border(all = 1f, color = Colors.PURPLE.argb)
-                    .padding(5f),
-                fontSize = 30f,
-                textOverflow = TextOverflow.Wrap
-            )
-
-            // --- 图片溢出 ---
-            text("图片溢出策略 (原图 64x64)", modifier = Modifier.padding(bottom = 10f), fontSize = 28f)
-            row(verticalAlignment = VerticalAlignment.Center) {
-                // 1. 按比例缩放 (Scale)
-                column(horizontalAlignment = HorizontalAlignment.Center, modifier = Modifier.padding(right = 20f)) {
-                    text("1. Scale to 40x40", modifier = Modifier.padding(bottom = 5f))
-                    image(
-                        image = imageForOverflow,
-                        modifier = Modifier
-                            .sizeIn(maxWidth = 40f, maxHeight = 40f)
-                            .border(all = 1f, color = Colors.GREEN.argb),
-                        imageOverflow = ImageOverflow.Scale
-                    )
-                }
-
-                // 2. 居中裁剪 (Crop)
-                column(horizontalAlignment = HorizontalAlignment.Center) {
-                    text("2. Crop to 40x40", modifier = Modifier.padding(bottom = 5f))
-                    image(
-                        image = imageForOverflow,
-                        modifier = Modifier
-                            .sizeIn(maxWidth = 40f, maxHeight = 40f)
-                            .border(all = 1f, color = Colors.RED.argb),
-                        imageOverflow = ImageOverflow.Crop
-                    )
-                }
-            }
-        }
-    }
-
-    @Test
-    fun test_box_alignment() = testCompose("box_alignment") {
-        column(modifier = Modifier.padding(10f).background(Colors.BG.argb)) {
-            text("Box 对齐演示 (大框 100x100, 小框 30x30)", modifier = Modifier.padding(bottom = 10f), fontSize = 20f)
-
-            // Top Row
-            row(modifier = Modifier.padding(bottom = 10f)) {
-                // Top-Left
-                box(
-                    modifier = Modifier.padding(right = 10f).size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Left,
-                    verticalAlignment = VerticalAlignment.Top
-                ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
-
-                // Top-Center
-                box(
-                    modifier = Modifier.padding(right = 10f).size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Center,
-                    verticalAlignment = VerticalAlignment.Top
-                ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
-
-                // Top-Right
-                box(
-                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Right,
-                    verticalAlignment = VerticalAlignment.Top
-                ) { box(modifier = Modifier.size(30f).background(Colors.LIGHT_BLUE.argb)) }
-            }
-
-            // Center Row
-            row(modifier = Modifier.padding(bottom = 10f)) {
-                // Center-Left
-                box(
-                    modifier = Modifier.padding(right = 10f).size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Left,
-                    verticalAlignment = VerticalAlignment.Center
-                ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
-
-                // Center-Center
-                box(
-                    modifier = Modifier.padding(right = 10f).size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Center,
-                    verticalAlignment = VerticalAlignment.Center
-                ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
-
-                // Center-Right
-                box(
-                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Right,
-                    verticalAlignment = VerticalAlignment.Center
-                ) { box(modifier = Modifier.size(30f).background(Colors.ORANGE.argb)) }
-            }
-
-            // Bottom Row
-            row {
-                // Bottom-Left
-                box(
-                    modifier = Modifier.padding(right = 10f).size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Left,
-                    verticalAlignment = VerticalAlignment.Bottom
-                ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
-
-                // Bottom-Center
-                box(
-                    modifier = Modifier.padding(right = 10f).size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Center,
-                    verticalAlignment = VerticalAlignment.Bottom
-                ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
-
-                // Bottom-Right
-                box(
-                    modifier = Modifier.size(100f).border(1f, Colors.GRAY.argb),
-                    horizontalAlignment = HorizontalAlignment.Right,
-                    verticalAlignment = VerticalAlignment.Bottom
-                ) { box(modifier = Modifier.size(30f).background(Colors.PURPLE.argb)) }
-            }
-        }
-    }
-
-    @Test
-    fun test_table_layout() = testCompose("table_layout") {
-        column(modifier = Modifier.padding(15f).background(Colors.BG.argb)) {
-            text("自动列宽表格演示", modifier = Modifier.padding(bottom = 15f), fontSize = 28f)
-
-            table(
-                modifier = Modifier.border(1f, Colors.GRAY.argb),
-                columnSpacing = 10f,
-                rowSpacing = 10f
-            ) {
-                // 表头
-                tableRow {
-                    val cellModifier = Modifier
-                        .background(Colors.GRAY.argb)
-                        .padding(8f)
-                        .border(1f, Colors.YELLOW_GREEN.argb)
-                    cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                        text("ID", fontSize = 20f)
-                    }
-                    cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                        text("用户名", fontSize = 20f)
-                    }
-                    cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                        text("备注", fontSize = 20f)
-                    }
-                }
-
-                // 数据行
-                val users = listOf(
-                    Triple(1, "Alice", "这是一个比较长的备注，需要自动换行来正确显示。"),
-                    Triple(2, "Bob", "短备注。"),
-                    Triple(3, "Charlie a very long name", "这条备注也不短。"),
-                    Triple(4, "David", "正常。")
-                )
-
-                for ((id, name, note) in users) {
-                    tableRow {
-                        val cellModifier = Modifier
-                            .padding(8f)
-                            .border(1f, Colors.YELLOW_GREEN.argb)
-                        cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                            text(id.toString())
-                        }
-                        cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                            text(name)
-                        }
-                        cell(modifier = cellModifier, verticalAlignment = VerticalAlignment.Center) {
-                            // Text 默认是换行模式，所以当列宽确定后会自动换行
-                            text(note)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun test_table_cell_modifiers() = testCompose("table_cell_modifiers") {
-        @UiDsl
-        fun TableRow.rowHead() = cell(modifier = Modifier.background(Colors.LIGHT_GRAY.argb)) {
-            box(Modifier.size(70f))
-        }
-        column(modifier = Modifier.padding(15f).background(Colors.BG.argb)) {
-            text("单元格修饰与对齐演示", modifier = Modifier.padding(bottom = 15f), fontSize = 28f)
-
-            table(columnSpacing = 10f, rowSpacing = 10f) {
-                tableRow {
-                    rowHead()
-                    // 这个单元格的背景会填满整个区域
-                    cell(
-                        modifier = Modifier.background(Colors.LIGHT_GRAY.argb).padding(18f),
-                        verticalAlignment = VerticalAlignment.Center
-                    ) {
-                        text("ID")
-                    }
-                    // 这个单元格的内容会水平居中
-                    cell(
-                        modifier = Modifier.background(Colors.LIGHT_GRAY.argb).padding(18f),
-                        horizontalAlignment = HorizontalAlignment.Center
-                    ) {
-                        text("分数")
-                    }
-                    cell(
-                        modifier = Modifier.background(Colors.LIGHT_GRAY.argb).padding(18f)
-                    ) {
-                        text("优")
-                    }
-                }
-                tableRow {
-                    rowHead()
-                    cell(
-                        modifier = Modifier.background(Colors.PINK.argb),
-                        horizontalAlignment = HorizontalAlignment.Left,
-                        verticalAlignment = VerticalAlignment.Top,
-                    ) {
-                        text("1")
-                    }
-                    cell(
-                        modifier = Modifier.background(Colors.LIGHT_BLUE.argb),
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Top,
-                    ) {
-                        text("95")
-                    }
-                    // 这个单元格的内容会垂直居中
-                    cell(
-                        modifier = Modifier.background(Colors.GREEN.argb),
-                        horizontalAlignment = HorizontalAlignment.Right,
-                        verticalAlignment = VerticalAlignment.Top
-                    ) {
-                        text("正常")
-                    }
-                }
-                tableRow {
-                    rowHead()
-                    cell(
-                        modifier = Modifier.background(Colors.PINK.argb),
-                        horizontalAlignment = HorizontalAlignment.Left,
-                        verticalAlignment = VerticalAlignment.Center,
-                    ) {
-                        text("2")
-                    }
-                    cell(
-                        modifier = Modifier.background(Colors.LIGHT_BLUE.argb),
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Center,
-                    ) {
-                        text("75")
-                    }
-                    // 这个单元格的内容会垂直居中
-                    cell(
-                        modifier = Modifier.background(Colors.GREEN.argb),
-                        horizontalAlignment = HorizontalAlignment.Right,
-                        verticalAlignment = VerticalAlignment.Center
-                    ) {
-                        text("良")
-                    }
-                }
-                tableRow {
-                    rowHead()
-                    cell(
-                        modifier = Modifier.background(Colors.PINK.argb),
-                        horizontalAlignment = HorizontalAlignment.Left,
-                        verticalAlignment = VerticalAlignment.Bottom,
-                    ) {
-                        text("3")
-                    }
-                    cell(
-                        modifier = Modifier.background(Colors.LIGHT_BLUE.argb),
-                        horizontalAlignment = HorizontalAlignment.Center,
-                        verticalAlignment = VerticalAlignment.Bottom,
-                    ) {
-                        text("65")
-                    }
-                    // 这个单元格的内容会垂直居中
-                    cell(
-                        modifier = Modifier.background(Colors.GREEN.argb),
-                        horizontalAlignment = HorizontalAlignment.Right,
-                        verticalAlignment = VerticalAlignment.Bottom
-                    ) {
-                        text("及格")
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun test_icon_text() = testCompose("icon_text") {
-        column(
-            modifier = Modifier
-                .padding(10f)
-                .background(Colors.BG.argb),
-        ) {
-            // --- 演示 Column 的 horizontalAlignment ---
-            text("iconText 演示", modifier = Modifier.padding(10f), fontSize = 28f)
-            iconText("带icon的text", fontSize = 28f, modifier = Modifier.padding(10f))
-        }
-    }
-
-    @Test
-    fun test_size_overflow() = testCompose("size_overflow") {
-        column(
-            modifier = Modifier
-                .padding(10f)
-                .background(Colors.BG.argb)
-                .padding(25f)
-                .clip(Shape.RoundedRect(4.5f))
-                .border(.5f, Colors.LIGHT_BLUE.argb)
-        ) {
-            box(Modifier.size(500.9f))
-        }
-    }
-
-    @Test
-    fun test_bar() = testCompose("bar") {
-        val theme = BarTheme(outerRadius = 200f, strokeWidth = 5f)
-        val fontSize = 25f
-        val iconSize = 20f
-        val colors = listOf(
-            Colors.RED.argb,
-            Colors.ORANGE.argb,
-            Colors.YELLOW.argb,
-            Colors.GREEN.argb,
-            Colors.CYAN.argb,
-            Colors.BLUE.argb,
-            Colors.PURPLE.argb,
-        ).map {
-            val (h, s, b) = it.hsb()
-            hsb(h, s - .3f, b - .5f)
-        }
-
-        @UiDsl
-        fun UiElement.barWithLabels(theme: BarTheme, items: List<Pair<Int, Float>>) {
-            row(Modifier.padding(10f), VerticalAlignment.Center) {
-                bar(theme, items)
-                column(Modifier.padding(left = 20f)) {
-                    for ((color, value) in items) {
-                        row(Modifier.padding(10f), VerticalAlignment.Center) {
-                            box(Modifier
-                                .size(iconSize)
-                                .clip(Shape.RoundedRect(50f))
-                                .background(color)
-                            )
-                            text("${color.toHexString()} - $value", Modifier.padding(left = 15f), fontSize = fontSize)
-                        }
-                    }
-                }
-            }
-        }
-
-        column(Modifier.clip(Shape.RoundedRect(5f)).background(Colors.BG.argb).border(.5f, Colors.GRAY.argb)) {
-            barWithLabels(theme, colors.map { it to 1f })
-            barWithLabels(theme, colors.mapIndexed { index, color ->
-                color to (colors.size - index).toFloat()
-            })
-        }
-    }
-
-    @Test
-    fun test_radar() = testCompose("radar") {
-        val list = listOf(
-            "js",
-            "c#",
-            "rust",
-            "scala",
-            "sql",
-            "typescript",
-            "markdown",
-            "java",
-            "kotlin",
-        )
-        val data = list.mapIndexed { index, s -> s to index / (list.size - 1f) }
-
-        val theme = RadarTheme(800f, 600f)
-
-        column(Modifier
-            .clip(Shape.RoundedRect(5f))
-            .background(Colors.BG.argb)
-            .border(.5f, Colors.GRAY.argb)
-        ) {
-            radar(theme, data)
-        }
-    }
-
-    @Test
-    fun testIcon() = testCompose("icon") {
-        val svgContent = """<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e3e3e3"><path d="m296-105-56-56 240-240 240 240-56 56-184-183-184 183Zm0-240-56-56 240-240 240 240-56 56-184-183-184 183Zm0-240-56-56 240-240 240 240-56 56-184-183-184 183Z"/></svg>"""
-        column(Modifier.background(Colors.BG.argb).padding(30f)) {
-            row(Modifier.border(1f, Color.WHITE), VerticalAlignment.Center) {
-                box(
-                    Modifier
-                        .clip(Shape.RoundedRect(50f))
-                        .background(Color.makeRGB(132, 93, 181))
-                ) {
-                    icon(IconTheme(50f), svgContent)
-                }
-                text("测试图标", Modifier.padding(left = 10f), fontSize = 40f)
-            }
-        }
+        const val arrowSvg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>"""
+        const val checkSvg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>"""
+        const val starSvg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="m233-80 65-281L80-550l288-25 112-265 112 265 288 25-218 189 65 281-247-149L233-80Z"/></svg>"""
+        const val syncSvg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M204-318q-22-38-33-78t-11-82q0-134 93-228t227-94h7l-64-64 56-56 160 160-160 160-56-56 64-64h-7q-100 0-170 70t-70 170q0 28 7 54t21 50l-64 58Zm277 278L321-200l160-160 56 56-64 64h7q100 0 170-70t70-170q0-28-7-54t-21-50l64-58q22 38 33 78t11 82q0 134-93 228T480-160h-7l64 64-56 56Z"/></svg>"""
+        const val boltSvg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="m422-232 207-248H469l29-227-185 267h139l-30 208Zm-92 152 40-280H160l360-520h80l-40 320h240L410-80h-80Z"/></svg>"""
+        const val layersSvg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960"><path d="M480-118 120-318l80-44 280 156 280-156 80 44-360 200Zm0-160L120-478l360-200 360 200-360 200Zm0-92 192-108-192-108-192 108 192 108Zm0-388L200-602l-80-44 360-200 360 200-80 44-280-156Z"/></svg>"""
     }
 }

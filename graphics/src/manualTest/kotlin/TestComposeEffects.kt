@@ -1,9 +1,7 @@
 package top.e404.tavolo.draw.test
 
 import org.jetbrains.skia.Color
-import org.jetbrains.skia.EncodedImageFormat
 import org.junit.Test
-import top.e404.tavolo.draw.compose.Composable
 import top.e404.tavolo.draw.compose.HorizontalAlignment
 import top.e404.tavolo.draw.compose.Modifier
 import top.e404.tavolo.draw.compose.Shape
@@ -26,7 +24,6 @@ import top.e404.tavolo.draw.compose.italic
 import top.e404.tavolo.draw.compose.letterSpacing
 import top.e404.tavolo.draw.compose.lineHeight
 import top.e404.tavolo.draw.compose.padding
-import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.rotate
 import top.e404.tavolo.draw.compose.row
 import top.e404.tavolo.draw.compose.shadow
@@ -37,18 +34,9 @@ import top.e404.tavolo.draw.compose.text
 import top.e404.tavolo.draw.compose.textUnderline
 import top.e404.tavolo.draw.compose.width
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.util.FontManager
-import java.io.File
 
 class TestComposeEffects {
-    private val uiFont = FontManager.registerSystem("manual-compose-ui", "Microsoft YaHei")
-
-    private fun save(name: String, content: Composable) {
-        val image = render(Color.TRANSPARENT, content = content)
-        val file = File("out/compose/$name.png").also { it.parentFile.mkdirs() }
-        file.writeBytes(image.encodeToData(EncodedImageFormat.PNG)!!.bytes)
-        println("已输出: ${file.absolutePath}")
-    }
+    private val uiFont = ManualTestSupport.uiFont
 
     @UiDsl
     private fun UiElement.sectionTitle(title: String, subtitle: String? = null) {
@@ -98,15 +86,8 @@ class TestComposeEffects {
     }
 
     @Test
-    fun test_compose_effects_all() {
-        test_compose_effects_overview()
-        test_compose_effects_underlines()
-        test_compose_effects_borders()
-        test_compose_effects_transform_stack()
-    }
-
-    @Test
-    fun test_compose_effects_overview() = save("compose_effects_overview") {
+    fun test_compose_effects_overview() {
+        ManualTestSupport.saveCompose("效果-01-总览_阴影旋转边框下划线") {
         column(
             modifier = Modifier
                 .padding(30f)
@@ -244,9 +225,11 @@ class TestComposeEffects {
             }
         }
     }
+    }
 
     @Test
-    fun test_compose_effects_underlines() = save("compose_effects_underlines") {
+    fun test_compose_effects_underlines() {
+        ManualTestSupport.saveCompose("效果-02-文本下划线") {
         column(
             modifier = Modifier
                 .padding(28f)
@@ -414,9 +397,11 @@ class TestComposeEffects {
             }
         }
     }
+    }
 
     @Test
-    fun test_compose_effects_borders() = save("compose_effects_borders") {
+    fun test_compose_effects_borders() {
+        ManualTestSupport.saveCompose("效果-03-边框样式") {
         column(
             modifier = Modifier
                 .padding(28f)
@@ -564,9 +549,11 @@ class TestComposeEffects {
             }
         }
     }
+    }
 
     @Test
-    fun test_compose_effects_transform_stack() = save("compose_effects_transform_stack") {
+    fun test_compose_effects_transform_stack() {
+        ManualTestSupport.saveCompose("效果-04-变换层叠") {
         column(
             modifier = Modifier
                 .padding(40f)
@@ -618,7 +605,7 @@ class TestComposeEffects {
                     .shadow(blurRadius = 18f, color = Color.makeARGB(130, 0, 0, 0), offsetY = 9f, shape = Shape.RoundedRect(18f))
                     .clip(Shape.RoundedRect(18f))
                     .background(Color.makeRGB(46, 101, 255))
-                    .border(3f, Color.WHITE, StrokeStyle.Dashed(listOf(12f, 8f)))
+                    .border(3f, Color.WHITE, StrokeStyle.Dashed(listOf(12f, 8f)), shape = Shape.RoundedRect(18f))
                     .padding(24f),
                 verticalAlignment = VerticalAlignment.Center
             ) {
@@ -640,5 +627,6 @@ class TestComposeEffects {
                 )
             }
         }
+    }
     }
 }

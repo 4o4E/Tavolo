@@ -109,7 +109,7 @@ fun UiElement.iconText(
     style: TextStyle? = null,
     underline: TextUnderline? = null,
     iconColor: Int = Colors.LIGHT_BLUE.argb
-) = row(verticalAlignment = VerticalAlignment.Center) {
+) = row(modifier = modifier, verticalAlignment = VerticalAlignment.Center) {
     box(Modifier
         .size(fontSize / 2, fontSize)
         .clip(Shape.RoundedRect(fontSize))
@@ -117,7 +117,7 @@ fun UiElement.iconText(
     )
     text(
         text = text,
-        modifier = modifier,
+        modifier = Modifier.padding(left = fontSize / 4),
         textModifier = textModifier,
         fontSize = fontSize,
         textColor = textColor,

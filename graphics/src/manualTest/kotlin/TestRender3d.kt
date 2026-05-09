@@ -17,12 +17,14 @@ class TestRender3d {
     @Test
     fun heatmap() {
         // 生成随机的热力图数据
-        fun generateBarData(numWeeks: Int, numDaysPerWeek: Int, maxValue: Int) = (0 until numWeeks).map {
-            (0 until numDaysPerWeek).map {
-                if (Random.nextInt(3) > 1) Random.nextInt(
-                    0,
-                    maxValue
-                ) else 0
+        fun generateBarData(numWeeks: Int, numDaysPerWeek: Int, maxValue: Int): List<List<Int>> {
+            return (0 until numWeeks).map {
+                (0 until numDaysPerWeek).map {
+                    if (Random.nextInt(3) > 1) Random.nextInt(
+                        0,
+                        maxValue
+                    ) else 0
+                }
             }
         }
 
@@ -82,7 +84,7 @@ class TestRender3d {
                 solidBg,
                 useBackFaceCulling = true
             )
-        ).let { File("heatmap_perspective_solid.png").writeBytes(it.encodeToData()!!.bytes) }
+        ).let { ManualTestSupport.saveImage("render3d/3D-热力图-透视投影实体.png", it) }
         // 渲染并保存正交投影实体图
         renderSceneToImage(
             Scene(listOf(chartMesh)),
@@ -95,7 +97,7 @@ class TestRender3d {
                 solidBg,
                 useBackFaceCulling = true
             )
-        ).let { File("heatmap_orthographic_solid.png").writeBytes(it.encodeToData()!!.bytes) }
+        ).let { ManualTestSupport.saveImage("render3d/3D-热力图-正交投影实体.png", it) }
         println("--- 3D热力图渲染完成 ---\n")
     }
 
@@ -106,158 +108,218 @@ class TestRender3d {
      */
     enum class BodyPart {
         HEAD {
-            override fun getDims(isSlim: Boolean) = Vec3(8f, 8f, 8f)
-            override fun getPos(isSlim: Boolean) = Vec3(0f, 20f, 0f)
-            override fun getBaseUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(16f, 8f, 8f, 8f),
-                FaceDirection.LEFT to Rect.makeXYWH(0f, 8f, 8f, 8f),
-                FaceDirection.TOP to Rect.makeXYWH(8f, 0f, 8f, 8f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(16f, 0f, 8f, 8f),
-                FaceDirection.FRONT to Rect.makeXYWH(8f, 8f, 8f, 8f),
-                FaceDirection.BACK to Rect.makeXYWH(24f, 8f, 8f, 8f)
-            )
+            override fun getDims(isSlim: Boolean): Vec3 {
+                return Vec3(8f, 8f, 8f)
+            }
 
-            override fun getOverlayUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(48f, 8f, 8f, 8f),
-                FaceDirection.LEFT to Rect.makeXYWH(32f, 8f, 8f, 8f),
-                FaceDirection.TOP to Rect.makeXYWH(40f, 0f, 8f, 8f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(48f, 0f, 8f, 8f),
-                FaceDirection.FRONT to Rect.makeXYWH(40f, 8f, 8f, 8f),
-                FaceDirection.BACK to Rect.makeXYWH(56f, 8f, 8f, 8f)
-            )
+            override fun getPos(isSlim: Boolean): Vec3 {
+                return Vec3(0f, 20f, 0f)
+            }
+
+            override fun getBaseUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(16f, 8f, 8f, 8f),
+                    FaceDirection.LEFT to Rect.makeXYWH(0f, 8f, 8f, 8f),
+                    FaceDirection.TOP to Rect.makeXYWH(8f, 0f, 8f, 8f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(16f, 0f, 8f, 8f),
+                    FaceDirection.FRONT to Rect.makeXYWH(8f, 8f, 8f, 8f),
+                    FaceDirection.BACK to Rect.makeXYWH(24f, 8f, 8f, 8f)
+                )
+            }
+
+            override fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(48f, 8f, 8f, 8f),
+                    FaceDirection.LEFT to Rect.makeXYWH(32f, 8f, 8f, 8f),
+                    FaceDirection.TOP to Rect.makeXYWH(40f, 0f, 8f, 8f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(48f, 0f, 8f, 8f),
+                    FaceDirection.FRONT to Rect.makeXYWH(40f, 8f, 8f, 8f),
+                    FaceDirection.BACK to Rect.makeXYWH(56f, 8f, 8f, 8f)
+                )
+            }
         },
         BODY {
-            override fun getDims(isSlim: Boolean) = Vec3(8f, 12f, 4f)
-            override fun getPos(isSlim: Boolean) = Vec3(0f, 10f, 0f)
-            override fun getBaseUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(16f, 20f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(28f, 20f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(20f, 16f, 8f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(28f, 16f, 8f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(20f, 20f, 8f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(32f, 20f, 8f, 12f)
-            )
+            override fun getDims(isSlim: Boolean): Vec3 {
+                return Vec3(8f, 12f, 4f)
+            }
 
-            override fun getOverlayUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(16f, 36f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(28f, 36f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(20f, 32f, 8f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(28f, 32f, 8f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(20f, 36f, 8f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(32f, 36f, 8f, 12f)
-            )
+            override fun getPos(isSlim: Boolean): Vec3 {
+                return Vec3(0f, 10f, 0f)
+            }
+
+            override fun getBaseUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(16f, 20f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(28f, 20f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(20f, 16f, 8f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(28f, 16f, 8f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(20f, 20f, 8f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(32f, 20f, 8f, 12f)
+                )
+            }
+
+            override fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(16f, 36f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(28f, 36f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(20f, 32f, 8f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(28f, 32f, 8f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(20f, 36f, 8f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(32f, 36f, 8f, 12f)
+                )
+            }
         },
         RIGHT_ARM {
-            override fun getDims(isSlim: Boolean) = if (isSlim) Vec3(3f, 12f, 4f) else Vec3(4f, 12f, 4f)
-            override fun getPos(isSlim: Boolean) = if (isSlim) Vec3(-5.5f, 10f, 0f) else Vec3(-6f, 10f, 0f)
-            override fun getBaseUVs(isSlim: Boolean) = if (isSlim) mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(40f, 20f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(47f, 20f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(44f, 16f, 3f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(47f, 16f, 3f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(44f, 20f, 3f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(51f, 20f, 3f, 12f)
-            ) else mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(40f, 20f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(48f, 20f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(44f, 16f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(48f, 16f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(44f, 20f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(52f, 20f, 4f, 12f)
-            )
+            override fun getDims(isSlim: Boolean): Vec3 {
+                return if (isSlim) Vec3(3f, 12f, 4f) else Vec3(4f, 12f, 4f)
+            }
 
-            override fun getOverlayUVs(isSlim: Boolean) = if (isSlim) mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(40f, 36f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(47f, 36f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(44f, 32f, 3f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(47f, 32f, 3f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(44f, 36f, 3f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(51f, 36f, 3f, 12f)
-            ) else mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(40f, 36f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(48f, 36f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(44f, 32f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(48f, 32f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(44f, 36f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(52f, 36f, 4f, 12f)
-            )
+            override fun getPos(isSlim: Boolean): Vec3 {
+                return if (isSlim) Vec3(-5.5f, 10f, 0f) else Vec3(-6f, 10f, 0f)
+            }
+
+            override fun getBaseUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return if (isSlim) mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(40f, 20f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(47f, 20f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(44f, 16f, 3f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(47f, 16f, 3f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(44f, 20f, 3f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(51f, 20f, 3f, 12f)
+                ) else mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(40f, 20f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(48f, 20f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(44f, 16f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(48f, 16f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(44f, 20f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(52f, 20f, 4f, 12f)
+                )
+            }
+
+            override fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return if (isSlim) mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(40f, 36f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(47f, 36f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(44f, 32f, 3f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(47f, 32f, 3f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(44f, 36f, 3f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(51f, 36f, 3f, 12f)
+                ) else mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(40f, 36f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(48f, 36f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(44f, 32f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(48f, 32f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(44f, 36f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(52f, 36f, 4f, 12f)
+                )
+            }
         },
         LEFT_ARM {
-            override fun getDims(isSlim: Boolean) = if (isSlim) Vec3(3f, 12f, 4f) else Vec3(4f, 12f, 4f)
-            override fun getPos(isSlim: Boolean) = if (isSlim) Vec3(5.5f, 10f, 0f) else Vec3(6f, 10f, 0f)
-            override fun getBaseUVs(isSlim: Boolean) = if (isSlim) mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(39f, 52f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(32f, 52f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(36f, 48f, 3f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(39f, 48f, 3f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(36f, 52f, 3f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(43f, 52f, 3f, 12f)
-            ) else mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(40f, 52f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(32f, 52f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(36f, 48f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(40f, 48f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(36f, 52f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(44f, 52f, 4f, 12f)
-            )
+            override fun getDims(isSlim: Boolean): Vec3 {
+                return if (isSlim) Vec3(3f, 12f, 4f) else Vec3(4f, 12f, 4f)
+            }
 
-            override fun getOverlayUVs(isSlim: Boolean) = if (isSlim) mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(55f, 52f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(48f, 52f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(52f, 48f, 3f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(55f, 48f, 3f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(52f, 52f, 3f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(59f, 52f, 3f, 12f)
-            ) else mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(56f, 52f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(48f, 52f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(52f, 48f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(56f, 48f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(52f, 52f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(60f, 52f, 4f, 12f)
-            )
+            override fun getPos(isSlim: Boolean): Vec3 {
+                return if (isSlim) Vec3(5.5f, 10f, 0f) else Vec3(6f, 10f, 0f)
+            }
+
+            override fun getBaseUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return if (isSlim) mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(39f, 52f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(32f, 52f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(36f, 48f, 3f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(39f, 48f, 3f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(36f, 52f, 3f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(43f, 52f, 3f, 12f)
+                ) else mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(40f, 52f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(32f, 52f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(36f, 48f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(40f, 48f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(36f, 52f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(44f, 52f, 4f, 12f)
+                )
+            }
+
+            override fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return if (isSlim) mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(55f, 52f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(48f, 52f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(52f, 48f, 3f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(55f, 48f, 3f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(52f, 52f, 3f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(59f, 52f, 3f, 12f)
+                ) else mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(56f, 52f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(48f, 52f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(52f, 48f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(56f, 48f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(52f, 52f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(60f, 52f, 4f, 12f)
+                )
+            }
         },
         RIGHT_LEG {
-            override fun getDims(isSlim: Boolean) = Vec3(4f, 12f, 4f)
-            override fun getPos(isSlim: Boolean) = Vec3(-2f, -2f, 0f)
-            override fun getBaseUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(0f, 20f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(8f, 20f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(4f, 16f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(8f, 16f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(4f, 20f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(12f, 20f, 4f, 12f)
-            )
+            override fun getDims(isSlim: Boolean): Vec3 {
+                return Vec3(4f, 12f, 4f)
+            }
 
-            override fun getOverlayUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(0f, 36f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(8f, 36f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(4f, 32f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(8f, 32f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(4f, 36f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(12f, 36f, 4f, 12f)
-            )
+            override fun getPos(isSlim: Boolean): Vec3 {
+                return Vec3(-2f, -2f, 0f)
+            }
+
+            override fun getBaseUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(0f, 20f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(8f, 20f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(4f, 16f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(8f, 16f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(4f, 20f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(12f, 20f, 4f, 12f)
+                )
+            }
+
+            override fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(0f, 36f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(8f, 36f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(4f, 32f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(8f, 32f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(4f, 36f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(12f, 36f, 4f, 12f)
+                )
+            }
         },
         LEFT_LEG {
-            override fun getDims(isSlim: Boolean) = Vec3(4f, 12f, 4f)
-            override fun getPos(isSlim: Boolean) = Vec3(2f, -2f, 0f)
-            override fun getBaseUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(24f, 52f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(16f, 52f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(20f, 48f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(24f, 48f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(20f, 52f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(28f, 52f, 4f, 12f)
-            )
+            override fun getDims(isSlim: Boolean): Vec3 {
+                return Vec3(4f, 12f, 4f)
+            }
 
-            override fun getOverlayUVs(isSlim: Boolean) = mapOf(
-                FaceDirection.RIGHT to Rect.makeXYWH(8f, 52f, 4f, 12f),
-                FaceDirection.LEFT to Rect.makeXYWH(0f, 52f, 4f, 12f),
-                FaceDirection.TOP to Rect.makeXYWH(4f, 48f, 4f, 4f),
-                FaceDirection.BOTTOM to Rect.makeXYWH(8f, 48f, 4f, 4f),
-                FaceDirection.FRONT to Rect.makeXYWH(4f, 52f, 4f, 12f),
-                FaceDirection.BACK to Rect.makeXYWH(12f, 52f, 4f, 12f)
-            )
+            override fun getPos(isSlim: Boolean): Vec3 {
+                return Vec3(2f, -2f, 0f)
+            }
+
+            override fun getBaseUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(24f, 52f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(16f, 52f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(20f, 48f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(24f, 48f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(20f, 52f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(28f, 52f, 4f, 12f)
+                )
+            }
+
+            override fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect> {
+                return mapOf(
+                    FaceDirection.RIGHT to Rect.makeXYWH(8f, 52f, 4f, 12f),
+                    FaceDirection.LEFT to Rect.makeXYWH(0f, 52f, 4f, 12f),
+                    FaceDirection.TOP to Rect.makeXYWH(4f, 48f, 4f, 4f),
+                    FaceDirection.BOTTOM to Rect.makeXYWH(8f, 48f, 4f, 4f),
+                    FaceDirection.FRONT to Rect.makeXYWH(4f, 52f, 4f, 12f),
+                    FaceDirection.BACK to Rect.makeXYWH(12f, 52f, 4f, 12f)
+                )
+            }
         };
 
         // 抽象方法，强制每个身体部件都必须提供自己的尺寸、位置和UV数据
@@ -343,7 +405,7 @@ class TestRender3d {
                 solidBg,
                 useBackFaceCulling = false
             )
-        ).let { File("${modelName}_perspective_solid.png").writeBytes(it.encodeToData()!!.bytes) }
+        ).let { ManualTestSupport.saveImage("render3d/3D-皮肤模型-${modelName}-透视投影实体.png", it) }
         renderSceneToImage(
             Scene(listOf(playerMesh)),
             RenderConfig(
@@ -355,7 +417,7 @@ class TestRender3d {
                 wireframeBg,
                 useBackFaceCulling = false
             )
-        ).let { File("${modelName}_perspective_wireframe.png").writeBytes(it.encodeToData()!!.bytes) }
+        ).let { ManualTestSupport.saveImage("render3d/3D-皮肤模型-${modelName}-透视投影线框.png", it) }
         renderSceneToImage(
             Scene(listOf(playerMesh)),
             RenderConfig(
@@ -367,7 +429,7 @@ class TestRender3d {
                 solidBg,
                 useBackFaceCulling = false
             )
-        ).let { File("${modelName}_orthographic_solid.png").writeBytes(it.encodeToData()!!.bytes) }
+        ).let { ManualTestSupport.saveImage("render3d/3D-皮肤模型-${modelName}-正交投影实体.png", it) }
         // 为了演示背面剔除的效果，额外生成一张开启剔除的线框图
         renderSceneToImage(
             Scene(listOf(playerMesh)),
@@ -380,12 +442,12 @@ class TestRender3d {
                 wireframeBg,
                 useBackFaceCulling = true
             )
-        ).let { File("${modelName}_orthographic_wireframe_culling_on.png").writeBytes(it.encodeToData()!!.bytes) }
+        ).let { ManualTestSupport.saveImage("render3d/3D-皮肤模型-${modelName}-正交投影线框_开启背面剔除.png", it) }
     }
 
     @Test
     fun skin() {
-        runMinecraftSkinExample("steve", "steve_skin.png", isSlim = false)
-        runMinecraftSkinExample("alex", "alex_skin.png", isSlim = true)
+        runMinecraftSkinExample("Steve默认皮肤", "steve_skin.png", isSlim = false)
+        runMinecraftSkinExample("Alex纤细皮肤", "alex_skin.png", isSlim = true)
     }
 }
