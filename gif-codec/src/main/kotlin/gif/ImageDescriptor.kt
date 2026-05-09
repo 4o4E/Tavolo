@@ -101,8 +101,9 @@ object ImageDescriptor {
         }
 
         val s = size(lzw)
+        val colorTableSize = if (local) table.s() else 0
 
-        val buffer = ByteBuffer.allocate(11 + table.s() + s)
+        val buffer = ByteBuffer.allocate(11 + colorTableSize + s)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
 
         block(

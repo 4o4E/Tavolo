@@ -51,7 +51,12 @@ class GIFBuilder(val width: Int, val height: Int) {
      * @see [OctTreeQuantizer.quantize]
      */
     fun table(bitmap: Bitmap) = apply {
-        global = ColorTable(OctTreeQuantizer().quantize(bitmap, 256), true)
+        val hasTransparency = !bitmap.computeIsOpaque()
+        global = ColorTable.create(
+            colors = OctTreeQuantizer().quantize(bitmap, if (hasTransparency) 255 else 256),
+            sort = true,
+            hasTransparency = hasTransparency
+        )
     }
 
     /**
@@ -102,35 +107,44 @@ class GIFBuilder(val width: Int, val height: Int) {
     @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
     fun buildToBuffer(): ByteBuffer {
         val list = runBlocking {
-            frames.map { (bitmap, colors, info) ->
-                CoroutineScope(Dispatchers.Default).async {
-                    val opaque = !bitmap.computeIsOpaque()
-                    val table = when {
-                        colors.exists() -> colors
-                        global.exists() -> global
-                        else -> ColorTable(OctTreeQuantizer().quantize(bitmap, if (opaque) 255 else 256), true)
-                    }
-                    val transparency = if (opaque) table.transparency else null
-                    val result = AtkinsonDitherer.dither(bitmap, table.colors)
+            coroutineScope {
+                frames.map { (bitmap, colors, info) ->
+                    async(Dispatchers.Default) {
+                        val hasTransparency = !bitmap.computeIsOpaque()
+                        val table = when {
+                            colors.exists() -> colors
+                            global.exists() -> global
+                            else -> ColorTable.create(
+                                colors = OctTreeQuantizer().quantize(bitmap, if (hasTransparency) 255 else 256),
+                                sort = true,
+                                hasTransparency = hasTransparency
+                            )
+                        }
+                        val transparency = if (hasTransparency) {
+                            require(table.transparency in table.colors.indices) { "透明GIF帧需要预留透明颜色索引" }
+                            table.transparency
+                        } else null
+                        val result = AtkinsonDitherer.dither(bitmap, table.colors, transparency)
 
-                    val descBuf = ImageDescriptor.toBuffer(info.frameRect, table, table !== global, result)
-                    val buf = ByteBuffer.allocate(descBuf.limit() + 8)
-                    buf.order(ByteOrder.LITTLE_ENDIAN)
-                    GraphicControlExtension.write(
-                        buf,
-                        info.disposalMethod,
-                        false,
-                        transparency,
-                        info.duration
-                    ) // 8 Byte
-                    for (i in 0 until descBuf.position()) buf.put(descBuf[i])
-                    buf
-                }
-            }.awaitAll()
+                        val descBuf = ImageDescriptor.toBuffer(info.frameRect, table, table !== global, result)
+                        val buf = ByteBuffer.allocate(descBuf.position() + 8)
+                        buf.order(ByteOrder.LITTLE_ENDIAN)
+                        GraphicControlExtension.write(
+                            buf,
+                            info.disposalMethod,
+                            false,
+                            transparency,
+                            info.duration
+                        ) // 8 Byte
+                        for (i in 0 until descBuf.position()) buf.put(descBuf[i])
+                        buf
+                    }
+                }.awaitAll()
+            }
         }
         var size = GIF_HEADER.size +
                 global.s() + 7 +
-                list.sumOf { it.limit() } +
+                list.sumOf { it.position() } +
                 GIF_TRAILER.size
         if (loop >= 0) size += 19
         if (buffering > 0) size += 21
@@ -151,5 +165,8 @@ class GIFBuilder(val width: Int, val height: Int) {
         return buf
     }
 
-    fun buildToData() = Data.makeFromBytes(buildToBuffer().array())
+    fun buildToData(): Data {
+        val buffer = buildToBuffer()
+        return Data.makeFromBytes(buffer.array().copyOf(buffer.position()))
+    }
 }

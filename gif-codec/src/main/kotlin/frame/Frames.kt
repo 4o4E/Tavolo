@@ -122,13 +122,12 @@ suspend fun MutableList<Frame>.replenish(
     count: Int,
     block: Frame.() -> Unit = {}
 ) = run {
+    require(isNotEmpty()) { "gif帧数必须大于0" }
+    require(count > 0) { "目标帧数必须大于0" }
     pmap(block)
     if (size >= count) return@run this
-    var i = 0
-    (1..count).map {
-        i++
-        if (i >= size) i = 0
-        this[i].clone()
+    List(count) { index ->
+        this[index % size].clone()
     }.toMutableList()
 }
 

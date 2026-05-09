@@ -5,17 +5,42 @@ import java.nio.ByteBuffer
 class ColorTable(
     val colors: IntArray,
     val sort: Boolean,
-    val transparency: Int = (colors.capacity() - 1).coerceAtLeast(0),
+    val transparency: Int = -1,
     val background: Int = 0,
 ) {
     companion object {
         private val SizeList = listOf(0, 2, 4, 8, 16, 32, 64, 128, 256)
         private fun IntArray.capacity() = SizeList.firstOrNull { it >= size } ?: -1
         val Empty: ColorTable = ColorTable(IntArray(0), false)
+
+        fun create(
+            colors: IntArray,
+            sort: Boolean,
+            hasTransparency: Boolean,
+            background: Int = 0,
+        ): ColorTable {
+            val maxColorCount = if (hasTransparency) 255 else 256
+            require(colors.size <= maxColorCount) {
+                if (hasTransparency) "透明GIF色表最多只能包含255个非透明颜色"
+                else "GIF色表最多只能包含256个颜色"
+            }
+
+            if (!hasTransparency) return ColorTable(colors, sort, background = background)
+
+            val table = colors.copyOf(colors.size + 1)
+            table[colors.size] = 0
+            return ColorTable(
+                colors = table,
+                sort = sort,
+                transparency = colors.size,
+                background = background
+            )
+        }
     }
 
     init {
-        check(colors.capacity() != -1) { "Color Table Too Large" }
+        check(colors.capacity() != -1) { "GIF色表过大" }
+        check(transparency == -1 || transparency in colors.indices) { "透明色索引超出GIF色表范围" }
     }
 
     fun s() = colors.size * 3 + (colors.capacity() - colors.size) * 3
@@ -38,6 +63,6 @@ class ColorTable(
         in 5..8 -> 0x02
         in 3..4 -> 0x01
         in 0..2 -> 0x00
-        else -> throw IllegalArgumentException("Color Table Size: ${colors.size}")
+        else -> throw IllegalArgumentException("GIF色表颜色数量: ${colors.size}")
     }
 }

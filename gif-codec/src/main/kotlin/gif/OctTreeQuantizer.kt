@@ -2,7 +2,6 @@ package top.e404.tavolo.gif
 
 import org.jetbrains.skia.Bitmap
 import top.e404.tavolo.util.rgb
-import top.e404.tavolo.util.forEachColor
 
 /**
  * qct树量化器
@@ -16,12 +15,19 @@ class OctTreeQuantizer {
     private var inIndex = 0
     private val nodeList = arrayOfNulls<Node>(8)
 
-    fun quantize(bitmap: Bitmap, maxColorCount: Int = 256): IntArray {
+    fun quantize(bitmap: Bitmap, maxColorCount: Int = 256, ignoreTransparent: Boolean = true): IntArray {
+        require(maxColorCount in 1..256) { "GIF色表颜色数量必须在1..256之间" }
+        leafCount = 0
+        inIndex = 0
+        nodeList.fill(null)
+
         val node = createNode(0)
-        bitmap.forEachColor { color ->
-            addColor(node, color, 0)
-            while (leafCount > maxColorCount) reduceTree()
-            false
+        for (x in 0 until bitmap.width) for (y in 0 until bitmap.height) {
+            if (ignoreTransparent && bitmap.getAlphaf(x, y) < 0.5F) continue
+            addColor(node, bitmap.getColor(x, y), 0)
+            while (leafCount > maxColorCount) {
+                reduceTree()
+            }
         }
         return HashSet<Int>().run {
             getColorPalette(node, this)
@@ -101,6 +107,7 @@ class OctTreeQuantizer {
 
     private fun getColorPalette(node: Node?, colors: MutableSet<Int>) {
         if (node!!.isLeaf) {
+            if (node.pixelCount == 0) return
             node.colorIndex = inIndex
             node.redSum = node.redSum / node.pixelCount
             node.greenSum = node.greenSum / node.pixelCount

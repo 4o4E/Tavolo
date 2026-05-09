@@ -2,7 +2,7 @@ package top.e404.tavolo.gif
 
 import java.util.*
 
-class LZWEncoder(private val colors: ColorTable, private val image: IntArray) {
+class LZWEncoder(private val colors: ColorTable, private val indices: IntArray) {
     internal companion object {
         val CLEAR_CODE = listOf(-1)
         val END_OF_INFO = listOf(-2)
@@ -10,7 +10,7 @@ class LZWEncoder(private val colors: ColorTable, private val image: IntArray) {
         const val MAX_CODE_TABLE_SIZE = 1 shl 12
     }
 
-    private val minimumCodeSize = colors.size() + 1
+    private val minimumCodeSize = maxOf(2, colors.size() + 1)
     private val outputBits = BitSet()
     private var position = 0
     private val table: MutableMap<List<Int>, Int> = HashMap()
@@ -22,10 +22,11 @@ class LZWEncoder(private val colors: ColorTable, private val image: IntArray) {
     }
 
     fun encode(): Pair<Int, ByteArray> {
+        require(indices.isNotEmpty()) { "GIF帧像素不能为空" }
         writeCode(table.getValue(CLEAR_CODE))
-        for (rgb in image) {
-            val index = colors.colors.indexOf(rgb)
-            processIndex(if (index != -1) index else colors.transparency)
+        for (index in indices) {
+            require(index in colors.colors.indices) { "GIF像素索引超出色表范围: $index" }
+            processIndex(index)
         }
         writeCode(table.getValue(indexBuffer))
         writeCode(table.getValue(END_OF_INFO))

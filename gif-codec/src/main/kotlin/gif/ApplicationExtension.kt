@@ -47,16 +47,19 @@ object ApplicationExtension {
     fun loop(
         buffer: ByteBuffer,
         count: Int
-    ) = write(
-        buffer = buffer,
-        identifier = "NETSCAPE",
-        authentication = "2.0",
-        data = byteArrayOf(
-            0x01,
-            count.ushr(8).toByte(),
-            count.ushr(0).toByte()
+    ) {
+        require(count in 0..0xFFFF) { "GIF循环次数必须在0..65535之间" }
+        write(
+            buffer = buffer,
+            identifier = "NETSCAPE",
+            authentication = "2.0",
+            data = byteArrayOf(
+                0x01,
+                count.ushr(0).toByte(),
+                count.ushr(8).toByte()
+            )
         )
-    )
+    }
 
     fun buffering(
         buffer: ByteBuffer,
