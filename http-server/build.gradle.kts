@@ -16,16 +16,24 @@ dependencies {
     implementation(ktor("server-core-jvm"))
     implementation(ktor("server-netty-jvm"))
     implementation(ktor("server-call-logging-jvm"))
+    implementation(ktor("server-status-pages-jvm"))
+    // logging
+    implementation("ch.qos.logback:logback-classic:1.5.18")
     // serialization
     implementation(kotlinx("serialization-core-jvm", Versions.KOTLINX_SERIALIZATION))
     implementation(kotlinx("serialization-json-jvm", Versions.KOTLINX_SERIALIZATION))
     // reflect
     implementation(kotlin("reflect", Versions.KOTLIN))
+
+    testImplementation(kotlin("test", Versions.KOTLIN))
+    testImplementation(ktor("server-tests-jvm"))
+    testImplementation(skiko("windows-x64"))
 }
 
 tasks {
     test {
         useJUnitPlatform()
         workingDir = rootProject.projectDir.resolve("run")
+        systemProperty("tavolo.assets.dir", rootProject.projectDir.resolve("assets").absolutePath)
     }
 }

@@ -12,61 +12,76 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
     private val logger = environment.logger
     private val handlerSignName = ImageHandler::class.java.name
     private val generatorSignName = ImageGenerator::class.java.name
+    private val handlers = linkedMapOf<String, String>()
+    private val generators = linkedMapOf<String, String>()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        val handlerSet = resolver.getSymbolsWithAnnotation(handlerSignName).filterIsInstance<KSClassDeclaration>().toList()
-        val generatorSet = resolver.getSymbolsWithAnnotation(generatorSignName).filterIsInstance<KSClassDeclaration>().toList()
+        resolver.getSymbolsWithAnnotation(handlerSignName)
+            .filterIsInstance<KSClassDeclaration>()
+            .forEach { declaration ->
+                val id = declaration.requiredId(handlerSignName)
+                val qualifiedName = declaration.qualifiedName!!.asString()
+                handlers.put(id, qualifiedName)?.takeIf { it != qualifiedName }?.let {
+                    error("handler 注册 id 重复: $id")
+                }
+            }
+        resolver.getSymbolsWithAnnotation(generatorSignName)
+            .filterIsInstance<KSClassDeclaration>()
+            .forEach { declaration ->
+                val id = declaration.requiredId(generatorSignName)
+                val qualifiedName = declaration.qualifiedName!!.asString()
+                generators.put(id, qualifiedName)?.takeIf { it != qualifiedName }?.let {
+                    error("generator 注册 id 重复: $id")
+                }
+            }
+        return emptyList()
+    }
+
+    override fun finish() {
         val stream = try {
             codeGenerator.createNewFile(
-                dependencies = Dependencies(false),
+                dependencies = Dependencies(true),
                 packageName = "top.e404.tavolo.handler",
                 fileName = "registries",
                 extensionName = "kt"
             )
         } catch (e: Exception) {
             logger.warn("skip exists file top/e404/tavolo/handler/registries.kt")
-            return emptyList()
+            return
         }
-        logger.warn("process ${handlerSet.size} handlers, ${generatorSet.size} generators")
+        logger.warn("process ${handlers.size} handlers, ${generators.size} generators")
         stream.bufferedWriter().use { bw ->
             bw.appendLine("package top.e404.tavolo.handler").appendLine()
-            bw.appendLine("// handler size: ${handlerSet.size}")
-            bw.appendLine("val handlerSet: Set<top.e404.tavolo.frame.FramesHandler> = setOf(")
-            handlerSet.forEach {
-                bw.append("    ").appendLine("${it.qualifiedName!!.asString()},")
-            }
-            bw.appendLine(")")
-            bw.appendLine()
-            bw.appendLine("val handlerMap: Map<String, top.e404.tavolo.frame.FramesHandler> = mapOf(")
-            handlerSet.forEach {
+            bw.appendLine("// handler size: ${handlers.size}")
+            bw.appendLine("val handlerMap: Map<String, () -> top.e404.tavolo.frame.FramesHandler> = mapOf(")
+            handlers.toSortedMap().forEach { (id, qualifiedName) ->
                 bw.append("    ")
                     .append("\"")
-                    .append(it.requiredId(handlerSignName))
-                    .append("\" to ")
-                    .append(it.qualifiedName!!.asString())
-                    .appendLine(",")
+                    .append(id)
+                    .append("\" to { ")
+                    .append(qualifiedName)
+                    .appendLine(" },")
             }
             bw.appendLine(")")
             bw.appendLine()
-            bw.appendLine("// generator size: ${generatorSet.size}")
-            bw.appendLine("val generatorSet: Set<top.e404.tavolo.generator.FramesGenerator> = setOf(")
-            generatorSet.forEach {
-                bw.append("    ").appendLine("${it.qualifiedName!!.asString()},")
-            }
-            bw.appendLine(")")
+            bw.appendLine("val handlerSet: Set<top.e404.tavolo.frame.FramesHandler>")
+            bw.appendLine("    get() = handlerMap.values.map { it() }.toSet()")
             bw.appendLine()
-            bw.appendLine("val generatorMap: Map<String, top.e404.tavolo.generator.FramesGenerator> = mapOf(")
-            generatorSet.forEach {
+            bw.appendLine("// generator size: ${generators.size}")
+            bw.appendLine("val generatorMap: Map<String, () -> top.e404.tavolo.generator.FramesGenerator> = mapOf(")
+            generators.toSortedMap().forEach { (id, qualifiedName) ->
                 bw.append("    ")
                     .append("\"")
-                    .append(it.requiredId(generatorSignName))
-                    .append("\" to ")
-                    .append(it.qualifiedName!!.asString())
-                    .appendLine(",")
+                    .append(id)
+                    .append("\" to { ")
+                    .append(qualifiedName)
+                    .appendLine(" },")
             }
             bw.appendLine(")")
+            bw.appendLine()
+            bw.appendLine("val generatorSet: Set<top.e404.tavolo.generator.FramesGenerator>")
+            bw.appendLine("    get() = generatorMap.values.map { it() }.toSet()")
         }
-        return emptyList()
     }
 
     private fun KSClassDeclaration.requiredId(annotationName: String): String {

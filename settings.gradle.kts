@@ -16,6 +16,7 @@ include(
     ":core",
     ":gif-codec",
     ":graphics",
+    ":http-client",
     ":http-server",
     ":ksp",
 )

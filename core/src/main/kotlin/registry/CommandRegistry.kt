@@ -25,15 +25,21 @@ data class CommandDescriptor(
     val version: Int,
 )
 
-data class RegisteredHandler(
+class RegisteredHandler internal constructor(
     val descriptor: CommandDescriptor,
-    val handler: FramesHandler,
-)
+    private val handlerProvider: () -> FramesHandler,
+) {
+    val handler: FramesHandler
+        get() = handlerProvider()
+}
 
-data class RegisteredGenerator(
+class RegisteredGenerator internal constructor(
     val descriptor: CommandDescriptor,
-    val generator: FramesGenerator,
-)
+    private val generatorProvider: () -> FramesGenerator,
+) {
+    val generator: FramesGenerator
+        get() = generatorProvider()
+}
 
 data class AssetsVersion(
     val version: String,
@@ -57,8 +63,8 @@ class CommandRegistry(
 }
 
 class ResourceCommandLoader(
-    private val handlers: Map<String, FramesHandler> = handlerMap,
-    private val generators: Map<String, FramesGenerator> = generatorMap,
+    private val handlers: Map<String, () -> FramesHandler> = handlerMap,
+    private val generators: Map<String, () -> FramesGenerator> = generatorMap,
 ) {
     fun load(): CommandRegistry {
         val assetsVersion = loadVersion()
@@ -94,9 +100,9 @@ class ResourceCommandLoader(
                     ?: error("handler.yml 缺少 type: ${dir.name}")
                 when (type) {
                     CommandType.KOTLIN -> {
-                        val handler = handlers[command.id]
+                        val handlerProvider = handlers[command.id]
                             ?: error("handler 缺少 KSP 注册项: ${command.id}")
-                        RegisteredHandler(command.toDescriptor(CommandCategory.HANDLER, type), handler)
+                        RegisteredHandler(command.toDescriptor(CommandCategory.HANDLER, type), handlerProvider)
                     }
 
                     CommandType.TEMPLATE -> error("模板 handler 运行时尚未接入: ${command.id}")
@@ -113,9 +119,9 @@ class ResourceCommandLoader(
                 val command = CommandConfig.parse(Assets.text("generators/${dir.name}/generator.yml"))
                 require(command.id == dir.name) { "generator.yml 的 id 与目录名不一致: ${dir.name}" }
                 require(command.type == null) { "generator.yml 不允许声明 type: ${command.id}" }
-                val generator = generators[command.id]
+                val generatorProvider = generators[command.id]
                     ?: error("generator 缺少 KSP 注册项: ${command.id}")
-                RegisteredGenerator(command.toDescriptor(CommandCategory.GENERATOR, CommandType.KOTLIN), generator)
+                RegisteredGenerator(command.toDescriptor(CommandCategory.GENERATOR, CommandType.KOTLIN), generatorProvider)
             } ?: emptyList()
 
     private data class CommandConfig(
