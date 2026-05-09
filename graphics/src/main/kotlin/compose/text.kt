@@ -35,13 +35,23 @@ data class TextStyle(
     val fontSize: Float? = null,
     val textColor: Int? = null,
     val fontFamily: String? = null,
-    val underline: TextUnderline? = null
+    val underline: TextUnderline? = null,
+    val fontWeight: Int? = null,
+    val italic: Boolean? = null,
+    val lineHeight: Float? = null,
+    val letterSpacing: Float? = null,
+    val scaleX: Float? = null
 ) {
     fun merge(other: TextStyle): TextStyle = TextStyle(
         fontSize = other.fontSize ?: fontSize,
         textColor = other.textColor ?: textColor,
         fontFamily = other.fontFamily ?: fontFamily,
-        underline = other.underline ?: underline
+        underline = other.underline ?: underline,
+        fontWeight = other.fontWeight ?: fontWeight,
+        italic = other.italic ?: italic,
+        lineHeight = other.lineHeight ?: lineHeight,
+        letterSpacing = other.letterSpacing ?: letterSpacing,
+        scaleX = other.scaleX ?: scaleX
     )
 }
 
@@ -81,11 +91,46 @@ fun TextModifier.font(
     fontSize: Float? = null,
     textColor: Int? = null,
     fontFamily: String? = null,
-    underline: TextUnderline? = null
-): TextModifier = textStyle(TextStyle(fontSize, textColor, fontFamily, underline))
+    underline: TextUnderline? = null,
+    fontWeight: Int? = null,
+    italic: Boolean? = null,
+    lineHeight: Float? = null,
+    letterSpacing: Float? = null,
+    scaleX: Float? = null
+): TextModifier = textStyle(
+    TextStyle(
+        fontSize = fontSize,
+        textColor = textColor,
+        fontFamily = fontFamily,
+        underline = underline,
+        fontWeight = fontWeight,
+        italic = italic,
+        lineHeight = lineHeight,
+        letterSpacing = letterSpacing,
+        scaleX = scaleX
+    )
+)
 
 fun TextModifier.underline(underline: TextUnderline): TextModifier =
     textStyle(TextStyle(underline = underline))
 
 fun TextModifier.textUnderline(underline: TextUnderline): TextModifier =
     underline(underline)
+
+fun TextModifier.fontWeight(weight: Int): TextModifier =
+    textStyle(TextStyle(fontWeight = weight))
+
+fun TextModifier.bold(enabled: Boolean = true): TextModifier =
+    fontWeight(if (enabled) 700 else 400)
+
+fun TextModifier.italic(enabled: Boolean = true): TextModifier =
+    textStyle(TextStyle(italic = enabled))
+
+fun TextModifier.lineHeight(lineHeight: Float): TextModifier =
+    textStyle(TextStyle(lineHeight = lineHeight))
+
+fun TextModifier.letterSpacing(letterSpacing: Float): TextModifier =
+    textStyle(TextStyle(letterSpacing = letterSpacing))
+
+fun TextModifier.scaleX(scaleX: Float): TextModifier =
+    textStyle(TextStyle(scaleX = scaleX))

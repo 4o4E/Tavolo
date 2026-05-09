@@ -572,9 +572,12 @@ class Text(
     private var textMetrics: TextMetrics = TextMetrics(0f, 0f)
     private var lines: List<String> = listOf()
     private var lineWidths: List<Float> = listOf()
+    private var charOffsets: List<List<Float>> = listOf()
     private var overflow = TextOverflow.Wrap
     private var overflowPlaceholder = TextDefaults.OVERFLOW_PLACEHOLDER
     private var underlineStyle: TextUnderline? = null
+    private var effectiveLineHeight: Float = 0f
+    private var effectiveLetterSpacing: Float = 0f
 
     private fun applyModifiers() {
         val modifierStyle = textModifier.fold(null as TextStyle?) { acc, m ->
@@ -589,12 +592,35 @@ class Text(
         val finalColor = textColor ?: finalStyle?.textColor ?: Color.WHITE
         val finalSize = fontSize ?: finalStyle?.fontSize ?: 24f
         val finalFamily = fontFamily ?: finalStyle?.fontFamily ?: FontManager.defaultFamily
+        val finalFontWeight = finalStyle?.fontWeight
+        val finalItalic = finalStyle?.italic ?: false
         overflow = textOverflow ?: TextOverflow.Wrap
         overflowPlaceholder = textOverflowPlaceholder ?: TextDefaults.OVERFLOW_PLACEHOLDER
         underlineStyle = underline ?: finalStyle?.underline
+        effectiveLineHeight = finalStyle?.lineHeight?.coerceAtLeast(0f) ?: 0f
+        effectiveLetterSpacing = finalStyle?.letterSpacing ?: 0f
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
-        font = Font(FontManager.resolve(finalFamily), finalSize)
+        font = Font(FontManager.resolve(finalFamily), finalSize).apply {
+            if (finalFontWeight != null) isEmboldened = finalFontWeight >= 600
+            if (finalItalic) skewX = -0.25f
+            finalStyle?.scaleX?.let { scaleX = it.coerceAtLeast(0.01f) }
+        }
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
+    }
+
+    private fun measureLineWidth(text: String, measurer: TextMeasurer): Float {
+        if (text.isEmpty()) return 0f
+        val spacing = effectiveLetterSpacing * (text.length - 1).coerceAtLeast(0)
+        return measurer.measureTextWidth(text, font, paint) + spacing
+    }
+
+    private fun charOffsets(text: String, measurer: TextMeasurer): List<Float> {
+        var cursor = 0f
+        return text.map { ch ->
+            val offset = cursor
+            cursor += measurer.measureTextWidth(ch.toString(), font, paint) + effectiveLetterSpacing
+            offset
+        }
     }
 
     override fun measureContent(context: MeasureContext) {
@@ -604,7 +630,8 @@ class Text(
         val measurer = context.textMeasurer
         val metrics = measurer.metrics(font)
         textMetrics = metrics
-        val lineHeight = metrics.lineHeight
+        val lineHeight = effectiveLineHeight.takeIf { it > 0f } ?: metrics.lineHeight
+        effectiveLineHeight = lineHeight
 
         if (overflow == TextOverflow.Wrap && sizeIn.maxWidth.isFinite()) {
             val words = text.split(Regex("\\s+"))
@@ -621,7 +648,7 @@ class Text(
             for (w in words) {
                 if (w.isEmpty()) continue
                 val attempt = if (current.isEmpty()) w else "$current $w"
-                val widthAttempt = measurer.measureTextWidth(attempt, font, paint)
+                val widthAttempt = measureLineWidth(attempt, measurer)
                 if (widthAttempt <= sizeIn.maxWidth) {
                     if (current.isEmpty()) current.append(w) else current.append(" ").append(w)
                 } else {
@@ -629,7 +656,7 @@ class Text(
                         var acc = ""
                         for (ch in w) {
                             val tryAcc = acc + ch
-                            if (measurer.measureTextWidth(tryAcc, font, paint) <= sizeIn.maxWidth) {
+                            if (measureLineWidth(tryAcc, measurer) <= sizeIn.maxWidth) {
                                 acc = tryAcc
                             } else {
                                 if (acc.isNotEmpty()) builtLines.add(acc)
@@ -655,12 +682,12 @@ class Text(
                     val lastIndex = visible.lastIndex
                     val last = visible[lastIndex]
                     var truncated = last
-                    if (measurer.measureTextWidth("$truncated$overflowPlaceholder", font, paint) <= sizeIn.maxWidth) {
+                    if (measureLineWidth("$truncated$overflowPlaceholder", measurer) <= sizeIn.maxWidth) {
                         truncated += overflowPlaceholder
                     } else {
                         // 逐字符去掉直到放得下
                         var t = truncated
-                        while (t.isNotEmpty() && measurer.measureTextWidth("$t$overflowPlaceholder", font, paint) > sizeIn.maxWidth) {
+                        while (t.isNotEmpty() && measureLineWidth("$t$overflowPlaceholder", measurer) > sizeIn.maxWidth) {
                             t = t.dropLast(1)
                         }
                         truncated = if (t.isEmpty()) overflowPlaceholder else t + overflowPlaceholder
@@ -675,11 +702,11 @@ class Text(
             }
 
             // 计算内容宽高
-            contentWidth = if (lines.isEmpty()) 0f else lines.maxOf { measurer.measureTextWidth(it, font, paint) }
+            contentWidth = if (lines.isEmpty()) 0f else lines.maxOf { measureLineWidth(it, measurer) }
             contentHeight = (lines.size * lineHeight)
         } else {
             // Ellipsis 或者无 maxWidth 的情况：默认单行测量，必要时截断
-            val measuredWidth = measurer.measureTextWidth(text, font, paint)
+            val measuredWidth = measureLineWidth(text, measurer)
             if (overflow == TextOverflow.Ellipsis && sizeIn.maxWidth.isFinite() && measuredWidth > sizeIn.maxWidth) {
                 // 需要截断为能放下省略号的最长子串
                 var lo = 0
@@ -688,7 +715,7 @@ class Text(
                 while (lo <= hi) {
                     val mid = (lo + hi) / 2
                     val candidate = text.substring(0, mid)
-                    if (measurer.measureTextWidth("$candidate$overflowPlaceholder", font, paint) <= sizeIn.maxWidth) {
+                    if (measureLineWidth("$candidate$overflowPlaceholder", measurer) <= sizeIn.maxWidth) {
                         best = candidate; lo = mid + 1
                     } else {
                         hi = mid - 1
@@ -696,21 +723,22 @@ class Text(
                 }
                 val finalLine = if (best.isEmpty()) overflowPlaceholder else best + overflowPlaceholder
                 lines = listOf(finalLine)
-                contentWidth = measurer.measureTextWidth(finalLine, font, paint)
+                contentWidth = measureLineWidth(finalLine, measurer)
             } else {
                 lines = listOf(text)
                 contentWidth = measuredWidth
             }
 
             // maxHeight 限制：如果有限且比单行高小则裁剪高度为 maxHeight（外部布局会看到该高度）
-            val lineHeightSingle = metrics.lineHeight
+            val lineHeightSingle = lineHeight
             contentHeight = lineHeightSingle
             if (sizeIn.maxHeight.isFinite()) {
                 contentHeight = contentHeight.coerceAtMost(sizeIn.maxHeight)
                 // 如果 maxHeight 小于单行高度可以强制置为 maxHeight ，显示可能被裁剪
             }
         }
-        lineWidths = lines.map { measurer.measureTextWidth(it, font, paint) }
+        lineWidths = lines.map { measureLineWidth(it, measurer) }
+        charOffsets = lines.map { charOffsets(it, measurer) }
     }
 
     override fun layoutChildren(content: Bounds) {}
@@ -720,7 +748,7 @@ class Text(
         val drawX = content.x
         val drawY = content.y
 
-        val lineHeight = textMetrics.lineHeight
+        val lineHeight = effectiveLineHeight
         var yCursor = drawY - textMetrics.ascent // 第一行基线
         // 绘制每一行（可能已经包括了省略号）
         for ((index, line) in lines.withIndex()) {
@@ -729,7 +757,14 @@ class Text(
             if (underline != null && underline.mode == TextUnderlineMode.Block) {
                 drawUnderline(context, underline, drawX, yCursor, lineWidth)
             }
-            context.canvas.drawString(line, drawX, yCursor, font, paint)
+            if (effectiveLetterSpacing == 0f) {
+                context.canvas.drawString(line, drawX, yCursor, font, paint)
+            } else {
+                val offsets = charOffsets.getOrElse(index) { emptyList() }
+                line.forEachIndexed { charIndex, ch ->
+                    context.canvas.drawString(ch.toString(), drawX + offsets.getOrElse(charIndex) { 0f }, yCursor, font, paint)
+                }
+            }
             if (underline != null && underline.mode == TextUnderlineMode.Line) {
                 drawUnderline(context, underline, drawX, yCursor, lineWidth)
             }

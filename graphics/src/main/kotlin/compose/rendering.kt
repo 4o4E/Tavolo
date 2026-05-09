@@ -134,9 +134,19 @@ data class PaintSnapshot(
     }
 }
 
-data class FontSnapshot(val size: Float) {
+data class FontSnapshot(
+    val size: Float,
+    val emboldened: Boolean,
+    val skewX: Float,
+    val scaleX: Float
+) {
     companion object {
-        fun from(font: Font) = FontSnapshot(size = font.size)
+        fun from(font: Font) = FontSnapshot(
+            size = font.size,
+            emboldened = font.isEmboldened,
+            skewX = font.skewX,
+            scaleX = font.scaleX
+        )
     }
 }
 

@@ -57,6 +57,8 @@ import top.e404.tavolo.draw.compose.height
 import top.e404.tavolo.draw.compose.icon
 import top.e404.tavolo.draw.compose.iconText
 import top.e404.tavolo.draw.compose.image
+import top.e404.tavolo.draw.compose.letterSpacing
+import top.e404.tavolo.draw.compose.lineHeight
 import top.e404.tavolo.draw.compose.sizeIn
 import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
@@ -669,6 +671,46 @@ class ComposeTextUnitTest {
         val text = commands.filterIsInstance<DrawCommand.Text>().single()
         assertFloatEquals(20f, text.font.size)
         assertEquals(Color.RED, text.paint.color)
+    }
+
+    @Test
+    fun textModifierSupportsBoldItalicScaleAndLetterSpacing() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "ab",
+                textModifier = TextModifier
+                    .font(fontSize = 20f, fontWeight = 700, italic = true, scaleX = 1.2f)
+                    .letterSpacing(3f)
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("a", "b"), texts.map { it.text })
+        assertFloatEquals(0f, texts[0].x)
+        assertFloatEquals(13f, texts[1].x)
+        assertEquals(true, texts[0].font.emboldened)
+        assertFloatEquals(-0.25f, texts[0].font.skewX)
+        assertFloatEquals(1.2f, texts[0].font.scaleX)
+    }
+
+    @Test
+    fun textModifierLineHeightControlsWrappedBaselineSpacing() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "aa aa",
+                modifier = Modifier.sizeIn(maxWidth = 20f),
+                textModifier = TextModifier.lineHeight(16f)
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("aa", "aa"), texts.map { it.text })
+        assertFloatEquals(8f, texts[0].baselineY)
+        assertFloatEquals(24f, texts[1].baselineY)
     }
 }
 

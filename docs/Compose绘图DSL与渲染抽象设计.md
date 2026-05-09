@@ -119,9 +119,11 @@ text(
 
 `TextModifier` 当前支持：
 
-- `font(fontSize, textColor, fontFamily, underline)`。
+- `font(fontSize, textColor, fontFamily, underline, fontWeight, italic, lineHeight, letterSpacing, scaleX)`。
 - `textStyle(TextStyle(...))`。
 - `underline(...)` / `textUnderline(...)`。
+- `bold(...)`、`italic(...)`、`fontWeight(...)`。
+- `lineHeight(...)`、`letterSpacing(...)`、`scaleX(...)`。
 
 `text(...)` 显式传入的 `fontSize`、`textColor`、`fontFamily`、`underline` 参数优先于 `TextModifier`。
 

@@ -19,7 +19,6 @@
 ## Compose 绘图 DSL
 
 - 补充少量 golden image / 像素容差测试，覆盖 Skiko 后端真实渲染效果。
-- 继续完善 `TextModifier`，评估是否需要字重、斜体、行高、字间距等文本专用属性。
 - 评估是否需要序列化 Compose 绘图树，用于远程渲染或跨进程绘制。
 - 梳理图表组件主题 API，使其与 `DrawCanvas` 和文本测量抽象保持一致。
 

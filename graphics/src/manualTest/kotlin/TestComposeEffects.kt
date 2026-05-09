@@ -18,15 +18,21 @@ import top.e404.tavolo.draw.compose.VerticalAlignment
 import top.e404.tavolo.draw.compose.background
 import top.e404.tavolo.draw.compose.border
 import top.e404.tavolo.draw.compose.box
+import top.e404.tavolo.draw.compose.bold
 import top.e404.tavolo.draw.compose.clip
 import top.e404.tavolo.draw.compose.column
 import top.e404.tavolo.draw.compose.font
+import top.e404.tavolo.draw.compose.italic
+import top.e404.tavolo.draw.compose.letterSpacing
+import top.e404.tavolo.draw.compose.lineHeight
 import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.rotate
 import top.e404.tavolo.draw.compose.row
 import top.e404.tavolo.draw.compose.shadow
 import top.e404.tavolo.draw.compose.size
+import top.e404.tavolo.draw.compose.sizeIn
+import top.e404.tavolo.draw.compose.scaleX
 import top.e404.tavolo.draw.compose.text
 import top.e404.tavolo.draw.compose.textUnderline
 import top.e404.tavolo.draw.compose.width
@@ -364,6 +370,47 @@ class TestComposeEffects {
                 text("标题 A", modifier = Modifier.padding(right = 32f), textModifier = reusableText)
                 text("标题 B", modifier = Modifier.padding(right = 32f), textModifier = reusableText)
                 text("局部改色", textModifier = reusableText, textColor = Color.makeRGB(255, 204, 77))
+            }
+
+            text(
+                "字重 / 斜体 / 字间距 / 行高",
+                modifier = Modifier.padding(top = 26f, bottom = 12f),
+                fontSize = 20f,
+                textColor = Color.makeRGB(198, 207, 220),
+                fontFamily = uiFont
+            )
+            row(verticalAlignment = VerticalAlignment.Center) {
+                text(
+                    "Bold",
+                    modifier = Modifier.padding(right = 28f),
+                    textModifier = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont).bold()
+                )
+                text(
+                    "Italic",
+                    modifier = Modifier.padding(right = 28f),
+                    textModifier = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont).italic()
+                )
+                text(
+                    "Spacing",
+                    modifier = Modifier.padding(right = 28f),
+                    textModifier = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont).letterSpacing(5f)
+                )
+                text(
+                    "ScaleX",
+                    textModifier = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont).scaleX(1.25f)
+                )
+            }
+            row(modifier = Modifier.padding(top = 10f)) {
+                text(
+                    "行高 18 行高 18",
+                    modifier = Modifier.padding(right = 34f).sizeIn(maxWidth = 92f),
+                    textModifier = TextModifier.font(fontSize = 24f, textColor = Color.WHITE, fontFamily = uiFont).lineHeight(18f)
+                )
+                text(
+                    "行高 34 行高 34",
+                    modifier = Modifier.sizeIn(maxWidth = 92f),
+                    textModifier = TextModifier.font(fontSize = 24f, textColor = Color.WHITE, fontFamily = uiFont).lineHeight(34f)
+                )
             }
         }
     }
