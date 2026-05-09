@@ -2,6 +2,11 @@ plugins {
     kotlin("jvm")
     id("com.google.devtools.ksp")
     kotlin("plugin.serialization")
+    application
+}
+
+application {
+    mainClass.set("top.e404.tavolo.http.server.TavoloHttpServer")
 }
 
 dependencies {

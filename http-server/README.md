@@ -35,3 +35,27 @@ curl.exe -X POST "http://127.0.0.1:8080/generators/blue_archive/execute" -H "Con
 ```
 
 如果执行接口返回 `200 image/png`，并且 `run/out` 下生成了对应文件，说明 HTTP 服务、资源目录和指令执行链路已经连通。
+
+## Docker 运行
+
+Docker 镜像不内置指令资源，默认通过 Compose 把项目根目录下的 `assets` 挂载到容器 `/app/assets`。
+
+```bash
+cd http-server
+cp .env.example .env
+docker compose up --build
+```
+
+默认访问地址仍然是 `http://127.0.0.1:8080`。如需修改宿主机端口或资源目录，编辑 `http-server/.env`：
+
+```dotenv
+HTTP_SERVER_PORT=8080
+ASSETS_DIR=../assets
+```
+
+也可以直接构建镜像：
+
+```bash
+docker build -f http-server/Dockerfile -t skiko-util-http-server:latest .
+docker run --rm -p 8080:8080 -e TAVOLO_ASSETS_DIR=/app/assets -v "$(pwd)/assets:/app/assets:ro" skiko-util-http-server:latest
+```

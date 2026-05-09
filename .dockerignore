@@ -1,9 +1,11 @@
+.git
 .gradle
 .idea
+.kotlin
 build
-/*/build/
+*/build
 run
 jar
 local.properties
-.kotlin
+assets
 http-server/.env
