@@ -558,6 +558,7 @@ class Table(
 
 class Text(
     private val text: String,
+    private val textModifier: TextModifier = TextModifier,
     private val fontSize: Float? = null,
     private val textColor: Int? = null,
     private val fontFamily: String? = null,
@@ -576,12 +577,21 @@ class Text(
     private var underlineStyle: TextUnderline? = null
 
     private fun applyModifiers() {
-        val finalColor = textColor ?: style?.textColor ?: Color.WHITE
-        val finalSize = fontSize ?: style?.fontSize ?: 24f
-        val finalFamily = fontFamily ?: style?.fontFamily ?: FontManager.defaultFamily
+        val modifierStyle = textModifier.fold(null as TextStyle?) { acc, m ->
+            val textStyle = (m as? TextStyleModifier)?.style
+            when {
+                textStyle == null -> acc
+                acc == null -> textStyle
+                else -> acc.merge(textStyle)
+            }
+        }
+        val finalStyle = modifierStyle?.let { styleOverride -> styleOverride.merge(style ?: TextStyle()) } ?: style
+        val finalColor = textColor ?: finalStyle?.textColor ?: Color.WHITE
+        val finalSize = fontSize ?: finalStyle?.fontSize ?: 24f
+        val finalFamily = fontFamily ?: finalStyle?.fontFamily ?: FontManager.defaultFamily
         overflow = textOverflow ?: TextOverflow.Wrap
         overflowPlaceholder = textOverflowPlaceholder ?: TextDefaults.OVERFLOW_PLACEHOLDER
-        underlineStyle = underline ?: style?.underline
+        underlineStyle = underline ?: finalStyle?.underline
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
         font = Font(FontManager.resolve(finalFamily), finalSize)
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }

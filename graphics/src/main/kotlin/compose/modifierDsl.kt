@@ -69,4 +69,3 @@ fun Modifier.border(
 
 fun Modifier.antiAlias(enabled: Boolean = true) = this.then(AntiAlias(enabled))
 
-

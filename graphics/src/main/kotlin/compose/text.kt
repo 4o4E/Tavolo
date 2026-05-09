@@ -36,4 +36,56 @@ data class TextStyle(
     val textColor: Int? = null,
     val fontFamily: String? = null,
     val underline: TextUnderline? = null
-)
+) {
+    fun merge(other: TextStyle): TextStyle = TextStyle(
+        fontSize = other.fontSize ?: fontSize,
+        textColor = other.textColor ?: textColor,
+        fontFamily = other.fontFamily ?: fontFamily,
+        underline = other.underline ?: underline
+    )
+}
+
+data class TextStyleModifier(
+    val style: TextStyle
+) : TextElementModifier
+
+interface TextModifier {
+    fun then(other: TextModifier): TextModifier = if (other === TextModifier) this else CombinedTextModifier(this, other)
+    fun <R> fold(initial: R, operation: (R, TextModifier) -> R): R
+    fun toList() = fold(mutableListOf<TextModifier>()) { acc, mod ->
+        acc.add(mod)
+        acc
+    }
+
+    companion object : TextModifier {
+        override fun <R> fold(initial: R, operation: (R, TextModifier) -> R): R = initial
+        override fun then(other: TextModifier): TextModifier = other
+    }
+}
+
+private class CombinedTextModifier(private val outer: TextModifier, private val inner: TextModifier) : TextModifier {
+    override fun <R> fold(initial: R, operation: (R, TextModifier) -> R): R {
+        return inner.fold(outer.fold(initial, operation), operation)
+    }
+}
+
+interface TextElementModifier : TextModifier {
+    override fun <R> fold(initial: R, operation: (R, TextModifier) -> R): R {
+        return operation(initial, this)
+    }
+}
+
+fun TextModifier.textStyle(style: TextStyle): TextModifier = this.then(TextStyleModifier(style))
+
+fun TextModifier.font(
+    fontSize: Float? = null,
+    textColor: Int? = null,
+    fontFamily: String? = null,
+    underline: TextUnderline? = null
+): TextModifier = textStyle(TextStyle(fontSize, textColor, fontFamily, underline))
+
+fun TextModifier.underline(underline: TextUnderline): TextModifier =
+    textStyle(TextStyle(underline = underline))
+
+fun TextModifier.textUnderline(underline: TextUnderline): TextModifier =
+    underline(underline)

@@ -63,6 +63,7 @@ fun TableRow.cell(
 fun UiElement.text(
     text: String,
     modifier: Modifier = Modifier,
+    textModifier: TextModifier = TextModifier,
     fontSize: Float? = null,
     textColor: Int? = null,
     fontFamily: String? = null,
@@ -74,6 +75,7 @@ fun UiElement.text(
     add(
         Text(
             text = text,
+            textModifier = textModifier,
             fontSize = fontSize,
             textColor = textColor,
             fontFamily = fontFamily,
@@ -99,6 +101,7 @@ fun UiElement.iconText(
     text: String,
     fontSize: Float,
     modifier: Modifier = Modifier,
+    textModifier: TextModifier = TextModifier,
     textColor: Int? = null,
     fontFamily: String? = null,
     textOverflow: TextOverflow? = null,
@@ -115,6 +118,7 @@ fun UiElement.iconText(
     text(
         text = text,
         modifier = modifier,
+        textModifier = textModifier,
         fontSize = fontSize,
         textColor = textColor,
         fontFamily = fontFamily,

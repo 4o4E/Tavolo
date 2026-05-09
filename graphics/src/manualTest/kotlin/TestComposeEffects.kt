@@ -9,6 +9,7 @@ import top.e404.tavolo.draw.compose.Modifier
 import top.e404.tavolo.draw.compose.Shape
 import top.e404.tavolo.draw.compose.StrokeStyle
 import top.e404.tavolo.draw.compose.TextStyle
+import top.e404.tavolo.draw.compose.TextModifier
 import top.e404.tavolo.draw.compose.TextUnderline
 import top.e404.tavolo.draw.compose.TextUnderlineMode
 import top.e404.tavolo.draw.compose.UiDsl
@@ -19,6 +20,7 @@ import top.e404.tavolo.draw.compose.border
 import top.e404.tavolo.draw.compose.box
 import top.e404.tavolo.draw.compose.clip
 import top.e404.tavolo.draw.compose.column
+import top.e404.tavolo.draw.compose.font
 import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.rotate
@@ -26,6 +28,7 @@ import top.e404.tavolo.draw.compose.row
 import top.e404.tavolo.draw.compose.shadow
 import top.e404.tavolo.draw.compose.size
 import top.e404.tavolo.draw.compose.text
+import top.e404.tavolo.draw.compose.textUnderline
 import top.e404.tavolo.draw.compose.width
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.util.FontManager
@@ -334,6 +337,33 @@ class TestComposeEffects {
                         )
                     )
                 }
+            }
+
+            text(
+                "复用字体 modifier",
+                modifier = Modifier.padding(top = 26f, bottom = 12f),
+                fontSize = 20f,
+                textColor = Color.makeRGB(198, 207, 220),
+                fontFamily = uiFont
+            )
+            val reusableText = TextModifier
+                .font(
+                    fontSize = 30f,
+                    textColor = Color.WHITE,
+                    fontFamily = uiFont
+                )
+                .textUnderline(
+                    TextUnderline(
+                        color = Color.makeRGB(120, 210, 255),
+                        thickness = 5f,
+                        offset = 4f,
+                        strokeStyle = StrokeStyle.Dashed(listOf(10f, 5f))
+                    )
+                )
+            row {
+                text("标题 A", modifier = Modifier.padding(right = 32f), textModifier = reusableText)
+                text("标题 B", modifier = Modifier.padding(right = 32f), textModifier = reusableText)
+                text("局部改色", textModifier = reusableText, textColor = Color.makeRGB(255, 204, 77))
             }
         }
     }

@@ -29,6 +29,7 @@ import top.e404.tavolo.draw.compose.StrokeStyle
 import top.e404.tavolo.draw.compose.Table
 import top.e404.tavolo.draw.compose.TableRow
 import top.e404.tavolo.draw.compose.TextStyle
+import top.e404.tavolo.draw.compose.TextModifier
 import top.e404.tavolo.draw.compose.TextUnderline
 import top.e404.tavolo.draw.compose.TextUnderlineMode
 import top.e404.tavolo.draw.compose.TextMeasurer
@@ -51,6 +52,7 @@ import top.e404.tavolo.draw.compose.clip
 import top.e404.tavolo.draw.compose.column
 import top.e404.tavolo.draw.compose.debugBaseElement
 import top.e404.tavolo.draw.compose.drawIcon
+import top.e404.tavolo.draw.compose.font
 import top.e404.tavolo.draw.compose.height
 import top.e404.tavolo.draw.compose.icon
 import top.e404.tavolo.draw.compose.iconText
@@ -67,6 +69,7 @@ import top.e404.tavolo.draw.compose.tableRow
 import top.e404.tavolo.draw.compose.cell
 import top.e404.tavolo.draw.compose.table
 import top.e404.tavolo.draw.compose.text
+import top.e404.tavolo.draw.compose.textStyle
 import top.e404.tavolo.draw.compose.width
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.util.FontManager
@@ -620,6 +623,52 @@ class ComposeTextUnitTest {
         assertEquals(PaintMode.STROKE, line.paint.mode)
         assertFloatEquals(2f, line.paint.strokeWidth)
         assertTrue(line.paint.hasPathEffect)
+    }
+
+    @Test
+    fun textModifierAppliesReusableFontAndUnderline() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            val reusable = TextModifier
+                .font(
+                    fontSize = 18f,
+                    textColor = Color.BLUE,
+                    underline = TextUnderline(
+                        color = Color.YELLOW,
+                        thickness = 5f,
+                        offset = 2f,
+                        mode = TextUnderlineMode.Block
+                    )
+                )
+
+            text("hi", modifier = Modifier.padding(left = 3f), textModifier = reusable)
+        }
+
+        val underline = commands.filterIsInstance<DrawCommand.Rect>().single()
+        val text = commands.filterIsInstance<DrawCommand.Text>().single()
+        assertEquals(Color.YELLOW, underline.paint.color)
+        assertEquals(Color.BLUE, text.paint.color)
+        assertFloatEquals(18f, text.font.size)
+        assertFloatEquals(3f, text.x)
+    }
+
+    @Test
+    fun explicitTextArgumentsOverrideTextStyleModifier() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "hi",
+                textModifier = TextModifier.textStyle(TextStyle(fontSize = 12f, textColor = Color.BLUE)),
+                fontSize = 20f,
+                textColor = Color.RED
+            )
+        }
+
+        val text = commands.filterIsInstance<DrawCommand.Text>().single()
+        assertFloatEquals(20f, text.font.size)
+        assertEquals(Color.RED, text.paint.color)
     }
 }
 

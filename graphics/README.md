@@ -47,7 +47,7 @@ dependencies {
 
 `border` 默认绘制实线，也可以通过 `StrokeStyle.Dashed` 或 `StrokeStyle.Dotted` 绘制虚线、点线边框。需要让边框沿圆角路径绘制时，传入 `shape = Shape.RoundedRect(...)`；不传 `shape` 时保持旧的矩形分边绘制行为。
 
-文本样式不属于通用 `Modifier`，应作为 `text`、`iconText` 这类文本组件的参数传入，例如 `fontSize`、`textColor`、`fontFamily`、`textOverflow`。需要复用样式时可以传入 `TextStyle`，下划线可通过 `TextUnderline` 定义颜色、粗细、偏移、虚线样式，也可以使用 `TextUnderlineMode.Block` 绘制色块下划线。
+文本样式可以作为 `text`、`iconText` 这类文本组件的参数传入，例如 `fontSize`、`textColor`、`fontFamily`、`textOverflow`。需要复用样式时，应使用独立的 `TextModifier`，例如 `TextModifier.font(...)`、`TextModifier.textStyle(...)`、`TextModifier.textUnderline(...)`；通用 `Modifier` 只保留布局和容器绘制属性。下划线可通过 `TextUnderline` 定义颜色、粗细、偏移、虚线样式，也可以使用 `TextUnderlineMode.Block` 绘制色块下划线。
 图片溢出策略同样不属于通用 `Modifier`，应作为 `image` 的 `imageOverflow` 参数传入。
 
 `Modifier` 按链式顺序逐层应用，和 Jetpack Compose 一样可以用多层 `padding` 表达外部留白和内部留白：
@@ -139,6 +139,26 @@ render {
         fontSize = 28f,
         fontFamily = TavoloFonts.LW
     )
+}
+```
+
+也可以把字体样式放进 `TextModifier` 复用，和通用布局 `Modifier` 分开传入：
+
+```kotlin
+val titleText = TextModifier
+    .font(fontSize = 28f, textColor = Color.WHITE, fontFamily = TavoloFonts.LW)
+    .textUnderline(
+        TextUnderline(
+            color = Color.YELLOW,
+            thickness = 6f,
+            offset = 3f,
+            strokeStyle = StrokeStyle.Dashed(listOf(8f, 4f))
+        )
+    )
+
+render {
+    text("标题 A", textModifier = titleText)
+    text("标题 B", modifier = Modifier.padding(top = 8f), textModifier = titleText)
 }
 ```
 
