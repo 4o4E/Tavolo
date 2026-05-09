@@ -1,6 +1,7 @@
 package top.e404.tavolo.draw.compose
 
 import org.jetbrains.skia.*
+import top.e404.tavolo.util.FontManager
 
 /**
  * UI 元素的基础接口，定义了所有 UI 组件共有的属性和行为。
@@ -485,11 +486,11 @@ class Text(
     private fun applyModifiers() {
         val finalColor = textColor ?: Color.WHITE
         val finalSize = fontSize ?: 24f
-        val finalFamily = fontFamily ?: ComposeFontManager.defaultFamily
+        val finalFamily = fontFamily ?: FontManager.defaultFamily
         overflow = textOverflow ?: TextOverflow.Wrap
         overflowPlaceholder = textOverflowPlaceholder ?: TextDefaults.OVERFLOW_PLACEHOLDER
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
-        font = Font(ComposeFontManager.resolve(finalFamily), finalSize)
+        font = Font(FontManager.resolve(finalFamily), finalSize)
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
     }
 

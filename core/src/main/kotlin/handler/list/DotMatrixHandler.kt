@@ -3,7 +3,7 @@ package top.e404.tavolo.handler.list
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.TextLine
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.dot.binary
 import top.e404.tavolo.dot.generator
@@ -17,7 +17,7 @@ import top.e404.tavolo.util.*
 
 @ImageHandler
 object DotMatrixHandler : FramesHandler {
-    private val font = FontType.HEI.getSkiaFont(20F)
+    private val font = TavoloFonts.font(TavoloFonts.HEI, 20F)
     private val fullHeight = font.height()
 
     override val name = "点阵字符画"

@@ -3,7 +3,7 @@ package top.e404.tavolo.handler.face
 import org.jetbrains.skia.*
 import org.jetbrains.skia.paragraph.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.FramesHandler
@@ -82,9 +82,9 @@ object YgoHandler : FramesHandler {
     private val level by lazy { getJarImage(this::class.java, "statistic/ygo/level.png") }
 
     // 字体
-    private val fontAttr = FontType.YGODIY_MATRIXBOLDSMALLCAPS.getSkiaFont(35F)
-    private val fontId = FontType.YGODIY_MATRIXBOLDSMALLCAPS.getSkiaFont(25F)
-    private val fontCopyright = FontType.FOT_RODIN.getSkiaFont(20F)
+    private val fontAttr = TavoloFonts.font(TavoloFonts.YGODIY_MATRIXBOLDSMALLCAPS, 35F)
+    private val fontId = TavoloFonts.font(TavoloFonts.YGODIY_MATRIXBOLDSMALLCAPS, 25F)
+    private val fontCopyright = TavoloFonts.font(TavoloFonts.FOT_RODIN, 20F)
 
     // paint
     private val paint = Paint().apply { color = Colors.BLACK.argb }
@@ -98,11 +98,11 @@ object YgoHandler : FramesHandler {
 
 
     private val mgr = TypefaceFontProvider()
-        .registerTypeface(FontType.DF_LEISHO_SB.typeface, "YGO-1")
-        .registerTypeface(FontType.YGO_DIY_2_BIG5.typeface, "YGO-2")
-        .registerTypeface(FontType.YGO_DIY_GB.typeface, "YGO-3")
-        .registerTypeface(FontType.YGODIY_JP.typeface, "YGO-4")
-        .registerTypeface(FontType.YGODIY_MATRIXBOLDSMALLCAPS.typeface, "YGO-5")
+        .registerTypeface(TavoloFonts.typeface(TavoloFonts.DF_LEISHO_SB), "YGO-1")
+        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGO_DIY_2_BIG5), "YGO-2")
+        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGO_DIY_GB), "YGO-3")
+        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGODIY_JP), "YGO-4")
+        .registerTypeface(TavoloFonts.typeface(TavoloFonts.YGODIY_MATRIXBOLDSMALLCAPS), "YGO-5")
     private val fonts = FontCollection()
         .setDynamicFontManager(mgr)
         .setDefaultFontManager(FontMgr.default)

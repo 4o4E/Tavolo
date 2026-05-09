@@ -2,7 +2,7 @@ package top.e404.tavolo.generator.list
 
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
 import top.e404.tavolo.generator.ImageGenerator
@@ -17,7 +17,7 @@ object GoodNewsGenerator : ImageGenerator {
     private const val minSize = 20
     private const val maxSize = 100
     private const val unit = 10
-    private val tf = FontType.MI.typeface
+    private val tf = TavoloFonts.typeface(TavoloFonts.MI)
 
     override suspend fun generate(args: MutableMap<String, String>): MutableList<Frame> {
         val text = args["text"]!!

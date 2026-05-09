@@ -6,7 +6,7 @@ import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.TextLine
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
@@ -20,7 +20,7 @@ object BwHandler : FramesHandler {
     override val name = "Bw"
     override val regex = Regex("(?i)bw")
 
-    private val tf by lazy { FontType.MI_BOLD.typeface }
+    private val tf by lazy { TavoloFonts.typeface(TavoloFonts.MI_BOLD) }
     private const val rate = 0.8
 
     private val grayPaint by lazy { Paint().apply { colorFilter = grayMatrix } }

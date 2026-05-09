@@ -13,7 +13,6 @@ import org.junit.Test
 import top.e404.tavolo.draw.compose.Box
 import top.e404.tavolo.draw.compose.CanvasElement
 import top.e404.tavolo.draw.compose.Column
-import top.e404.tavolo.draw.compose.ComposeFontManager
 import top.e404.tavolo.draw.compose.DrawCommand
 import top.e404.tavolo.draw.compose.DrawContext
 import top.e404.tavolo.draw.compose.HorizontalAlignment
@@ -63,6 +62,7 @@ import top.e404.tavolo.draw.compose.table
 import top.e404.tavolo.draw.compose.text
 import top.e404.tavolo.draw.compose.width
 import top.e404.tavolo.util.Colors
+import top.e404.tavolo.util.FontManager
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -204,7 +204,7 @@ class ComposeLayoutUnitTest {
     @Test
     fun heatmapStyleLayoutUsesSingleAxisSizeAndHorizontalVerticalPadding() {
         val root = Column()
-        val fontName = ComposeFontManager.register("unit-heatmap-empty", Typeface.makeEmpty())
+        val fontName = FontManager.register("unit-heatmap-empty", Typeface.makeEmpty())
 
         root.apply {
             row(Modifier.padding(top = 20f)) {
@@ -413,7 +413,7 @@ class ComposeTextUnitTest {
     @Test
     fun fontFamilyUsesRegisteredTypefaceName() {
         val typeface = Typeface.makeEmpty()
-        val fontName = ComposeFontManager.register("unit-text-empty", typeface)
+        val fontName = FontManager.register("unit-text-empty", typeface)
         val measurer = CapturingTypefaceTextMeasurer()
 
         renderCommands(measureContext = MeasureContext(measurer)) {
@@ -425,13 +425,13 @@ class ComposeTextUnitTest {
 
     @Test
     fun fontManagerResolvesSystemFamilyAndFallback() {
-        val families = ComposeFontManager.systemFamilies()
+        val families = FontManager.systemFamilies()
         if (families.isNotEmpty()) {
-            ComposeFontManager.registerSystem("unit-system-font", families.first())
-            assertTrue(ComposeFontManager.resolve("unit-system-font").uniqueId >= 0)
+            FontManager.registerSystem("unit-system-font", families.first())
+            assertTrue(FontManager.resolve("unit-system-font").uniqueId >= 0)
         }
 
-        assertTrue(ComposeFontManager.resolve("unit-missing-font").uniqueId >= 0)
+        assertTrue(FontManager.resolve("unit-missing-font").uniqueId >= 0)
     }
 
     @Test
@@ -754,7 +754,7 @@ class ComposeIconUnitTest {
     @Test
     fun githubFooterStyleIconAndTextRowRecordsIconPathAndText() {
         val svg = """<svg viewBox="0 0 10 10"><path d="M 0 0 L 10 0 L 10 10 Z"/></svg>"""
-        val fontName = ComposeFontManager.register("unit-footer-empty", Typeface.makeEmpty())
+        val fontName = FontManager.register("unit-footer-empty", Typeface.makeEmpty())
         val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
             row(Modifier.padding(horizontal = 50f), VerticalAlignment.Center) {
                 icon(IconTheme(40f, color = Color.WHITE), svg)
@@ -801,7 +801,7 @@ class ComposeDslAndRenderUnitTest {
 
     @Test
     fun iconTextRequiresFontSizeAndBuildsRow() {
-        val fontName = ComposeFontManager.register("unit-icon-text-empty", Typeface.makeEmpty())
+        val fontName = FontManager.register("unit-icon-text-empty", Typeface.makeEmpty())
         val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
             iconText("ok", fontSize = 20f, fontFamily = fontName)
         }

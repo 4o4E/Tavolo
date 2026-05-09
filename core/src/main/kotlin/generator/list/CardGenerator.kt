@@ -2,7 +2,7 @@ package top.e404.tavolo.generator.list
 
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
 import top.e404.tavolo.generator.ImageGenerator
@@ -35,7 +35,7 @@ object CardGenerator : ImageGenerator {
     private const val bgFontSize = 800F
 
     // 大字字体
-    private val bgFont = FontType.ZHONG_SONG.getSkiaFont(bgFontSize)
+    private val bgFont = TavoloFonts.font(TavoloFonts.ZHONG_SONG, bgFontSize)
 
     // 小字颜色
     private val fontColor = Colors.WHITE.argb
@@ -44,7 +44,7 @@ object CardGenerator : ImageGenerator {
     private const val focusFontSize = 180F
 
     // 小字字体
-    private val font = FontType.LI_HEI.getSkiaFont(focusFontSize)
+    private val font = TavoloFonts.font(TavoloFonts.LI_HEI, focusFontSize)
 
     override suspend fun generate(args: MutableMap<String, String>): MutableList<Frame> {
         val b = args["b"]!!

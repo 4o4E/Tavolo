@@ -11,7 +11,7 @@ fun String.toImage(
     udPadding: Int = 3,
     color: Int = Colors.WHITE.argb,
     bgColor: Int = Colors.BG.argb,
-    font: Font = defaultFont
+    font: Font = FontManager.defaultFont
 ) = renderTextImage(
     text = this,
     maxWidth = maxWidth,

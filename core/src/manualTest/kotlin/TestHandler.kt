@@ -14,7 +14,7 @@ import kotlin.test.Test
 class TestHandler {
 
     init {
-        FontType.fontDir = "font"
+        TavoloFonts.fontDir = "font"
     }
 
     private val inDir = File("in")

@@ -15,7 +15,7 @@ import kotlin.test.Test
 class Test {
 
     init {
-        FontType.fontDir = "font"
+        TavoloFonts.fontDir = "font"
     }
 
     companion object {
@@ -25,7 +25,7 @@ class Test {
 
     @Test
     fun drawText() {
-        val font = FontType.YAHEI.getSkiaFont(60F)
+        val font = TavoloFonts.font(TavoloFonts.YAHEI, 60F)
         val bytes = Surface.makeRasterN32Premul(120, 150).run {
             canvas.apply {
                 drawRect(Rect.makeXYWH(0F, 0F, 120F, 150F), Paint().apply { color = Colors.WHITE.argb })

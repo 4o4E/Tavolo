@@ -2,7 +2,7 @@ package top.e404.tavolo.handler.face
 
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.FramesHandler
@@ -34,7 +34,7 @@ object NotRespondingHandler : FramesHandler {
         }
     }
     private val font by lazy {
-        FontType.YAHEI.getSkiaFont(14F)
+        TavoloFonts.font(TavoloFonts.YAHEI, 14F)
     }
 
     override val name = "NotResponding"

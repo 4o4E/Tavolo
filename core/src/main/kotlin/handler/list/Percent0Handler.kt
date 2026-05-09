@@ -1,7 +1,7 @@
 package top.e404.tavolo.handler.list
 
 import org.jetbrains.skia.*
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.*
 import top.e404.tavolo.frame.HandleResult.Companion.result
@@ -29,7 +29,7 @@ object Percent0Handler : FramesHandler {
                     val w = it.width / 2f
                     val h = it.height / 2f
                     val radius = min(w, h) * .24f
-                    val text = TextLine.make(t, FontType.MI.getSkiaFont(radius * .7f))
+                    val text = TextLine.make(t, TavoloFonts.font(TavoloFonts.MI, radius * .7f))
                     val v = (abs(center - index) + 1).toFloat() / size / 4
                     Surface.makeRaster(it.imageInfo).withCanvas {
                         val paint = Paint().apply {

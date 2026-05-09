@@ -2,7 +2,7 @@ package top.e404.tavolo.handler.face
 
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.FramesHandler
@@ -18,7 +18,7 @@ object WriteHandler : FramesHandler {
     private const val MIN_SIZE = 20
     private const val MAX_SIZE = 1000
     private const val UNIT = 10
-    private val tf = FontType.MI.typeface
+    private val tf = TavoloFonts.typeface(TavoloFonts.MI)
 
     override val name = "drawstring"
     override val regex = Regex("(?i)写|(d(raw)?s(tring)?|write)")

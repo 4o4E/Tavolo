@@ -23,7 +23,7 @@ import kotlin.math.roundToInt
 object CharImageHandler : FramesHandler {
     private const val limit = 100F
     private const val base = "圆回田五三十〇彡二一辶丿丶"
-    private val font = FontType.YAHEI.getSkiaFont(12F)
+    private val font = TavoloFonts.font(TavoloFonts.YAHEI, 12F)
 
     private fun Image.limit(): Image {
         var width = width

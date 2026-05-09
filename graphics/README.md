@@ -61,30 +61,35 @@ Modifier
 
 ### 字体管理
 
-Compose DSL 的 `fontFamily` 只保存字体名，不再把 Skia `Typeface` 放进语法树。这样语法树和后续远程渲染协议可以序列化为字符串配置，渲染端再通过 `ComposeFontManager` 把名字解析成本地 `Typeface`。
+Compose DSL 的 `fontFamily` 只保存字体名，不再把 Skia `Typeface` 放进语法树。这样语法树和后续远程渲染协议可以序列化为字符串配置，渲染端再通过 common 模块提供的全局 `FontManager` 把名字解析成本地 `Typeface`。
 
 字体来源分两类：
 
-- 业务随请求或部署包提供的字体文件，使用 `ComposeFontManager.registerFile("LXGWWenKai", file)` 或 `registerBytes` 注册。
-- 渲染机器已有的系统字体，使用 `ComposeFontManager.registerSystem("ui", "Microsoft YaHei")` 建立稳定别名。
+- 业务随请求或部署包提供的字体文件，使用 `FontManager.registerFile("brand-title", file)` 或 `registerBytes` 注册。
+- 渲染机器已有的系统字体，使用 `FontManager.registerSystem("ui", "Microsoft YaHei")` 建立稳定别名。
+- 项目内置字体清单由 common 模块的 `TavoloFonts` 提供，默认字体为 `TavoloFonts.LW`。
 
 渲染时通过名称引用字体：
 
 ```kotlin
-ComposeFontManager.registerFile("LXGWWenKai", File("font/LXGWWenKai-Regular.ttf"))
-ComposeFontManager.registerSystem("ui", "Microsoft YaHei")
-ComposeFontManager.defaultFamily = "LXGWWenKai"
+import top.e404.tavolo.util.FontManager
+import top.e404.tavolo.TavoloFonts
+
+TavoloFonts.register(TavoloFonts.LW)
+FontManager.registerFile("brand-title", File("font/BrandTitle.ttf"))
+FontManager.registerSystem("ui", "Microsoft YaHei")
+FontManager.defaultFamily = TavoloFonts.LW
 
 render {
     text(
         "标题",
         fontSize = 28f,
-        fontFamily = "LXGWWenKai"
+        fontFamily = TavoloFonts.LW
     )
 }
 ```
 
-远程渲染协议应该传 `"fontFamily": "LXGWWenKai"` 这类名称。服务端启动或请求预处理阶段负责注册可用字体；如果名称没有注册，管理器会尝试按系统字体 family 查找，最后回退到默认字体。
+远程渲染协议应该传 `"fontFamily": "lxgw-wenkai"` 这类名称。服务端启动或请求预处理阶段负责注册可用字体；如果名称没有注册，管理器会尝试按系统字体 family 查找，最后回退到默认字体。
 
 ### margin 迁移
 

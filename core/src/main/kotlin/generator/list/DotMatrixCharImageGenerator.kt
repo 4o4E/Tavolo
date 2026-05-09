@@ -4,7 +4,7 @@ import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.TextLine
 import top.e404.tavolo.BdfType
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.dot.generator
 import top.e404.tavolo.dot.toBitMatrix
 import top.e404.tavolo.frame.Frame
@@ -12,7 +12,7 @@ import top.e404.tavolo.generator.ImageGenerator
 import top.e404.tavolo.util.*
 
 object DotMatrixCharImageGenerator : ImageGenerator {
-    private val font = FontType.HEI.getSkiaFont(20F)
+    private val font = TavoloFonts.font(TavoloFonts.HEI, 20F)
     private val fullHeight = font.height()
     override suspend fun generate(args: MutableMap<String, String>): MutableList<Frame> {
         val text = args["text"]!!

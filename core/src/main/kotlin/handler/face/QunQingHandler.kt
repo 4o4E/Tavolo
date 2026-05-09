@@ -5,7 +5,7 @@ import org.jetbrains.skia.ColorMatrix
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.TextLine
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.FramesHandler
@@ -46,8 +46,8 @@ object QunQingHandler : FramesHandler {
         common(args).handle {
             it.newSurface().withCanvas {
                 drawImage(it, 0f, 0f, mp)
-                val font1 = FontType.MI_BOLD.getSkiaFont(it.height / 8F)
-                val font2 = FontType.MI_BOLD.getSkiaFont(it.height / 10F)
+                val font1 = TavoloFonts.font(TavoloFonts.MI_BOLD, it.height / 8F)
+                val font2 = TavoloFonts.font(TavoloFonts.MI_BOLD, it.height / 10F)
                 val line1 = TextLine.make("群", font1)
                 val line2 = TextLine.make("青", font1)
                 val line3 = TextLine.make("YOASOBI", font2)

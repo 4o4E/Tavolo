@@ -2,7 +2,7 @@ package top.e404.tavolo.generator.list
 
 import org.jetbrains.skia.*
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.generator.ImageGenerator
 import top.e404.tavolo.util.asColor
@@ -13,7 +13,7 @@ object ShakeTextGenerator : ImageGenerator {
     private const val fontSpace = 5
     private const val padding = 10
     private const val fontSize = 60F
-    private val font = FontType.YAHEI.getSkiaFont(fontSize)
+    private val font = TavoloFonts.font(TavoloFonts.YAHEI, fontSize)
 
     /**
      * 生成抖动gif

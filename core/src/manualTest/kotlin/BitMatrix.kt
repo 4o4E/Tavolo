@@ -27,8 +27,8 @@ class BitMatrix {
 
     @Test
     fun t3() {
-        FontType.fontDir = "font"
-        val tf = FontType.GNU_UNIFONT.typeface
+        TavoloFonts.fontDir = "font"
+        val tf = TavoloFonts.typeface(TavoloFonts.GNU_UNIFONT)
         val font = Font(tf, 24F)
         font.metrics.ascent
         val line = TextLine.make("肯德基", font)

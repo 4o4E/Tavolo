@@ -5,7 +5,7 @@ import org.jetbrains.skia.Surface
 import org.jetbrains.skia.TextLine
 import top.e404.tavolo.util.Argb
 import top.e404.tavolo.util.Colors
-import top.e404.tavolo.FontType
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.util.argb
 import top.e404.tavolo.frame.Frame
 import top.e404.tavolo.frame.toFrames
@@ -20,7 +20,7 @@ object CodeGenerator : ImageGenerator {
     private const val padding = 50
     private const val fontSize = 150
     private const val fontSpacing = 30
-    private val font = FontType.MINECRAFT.getSkiaFont(fontSize.toFloat())
+    private val font = TavoloFonts.font(TavoloFonts.MINECRAFT, fontSize.toFloat())
     private val chars = "qwertyuipadfghjkzxcvbnmWERTYUIPADFGHJKLZXCVBNM23478".toCharArray().toList()
 
     fun genCodeText(length: Int = 4): String {

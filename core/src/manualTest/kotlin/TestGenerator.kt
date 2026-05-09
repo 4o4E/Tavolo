@@ -10,7 +10,7 @@ import kotlin.test.Test
 class TestGenerator {
 
     init {
-        FontType.fontDir = "font"
+        TavoloFonts.fontDir = "font"
         BdfType.dir = "bdf"
     }
 

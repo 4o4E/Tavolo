@@ -6,12 +6,14 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.*
 import org.junit.Test
+import top.e404.tavolo.TavoloFonts
 import top.e404.tavolo.draw.compose.charts.BarTheme
 import top.e404.tavolo.draw.compose.charts.bar
 import top.e404.tavolo.draw.compose.*
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.radar
 import top.e404.tavolo.util.Colors
+import top.e404.tavolo.util.FontManager
 import top.e404.tavolo.util.hsb
 import java.io.File
 import java.net.URL
@@ -45,8 +47,9 @@ class TestRender {
     }
 
     init {
-        ComposeFontManager.registerFile("LXGWWenKai", File("font/LXGWWenKai-Regular.ttf"))
-        ComposeFontManager.defaultFamily = "LXGWWenKai"
+        TavoloFonts.fontDir = "font"
+        TavoloFonts.register(TavoloFonts.LW)
+        FontManager.defaultFamily = TavoloFonts.LW
     }
     @UiDsl
     fun UiElement.profileCard(index: Int, name: String, desc: String, image: Image, modifier: Modifier = Modifier) {
