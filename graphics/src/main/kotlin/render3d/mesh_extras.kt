@@ -18,7 +18,8 @@ fun createPlane(
     texture: Bitmap? = null,
     normalDirection: Vec3 = Vec3(0f, 1f, 0f), // 默认地面
     segments: Int = 16, // 新增：细分段数
-    castsShadow: Boolean = true
+    castsShadow: Boolean = true,
+    receivesShadow: Boolean = true
 ): Mesh {
     val halfW = size.u / 2f
     val halfH = size.v / 2f
@@ -77,5 +78,5 @@ fun createPlane(
         }
     }
 
-    return Mesh(vertices, faces, texture, castsShadow)
+    return Mesh(vertices, faces, texture, castsShadow, receivesShadow)
 }

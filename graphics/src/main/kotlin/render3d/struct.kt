@@ -130,6 +130,7 @@ data class Mesh(
     val faces: List<Face>,
     val texture: org.jetbrains.skia.Bitmap? = null,
     val castsShadow: Boolean = true,
+    val receivesShadow: Boolean = true,
 )
 
 /**

@@ -87,10 +87,7 @@ data class RenderConfig(
     val lightDirection: Vec3 = Vec3(0.5f, 1.0f, 0.5f).normalized(), // 光源方向
     val lightIntensity: Float = 0.6f,
     // 阴影配置
-    val enableShadows: Boolean = true, // 是否启用阴影贴图
-    val shadowMapSize: Int = 1024, // 阴影图分辨率
-    val shadowBias: Float = 0.002f, // 阴影偏移，防止波纹
-    val shadowOrthoSize: Float = 30f // 阴影相机的正交投影范围
+    val enableShadows: Boolean = true // 是否启用阴影贴图
 )
 
 enum class MainRenderPass {
@@ -99,7 +96,92 @@ enum class MainRenderPass {
     TRANSPARENT_ONLY
 }
 
+// 阴影贴图分辨率固定在引擎默认值中，避免调用点为细小模型误用低分辨率。
+// 低于该值时，皮肤模型脚部、外层皮肤和细长面在多视角人工图中容易出现锯齿、断裂或局部漏投影。
+internal const val DEFAULT_SHADOW_MAP_SIZE = 4096
+
+// 阴影深度偏移固定为当前人工图确认正常的值。
+// 0 或过小会带来自阴影波纹；0.001 及以上会让接触阴影从几何交点后退，表现为 peter-panning。
+internal const val DEFAULT_SHADOW_BIAS = 0.0005f
+
+// 默认光源正交范围需要覆盖较大的角色/地面组合。
+// 过小会裁掉多视角图中的投影；过大则会摊薄 shadow map 精度，让细节阴影重新变粗糙。
+internal const val DEFAULT_SHADOW_ORTHO_SIZE = 42f
+
 private const val DEPTH_EPSILON = 1e-5f
+private const val SHADOW_SLOPE_BIAS_SCALE = 0.5f
+private const val NO_SHADOW_FACE_ID = -1
+private val EMPTY_SHADOW_FACE_IDS = IntArray(0)
+
+internal fun calculateShadowDepthBias(normal: Vec3, lightDir: Vec3): Float {
+    val ndotl = max(normal.normalized().dot(lightDir.normalized()), 0f)
+    return DEFAULT_SHADOW_BIAS * (1f + (1f - ndotl) * SHADOW_SLOPE_BIAS_SCALE)
+}
+
+internal class ShadowFaceRegistry(
+    private val faceIdsByMesh: List<IntArray>,
+    private val ignoredFaceIdsByFaceId: List<IntArray>
+) {
+    fun faceId(meshIndex: Int, faceIndex: Int): Int =
+        faceIdsByMesh.getOrNull(meshIndex)?.getOrNull(faceIndex) ?: NO_SHADOW_FACE_ID
+
+    fun ignoredFaceIds(faceId: Int): IntArray =
+        ignoredFaceIdsByFaceId.getOrNull(faceId) ?: EMPTY_SHADOW_FACE_IDS
+}
+
+private fun defaultIgnoredShadowFaceIds(receiverFaceId: Int): IntArray =
+    if (receiverFaceId == NO_SHADOW_FACE_ID) EMPTY_SHADOW_FACE_IDS else intArrayOf(receiverFaceId)
+
+private fun containsFaceId(faceIds: IntArray, faceId: Int): Boolean {
+    for (id in faceIds) {
+        if (id == faceId) return true
+    }
+    return false
+}
+
+private fun edgeKey(first: Int, second: Int): Long {
+    val min = min(first, second)
+    val max = max(first, second)
+    return (min.toLong() shl 32) or (max.toLong() and 0xffffffffL)
+}
+
+internal fun buildShadowFaceRegistry(meshes: List<Mesh>): ShadowFaceRegistry {
+    val faceIdsByMesh = meshes.map { IntArray(it.faces.size) { NO_SHADOW_FACE_ID } }
+    val ignoredFaceIds = mutableListOf<MutableSet<Int>>()
+    var nextId = 0
+
+    for ((meshIndex, mesh) in meshes.withIndex()) {
+        if (!mesh.castsShadow) continue
+        val meshFaceIds = faceIdsByMesh[meshIndex]
+        for ((faceIndex, face) in mesh.faces.withIndex()) {
+            if (face.indices.size >= 3) {
+                meshFaceIds[faceIndex] = nextId
+                ignoredFaceIds += mutableSetOf(nextId)
+                nextId++
+            }
+        }
+    }
+
+    for ((meshIndex, mesh) in meshes.withIndex()) {
+        if (!mesh.castsShadow) continue
+        val edgeOwners = HashMap<Long, MutableList<Int>>()
+        mesh.faces.forEachIndexed { faceIndex, face ->
+            val faceId = faceIdsByMesh[meshIndex][faceIndex]
+            if (faceId == NO_SHADOW_FACE_ID) return@forEachIndexed
+            for (index in face.indices.indices) {
+                val key = edgeKey(face.indices[index], face.indices[(index + 1) % face.indices.size])
+                val owners = edgeOwners.getOrPut(key) { mutableListOf() }
+                for (otherFaceId in owners) {
+                    ignoredFaceIds[faceId] += otherFaceId
+                    ignoredFaceIds[otherFaceId] += faceId
+                }
+                owners += faceId
+            }
+        }
+    }
+
+    return ShadowFaceRegistry(faceIdsByMesh, ignoredFaceIds.map { it.toIntArray() })
+}
 
 fun renderSceneToImage(
     scene: Scene,
@@ -133,16 +215,17 @@ fun renderSceneToImage(
     // 光源位置：为了生成正交投影，我们假设光源在很远的地方，看向原点
     val lightPos = lightDir * 50f
     val lightView = Mat4.lookAt(lightPos, Vec3(0f, 0f, 0f), Vec3(0f, 1f, 0f))
-    val sSize = config.shadowOrthoSize
+    val sSize = DEFAULT_SHADOW_ORTHO_SIZE
     val lightProj = Mat4.orthographic(-sSize, sSize, -sSize, sSize, 1f, 100f)
     val lightVP = lightProj * lightView
 
-    val shadowMap = ShadowMap(config.shadowMapSize, config.shadowMapSize)
+    val shadowMap = ShadowMap(DEFAULT_SHADOW_MAP_SIZE, DEFAULT_SHADOW_MAP_SIZE)
+    val shadowFaceRegistry = buildShadowFaceRegistry(scene.meshes)
 
     // 渲染阴影：只渲染玩家产生阴影，背景通常不产生投射到玩家身上的阴影（根据需求可调整）
     // 优化：这里可以传入简化版的 Mesh (不带 3D Overlay) 以提升性能
     if (config.enableShadows) {
-        renderShadowPass(scene.meshes, lightVP, shadowMap)
+        renderShadowPass(scene.meshes, lightVP, shadowMap, shadowFaceRegistry)
     }
 
     // 3. 主渲染通道 (Main Pass)
@@ -153,34 +236,38 @@ fun renderSceneToImage(
     val zBuffer = FloatArray(renderWidth * renderHeight) { Float.POSITIVE_INFINITY }
 
     // 渲染
-    scene.meshes.forEach { mesh ->
-        renderMeshMainPass(
-            mesh,
-            vpMatrix,
-            lightVP,
-            renderWidth,
-            renderHeight,
-            zBuffer,
-            ssTarget,
-            shadowMap,
-            config,
-            cameraPosition,
-            MainRenderPass.OPAQUE_ONLY
+    scene.meshes.forEachIndexed { meshIndex, mesh ->
+        renderMeshMainPassInternal(
+            mesh = mesh,
+            vpMatrix = vpMatrix,
+            lightVP = lightVP,
+            width = renderWidth,
+            height = renderHeight,
+            zBuffer = zBuffer,
+            target = ssTarget,
+            shadowMap = shadowMap,
+            config = config,
+            viewPos = cameraPosition,
+            renderPass = MainRenderPass.OPAQUE_ONLY,
+            meshIndex = meshIndex,
+            shadowFaceRegistry = shadowFaceRegistry
         )
     }
-    scene.meshes.forEach { mesh ->
-        renderMeshMainPass(
-            mesh,
-            vpMatrix,
-            lightVP,
-            renderWidth,
-            renderHeight,
-            zBuffer,
-            ssTarget,
-            shadowMap,
-            config,
-            cameraPosition,
-            MainRenderPass.TRANSPARENT_ONLY
+    scene.meshes.forEachIndexed { meshIndex, mesh ->
+        renderMeshMainPassInternal(
+            mesh = mesh,
+            vpMatrix = vpMatrix,
+            lightVP = lightVP,
+            width = renderWidth,
+            height = renderHeight,
+            zBuffer = zBuffer,
+            target = ssTarget,
+            shadowMap = shadowMap,
+            config = config,
+            viewPos = cameraPosition,
+            renderPass = MainRenderPass.TRANSPARENT_ONLY,
+            meshIndex = meshIndex,
+            shadowFaceRegistry = shadowFaceRegistry
         )
     }
 
@@ -226,16 +313,33 @@ fun renderSceneToImage(
 
 // --- 阴影通道逻辑 ---
 
-fun renderShadowPass(meshes: List<Mesh>, lightVP: Mat4, shadowMap: ShadowMap) {
+fun renderShadowPass(
+    meshes: List<Mesh>,
+    lightVP: Mat4,
+    shadowMap: ShadowMap
+) = renderShadowPass(
+    meshes = meshes,
+    lightVP = lightVP,
+    shadowMap = shadowMap,
+    shadowFaceRegistry = buildShadowFaceRegistry(meshes)
+)
+
+private fun renderShadowPass(
+    meshes: List<Mesh>,
+    lightVP: Mat4,
+    shadowMap: ShadowMap,
+    shadowFaceRegistry: ShadowFaceRegistry
+) {
     val width = shadowMap.width
     val height = shadowMap.height
 
-    for (mesh in meshes) {
+    for ((meshIndex, mesh) in meshes.withIndex()) {
         if (!mesh.castsShadow) continue
         val texture = mesh.texture?.let(::BitmapRenderTexture)
-        for (face in mesh.faces) {
+        for ((faceIndex, face) in mesh.faces.withIndex()) {
             if (face.indices.size < 3) continue
             if (texture == null && Color.getA(face.baseColor) < 255) continue
+            val shadowFaceId = shadowFaceRegistry.faceId(meshIndex, faceIndex)
 
             // 三角形剖分
             for (i in 0 until face.indices.size - 2) {
@@ -268,7 +372,8 @@ fun renderShadowPass(meshes: List<Mesh>, lightVP: Mat4, shadowMap: ShadowMap) {
                         ShadedVertex(sc2, v2.position, 1.0f / p2.w, v2.uv)
                     ),
                     shadowMap = shadowMap,
-                    texture = texture
+                    texture = texture,
+                    shadowFaceId = shadowFaceId
                 )
             }
         }
@@ -296,14 +401,16 @@ fun rasterizeTriangleShadow(p0: Vec3, p1: Vec3, p2: Vec3, shadowMap: ShadowMap) 
             ShadedVertex(p2, Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f))
         ),
         shadowMap = shadowMap,
-        texture = null
+        texture = null,
+        shadowFaceId = NO_SHADOW_FACE_ID
     )
 }
 
 fun rasterizeTriangleShadow(
     vertices: List<ShadedVertex>,
     shadowMap: ShadowMap,
-    texture: RenderTexture? = null
+    texture: RenderTexture? = null,
+    shadowFaceId: Int = NO_SHADOW_FACE_ID
 ) {
     val v0 = vertices[0]
     val v1 = vertices[1]
@@ -343,7 +450,7 @@ fun rasterizeTriangleShadow(
                 val z = p0.z * w0 + p1.z * w1 + p2.z * w2
                 // 写入深度缓冲 (越小越近)
                 if (z < shadowMap.get(x, y)) {
-                    shadowMap.set(x, y, z)
+                    shadowMap.set(x, y, z, shadowFaceId)
                 }
             }
         }
@@ -391,6 +498,38 @@ fun renderMeshMainPass(
     viewPos: Vec3,
     renderPass: MainRenderPass = MainRenderPass.ALL
 ) {
+    renderMeshMainPassInternal(
+        mesh = mesh,
+        vpMatrix = vpMatrix,
+        lightVP = lightVP,
+        width = width,
+        height = height,
+        zBuffer = zBuffer,
+        target = target,
+        shadowMap = shadowMap,
+        config = config,
+        viewPos = viewPos,
+        renderPass = renderPass,
+        meshIndex = 0,
+        shadowFaceRegistry = null
+    )
+}
+
+private fun renderMeshMainPassInternal(
+    mesh: Mesh,
+    vpMatrix: Mat4,
+    lightVP: Mat4,
+    width: Int,
+    height: Int,
+    zBuffer: FloatArray,
+    target: RenderTarget,
+    shadowMap: ShadowMap,
+    config: RenderConfig,
+    viewPos: Vec3,
+    renderPass: MainRenderPass = MainRenderPass.ALL,
+    meshIndex: Int,
+    shadowFaceRegistry: ShadowFaceRegistry?
+) {
     val lightDir = config.lightDirection
     val texture = mesh.texture?.let(::BitmapRenderTexture)
     val wireframeStrokeWidth = max(1f, config.antiAliasingLevel.toFloat())
@@ -411,7 +550,7 @@ fun renderMeshMainPass(
         )
     }
 
-    for (face in mesh.faces) {
+    for ((faceIndex, face) in mesh.faces.withIndex()) {
         if (face.indices.size < 3) continue
 
         // 1. 计算面法线 (Flat Shading)
@@ -421,6 +560,9 @@ fun renderMeshMainPass(
         val faceNormal = (v1_w - v0_w).cross(v2_w - v0_w).normalized()
         val viewDir = (viewPos - v0_w).normalized()
         val faceVertices = face.indices.map(::shadeVertex)
+        val receiverFaceId = shadowFaceRegistry?.faceId(meshIndex, faceIndex) ?: NO_SHADOW_FACE_ID
+        val ignoredShadowFaceIds = shadowFaceRegistry?.ignoredFaceIds(receiverFaceId)
+            ?: defaultIgnoredShadowFaceIds(receiverFaceId)
 
         // 背面剔除
         if (config.useBackFaceCulling) {
@@ -443,10 +585,24 @@ fun renderMeshMainPass(
 
         for (i in 0 until face.indices.size - 2) {
             val shadedVertices = listOf(faceVertices[0], faceVertices[i + 1], faceVertices[i + 2])
-            rasterizeTriangleMain(
-                shadedVertices, width, height, zBuffer, target,
-                texture, face.baseColor, faceNormal,
-                lightVP, shadowMap, config, lightDir, viewDir, renderPass
+            rasterizeTriangleMainInternal(
+                vertices = shadedVertices,
+                width = width,
+                height = height,
+                zBuffer = zBuffer,
+                target = target,
+                texture = texture,
+                baseColor = face.baseColor,
+                normal = faceNormal,
+                lightVP = lightVP,
+                shadowMap = shadowMap,
+                config = config,
+                lightDir = lightDir,
+                viewDir = viewDir,
+                renderPass = renderPass,
+                receivesShadow = mesh.receivesShadow,
+                receiverFaceId = receiverFaceId,
+                ignoredShadowFaceIds = ignoredShadowFaceIds
             )
         }
     }
@@ -496,7 +652,9 @@ fun rasterizeTriangleMain(
     config: RenderConfig,
     lightDir: Vec3,
     viewDir: Vec3,
-    renderPass: MainRenderPass = MainRenderPass.ALL
+    renderPass: MainRenderPass = MainRenderPass.ALL,
+    receivesShadow: Boolean = true,
+    receiverFaceId: Int = NO_SHADOW_FACE_ID
 ) = rasterizeTriangleMain(
     vertices = vertices,
     width = width,
@@ -511,7 +669,9 @@ fun rasterizeTriangleMain(
     config = config,
     lightDir = lightDir,
     viewDir = viewDir,
-    renderPass = renderPass
+    renderPass = renderPass,
+    receivesShadow = receivesShadow,
+    receiverFaceId = receiverFaceId
 )
 
 fun rasterizeTriangleMain(
@@ -527,7 +687,46 @@ fun rasterizeTriangleMain(
     config: RenderConfig,
     lightDir: Vec3,
     viewDir: Vec3,
-    renderPass: MainRenderPass = MainRenderPass.ALL
+    renderPass: MainRenderPass = MainRenderPass.ALL,
+    receivesShadow: Boolean = true,
+    receiverFaceId: Int = NO_SHADOW_FACE_ID
+) = rasterizeTriangleMainInternal(
+    vertices = vertices,
+    width = width,
+    height = height,
+    zBuffer = zBuffer,
+    target = target,
+    texture = texture,
+    baseColor = baseColor,
+    normal = normal,
+    lightVP = lightVP,
+    shadowMap = shadowMap,
+    config = config,
+    lightDir = lightDir,
+    viewDir = viewDir,
+    renderPass = renderPass,
+    receivesShadow = receivesShadow,
+    receiverFaceId = receiverFaceId,
+    ignoredShadowFaceIds = defaultIgnoredShadowFaceIds(receiverFaceId)
+)
+
+private fun rasterizeTriangleMainInternal(
+    vertices: List<ShadedVertex>,
+    width: Int, height: Int,
+    zBuffer: FloatArray,
+    target: RenderTarget,
+    texture: RenderTexture?,
+    baseColor: Int,
+    normal: Vec3,
+    lightVP: Mat4,
+    shadowMap: ShadowMap,
+    config: RenderConfig,
+    lightDir: Vec3,
+    viewDir: Vec3,
+    renderPass: MainRenderPass = MainRenderPass.ALL,
+    receivesShadow: Boolean = true,
+    receiverFaceId: Int = NO_SHADOW_FACE_ID,
+    ignoredShadowFaceIds: IntArray = defaultIgnoredShadowFaceIds(receiverFaceId)
 ) {
     val v0 = vertices[0];
     val v1 = vertices[1];
@@ -583,18 +782,21 @@ fun rasterizeTriangleMain(
 
                     var shadowFactor = 1.0f
                     // 检查是否在阴影图范围内
-                    if (config.enableShadows && shadowU in 0f..1f && shadowV in 0f..1f && currentDepth < 1f) {
+                    if (receivesShadow && config.enableShadows && shadowU in 0f..1f && shadowV in 0f..1f && currentDepth < 1f) {
                         val shadowMapX = (shadowU * (shadowMap.width - 1)).toInt()
                         val shadowMapY = (shadowV * (shadowMap.height - 1)).toInt()
-                        val ndotl = max(normal.normalized().dot(lightDir.normalized()), 0f)
-                        val slopeBias = config.shadowBias * (1f + (1f - ndotl) * 8f)
+                        val slopeBias = calculateShadowDepthBias(normal, lightDir)
                         var occludedSamples = 0
                         var validSamples = 0
 
                         for (dy in -1..1) {
                             for (dx in -1..1) {
                                 val closestDepth = shadowMap.get(shadowMapX + dx, shadowMapY + dy)
-                                if (closestDepth.isFinite()) {
+                                val casterFaceId = shadowMap.getFaceId(shadowMapX + dx, shadowMapY + dy)
+                                if (
+                                    closestDepth.isFinite() &&
+                                    !containsFaceId(ignoredShadowFaceIds, casterFaceId)
+                                ) {
                                     validSamples++
                                     if (currentDepth - slopeBias > closestDepth) {
                                         occludedSamples++

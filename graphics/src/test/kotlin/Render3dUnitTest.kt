@@ -7,6 +7,9 @@ import org.jetbrains.skia.Rect
 import org.junit.Test
 import top.e404.tavolo.draw.render3d.BitmapRenderTarget
 import top.e404.tavolo.draw.render3d.BitmapRenderTexture
+import top.e404.tavolo.draw.render3d.DEFAULT_SHADOW_BIAS
+import top.e404.tavolo.draw.render3d.DEFAULT_SHADOW_MAP_SIZE
+import top.e404.tavolo.draw.render3d.DEFAULT_SHADOW_ORTHO_SIZE
 import top.e404.tavolo.draw.render3d.Face
 import top.e404.tavolo.draw.render3d.FaceDirection
 import top.e404.tavolo.draw.render3d.Mat4
@@ -25,8 +28,10 @@ import top.e404.tavolo.draw.render3d.Vec3
 import top.e404.tavolo.draw.render3d.Vec4
 import top.e404.tavolo.draw.render3d.Vertex
 import top.e404.tavolo.draw.render3d.applyLight
+import top.e404.tavolo.draw.render3d.buildShadowFaceRegistry
 import top.e404.tavolo.draw.render3d.calculateBlinnPhong
 import top.e404.tavolo.draw.render3d.calculateLightIntensity
+import top.e404.tavolo.draw.render3d.calculateShadowDepthBias
 import top.e404.tavolo.draw.render3d.clamp
 import top.e404.tavolo.draw.render3d.combineMeshes
 import top.e404.tavolo.draw.render3d.createCuboid
@@ -192,6 +197,7 @@ class Render3dCameraAndMeshUnitTest {
         assertEquals(9, plane.vertices.size)
         assertEquals(8, plane.faces.size)
         assertTrue(plane.castsShadow)
+        assertTrue(plane.receivesShadow)
         assertTrue(plane.vertices.all { it.position.y == 0f })
 
         val verticalPlane = createPlane(
@@ -207,9 +213,11 @@ class Render3dCameraAndMeshUnitTest {
         val shadowReceiver = createPlane(
             center = Vec3(0f, 0f, 0f),
             size = Vec2(2f, 2f),
-            castsShadow = false
+            castsShadow = false,
+            receivesShadow = true
         )
         assertFalse(shadowReceiver.castsShadow)
+        assertTrue(shadowReceiver.receivesShadow)
     }
 
     @Test
@@ -246,6 +254,8 @@ class Render3dCameraAndMeshUnitTest {
         assertEquals(explicitTexture, combineMeshes(listOf(first), texture = explicitTexture).texture)
         assertTrue(combineMeshes(listOf(first, second)).castsShadow)
         assertFalse(combineMeshes(listOf(first.copy(castsShadow = false), second.copy(castsShadow = false))).castsShadow)
+        assertTrue(combineMeshes(listOf(first, second)).receivesShadow)
+        assertFalse(combineMeshes(listOf(first.copy(receivesShadow = false), second.copy(receivesShadow = false))).receivesShadow)
         assertEquals(0, combineMeshes(emptyList()).vertices.size)
         assertEquals(0, combineMeshes(emptyList()).faces.size)
     }
@@ -293,6 +303,13 @@ class Render3dLightAndShadowUnitTest {
 
         assertEquals(Color.makeRGB(100, 80, 60), fullLight)
         assertEquals(Color.makeRGB(20, 16, 12), shadowed)
+    }
+
+    @Test
+    fun engineShadowParametersStayFixed() {
+        assertEquals(4096, DEFAULT_SHADOW_MAP_SIZE)
+        assertEquals(0.0005f, DEFAULT_SHADOW_BIAS)
+        assertEquals(42f, DEFAULT_SHADOW_ORTHO_SIZE)
     }
 
     @Test
@@ -344,6 +361,40 @@ class Render3dLightAndShadowUnitTest {
 
         shadowMap.clear()
         assertTrue(shadowMap.get(1, 1).isInfinite(), "clear 后深度应重置")
+    }
+
+    @Test
+    fun shadowFaceRegistryDistinguishesMeshOccurrencesAndSharedEdges() {
+        val sharedFace = Face(listOf(0, 1, 2), Color.RED)
+        val first = Mesh(
+            vertices = listOf(
+                Vertex(Vec3(0f, 0f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(1f, 0f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(0f, 1f, 0f), Vec2(0f, 0f))
+            ),
+            faces = listOf(sharedFace)
+        )
+        val second = first.copy(faces = listOf(sharedFace))
+        val reusedFaceRegistry = buildShadowFaceRegistry(listOf(first, second))
+
+        assertFalse(
+            reusedFaceRegistry.faceId(0, 0) == reusedFaceRegistry.faceId(1, 0),
+            "同一个 Face 实例在不同 mesh 出现时也应分配不同 shadow face id"
+        )
+
+        val cuboidRegistry = buildShadowFaceRegistry(listOf(createCuboid(Vec3(1f, 1f, 1f), Color.RED)))
+        val firstFaceId = cuboidRegistry.faceId(0, 0)
+        val adjacentFaceId = cuboidRegistry.faceId(0, 1)
+        val oppositeFaceId = cuboidRegistry.faceId(0, 2)
+
+        assertTrue(
+            adjacentFaceId in cuboidRegistry.ignoredFaceIds(firstFaceId),
+            "共享边的相邻面不应在硬边上互相制造自阴影"
+        )
+        assertFalse(
+            oppositeFaceId in cuboidRegistry.ignoredFaceIds(firstFaceId),
+            "不共享边的同一 mesh 面仍应允许形成真实遮挡"
+        )
     }
 
     @Test
@@ -778,8 +829,7 @@ class Render3dRasterAndRenderUnitTest {
             height = 5,
             camera = OrbitCamera(distance = 5f),
             lightDirection = Vec3(0f, 0f, 1f),
-            lightIntensity = 0.2f,
-            shadowBias = 0f
+            lightIntensity = 0.2f
         )
         val shadowMap = ShadowMap(4, 4).apply { set(2, 2, -0.5f) }
         val shadowed = bitmap(5, 5)
@@ -844,8 +894,7 @@ class Render3dRasterAndRenderUnitTest {
             height = 5,
             camera = OrbitCamera(distance = 5f),
             lightDirection = Vec3(0f, 0f, 1f),
-            lightIntensity = 0.2f,
-            shadowBias = 0f
+            lightIntensity = 0.2f
         )
 
         listOf(withShadows to config, withoutShadows to config.copy(enableShadows = false)).forEach { (target, renderConfig) ->
@@ -869,6 +918,109 @@ class Render3dRasterAndRenderUnitTest {
         assertTrue(
             Color.getR(withoutShadows.getColor(1, 1)) > Color.getR(withShadows.getColor(1, 1)),
             "关闭阴影后应忽略 shadowMap 遮挡"
+        )
+    }
+
+    @Test
+    fun mainRasterizerCanDisableShadowReceivingPerMesh() {
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+        val shadowMap = ShadowMap(4, 4).apply { set(2, 2, -0.5f) }
+        val receiver = bitmap(5, 5)
+        val nonReceiver = bitmap(5, 5)
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 0.2f
+        )
+
+        listOf(receiver to true, nonReceiver to false).forEach { (target, receivesShadow) ->
+            rasterizeTriangleMain(
+                vertices = vertices,
+                width = 5,
+                height = 5,
+                zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
+                target = BitmapRenderTarget(target),
+                texture = null,
+                baseColor = Color.makeRGB(100, 100, 100),
+                normal = Vec3(0f, 0f, 1f),
+                lightVP = Mat4(),
+                shadowMap = shadowMap,
+                config = config,
+                lightDir = Vec3(0f, 0f, 1f),
+                viewDir = Vec3(0f, 0f, 1f),
+                receivesShadow = receivesShadow
+            )
+        }
+
+        assertTrue(
+            Color.getR(nonReceiver.getColor(1, 1)) > Color.getR(receiver.getColor(1, 1)),
+            "不接收阴影的网格不应被 shadowMap 变暗"
+        )
+    }
+
+    @Test
+    fun mainRasterizerIgnoresSelfShadowFromSameFace() {
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+        val selfShadowFaceId = 12
+        val shadowMap = ShadowMap(4, 4).apply { set(2, 2, -0.5f, selfShadowFaceId) }
+        val sameFace = bitmap(5, 5)
+        val differentFace = bitmap(5, 5)
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 0.2f
+        )
+
+        listOf(sameFace to selfShadowFaceId, differentFace to selfShadowFaceId + 1).forEach { (target, receiverFaceId) ->
+            rasterizeTriangleMain(
+                vertices = vertices,
+                width = 5,
+                height = 5,
+                zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
+                target = BitmapRenderTarget(target),
+                texture = null,
+                baseColor = Color.makeRGB(100, 100, 100),
+                normal = Vec3(0f, 0f, 1f),
+                lightVP = Mat4(),
+                shadowMap = shadowMap,
+                config = config,
+                lightDir = Vec3(0f, 0f, 1f),
+                viewDir = Vec3(0f, 0f, 1f),
+                receiverFaceId = receiverFaceId
+            )
+        }
+
+        assertTrue(
+            Color.getR(sameFace.getColor(1, 1)) > Color.getR(differentFace.getColor(1, 1)),
+            "同一面写入的 shadowMap 深度不应让该面产生自阴影波纹"
+        )
+    }
+
+    @Test
+    fun shadowDepthBiasOnlySlightlyIncreasesOnGrazingReceivers() {
+        val lightDir = Vec3(0.45f, 1f, 0.55f).normalized()
+
+        assertEquals(DEFAULT_SHADOW_BIAS, calculateShadowDepthBias(lightDir, lightDir), 0.000001f)
+        assertTrue(
+            calculateShadowDepthBias(Vec3(1f, 0f, 0f), lightDir) < 0.001f,
+            "侧面接收阴影时不应把基础 bias 放大到产生明显接触偏移"
+        )
+        assertEquals(
+            DEFAULT_SHADOW_BIAS * 1.5f,
+            calculateShadowDepthBias(Vec3(-1f, 0f, 0f), lightDir),
+            0.000001f
         )
     }
 
@@ -995,8 +1147,7 @@ class Render3dRasterAndRenderUnitTest {
             height = 16,
             camera = OrbitCamera(distance = 5f),
             lightDirection = Vec3(0f, 0f, 1f),
-            lightIntensity = 1f,
-            shadowMapSize = 4
+            lightIntensity = 1f
         )
         val filledTarget = RecordingRenderTarget(16, 16)
 
@@ -1109,7 +1260,7 @@ class Render3dRasterAndRenderUnitTest {
                     antiAliasingLevel = 2,
                     lightDirection = Vec3(0f, 0f, 1f),
                     lightIntensity = 1f,
-                    shadowMapSize = 16
+                    enableShadows = false
                 )
             ).toBitmap()
 
@@ -1136,7 +1287,7 @@ class Render3dRasterAndRenderUnitTest {
                 antiAliasingLevel = 1,
                 lightDirection = Vec3(0f, 0f, 1f),
                 lightIntensity = 1f,
-                shadowMapSize = 16
+                enableShadows = false
             )
         ).toBitmap()
         val wireframe = renderSceneToImage(
@@ -1151,7 +1302,7 @@ class Render3dRasterAndRenderUnitTest {
                 antiAliasingLevel = 1,
                 lightDirection = Vec3(0f, 0f, 1f),
                 lightIntensity = 1f,
-                shadowMapSize = 16
+                enableShadows = false
             )
         ).toBitmap()
 

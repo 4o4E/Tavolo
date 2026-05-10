@@ -10,14 +10,18 @@ import kotlin.math.pow
  */
 class ShadowMap(val width: Int, val height: Int) {
     val buffer = FloatArray(width * height) { Float.POSITIVE_INFINITY }
+    val faceIds = IntArray(width * height) { -1 }
 
     fun clear() {
         buffer.fill(Float.POSITIVE_INFINITY)
+        faceIds.fill(-1)
     }
 
-    fun set(x: Int, y: Int, depth: Float) {
+    fun set(x: Int, y: Int, depth: Float, faceId: Int = -1) {
         if (x in 0 until width && y in 0 until height) {
-            buffer[y * width + x] = depth
+            val index = y * width + x
+            buffer[index] = depth
+            faceIds[index] = faceId
         }
     }
 
@@ -26,6 +30,13 @@ class ShadowMap(val width: Int, val height: Int) {
             return buffer[y * width + x]
         }
         return Float.POSITIVE_INFINITY
+    }
+
+    fun getFaceId(x: Int, y: Int): Int {
+        if (x in 0 until width && y in 0 until height) {
+            return faceIds[y * width + x]
+        }
+        return -1
     }
 }
 

@@ -111,6 +111,7 @@ fun combineMeshes(meshes: List<Mesh>, texture: Bitmap? = null): Mesh {
         combinedVertices,
         combinedFaces,
         texture ?: meshes.firstOrNull()?.texture,
-        castsShadow = meshes.any { it.castsShadow }
+        castsShadow = meshes.any { it.castsShadow },
+        receivesShadow = meshes.any { it.receivesShadow }
     )
 }

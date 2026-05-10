@@ -11,7 +11,6 @@ import org.jetbrains.skia.Surface
 import org.junit.Test
 import top.e404.tavolo.draw.render3d.*
 import top.e404.tavolo.util.FontManager
-import top.e404.tavolo.util.toBitmap
 import java.io.File
 import kotlin.math.pow
 import kotlin.random.Random
@@ -468,6 +467,26 @@ class TestRender3d {
         return ((-cameraForward) + (-cameraRight * 0.85f) + (cameraUp * 0.85f)).normalized()
     }
 
+    private fun skinRenderConfig(
+        width: Int,
+        height: Int,
+        camera: OrbitCamera,
+        antiAliasingLevel: Int = 4
+    ): RenderConfig =
+        RenderConfig(
+            width = width,
+            height = height,
+            camera = camera,
+            renderFaces = true,
+            usePerspective = true,
+            backgroundColor = Color.makeRGB(74, 91, 112),
+            useBackFaceCulling = false,
+            antiAliasingLevel = antiAliasingLevel,
+            lightDirection = skinLightDirection(camera),
+            lightIntensity = 0.42f,
+            enableShadows = true
+        )
+
     private fun runMinecraftSkinGallery(modelName: String, skinFileName: String, isSlim: Boolean) {
         val playerMesh = loadMinecraftPlayer(skinFileName, isSlim)
         val panelWidth = 420
@@ -483,21 +502,10 @@ class TestRender3d {
             val camera = skinCamera(view)
             "yaw ${view.yaw.toInt()} / pitch ${view.pitch.toInt()}" to renderSceneToImage(
                 Scene(listOf(playerMesh, skinFloor())),
-                RenderConfig(
+                skinRenderConfig(
                     width = panelWidth,
                     height = imageHeight,
-                    camera = camera,
-                    renderFaces = true,
-                    usePerspective = true,
-                    backgroundColor = Color.makeRGB(74, 91, 112),
-                    useBackFaceCulling = false,
-                    antiAliasingLevel = 4,
-                    lightDirection = skinLightDirection(camera),
-                    lightIntensity = 0.42f,
-                    enableShadows = true,
-                    shadowMapSize = 4096,
-                    shadowBias = 0.02f,
-                    shadowOrthoSize = 42f
+                    camera = camera
                 )
             )
         }
@@ -521,107 +529,6 @@ class TestRender3d {
             surface.makeImageSnapshot()
         }
         ManualTestSupport.saveImage("render3d/3D-皮肤模型-${modelName}-多视角实体.png", image)
-    }
-
-    private fun renderSkinDiagnosticImage(scene: Scene, camera: OrbitCamera, antiAliasingLevel: Int = 4): Image =
-        renderSceneToImage(
-            scene,
-            RenderConfig(
-                width = 420,
-                height = 620,
-                camera = camera,
-                renderFaces = true,
-                usePerspective = true,
-                backgroundColor = Color.makeRGB(74, 91, 112),
-                useBackFaceCulling = false,
-                antiAliasingLevel = antiAliasingLevel,
-                lightDirection = skinLightDirection(camera),
-                lightIntensity = 0.42f,
-                enableShadows = true,
-                shadowMapSize = 4096,
-                shadowBias = 0.02f,
-                shadowOrthoSize = 42f
-            )
-        )
-
-    private fun createSkinDifferenceImage(combined: Image, playerOnly: Image, background: Int): Image {
-        val combinedBitmap = combined.toBitmap()
-        val playerBitmap = playerOnly.toBitmap()
-        val diffBitmap = Bitmap()
-        diffBitmap.allocN32Pixels(combinedBitmap.width, combinedBitmap.height)
-        val target = BitmapRenderTarget(diffBitmap)
-        target.clear(Color.makeRGB(24, 30, 38))
-        for (y in 0 until combinedBitmap.height) {
-            for (x in 0 until combinedBitmap.width) {
-                val playerColor = playerBitmap.getColor(x, y)
-                val combinedColor = combinedBitmap.getColor(x, y)
-                val playerVisible = colorDistance(playerColor, background) > 12
-                val changed = colorDistance(playerColor, combinedColor) > 24
-                if (playerVisible && changed) {
-                    target.setPixel(x, y, Color.makeARGB(220, 255, 40, 40))
-                } else if (playerVisible) {
-                    target.setPixel(x, y, Color.makeARGB(255, 210, 215, 220))
-                } else {
-                    target.setPixel(x, y, combinedColor)
-                }
-            }
-        }
-        return Image.makeFromBitmap(diffBitmap)
-    }
-
-    private fun colorDistance(a: Int, b: Int): Int =
-        kotlin.math.abs(Color.getR(a) - Color.getR(b)) +
-            kotlin.math.abs(Color.getG(a) - Color.getG(b)) +
-            kotlin.math.abs(Color.getB(a) - Color.getB(b))
-
-    @Test
-    fun skinFootDebug() {
-        val playerMesh = loadMinecraftPlayer("alex_skin.png", isSlim = true)
-        val floorLevels = listOf(-8.125f, -8.2f)
-        val views = listOf(SkinView(-45f, -20f), SkinView(-45f, 5f))
-        val panelWidth = 420
-        val imageHeight = 620
-        val titleHeight = 38
-        val panelHeight = titleHeight + imageHeight
-        val titleFont = Font(FontManager.resolve(ManualTestSupport.uiFont), 20f)
-        val paint = Paint().apply { isAntiAlias = true }
-        val background = Color.makeRGB(74, 91, 112)
-        val columns = listOf("AA4合成", "AA4仅玩家", "AA4差异", "AA1合成", "AA1仅玩家", "AA1差异")
-        val rows = floorLevels.flatMap { floorY -> views.map { floorY to it } }.map { (floorY, view) ->
-            val floorMesh = skinFloor(floorY)
-            val camera = skinCamera(view)
-            val combined = renderSkinDiagnosticImage(Scene(listOf(playerMesh, floorMesh)), camera)
-            val playerOnly = renderSkinDiagnosticImage(Scene(listOf(playerMesh)), camera)
-            val diff = createSkinDifferenceImage(combined, playerOnly, background)
-            val combinedNoAa = renderSkinDiagnosticImage(Scene(listOf(playerMesh, floorMesh)), camera, antiAliasingLevel = 1)
-            val playerOnlyNoAa = renderSkinDiagnosticImage(Scene(listOf(playerMesh)), camera, antiAliasingLevel = 1)
-            val diffNoAa = createSkinDifferenceImage(combinedNoAa, playerOnlyNoAa, background)
-            Triple(floorY, view, listOf(combined, playerOnly, diff, combinedNoAa, playerOnlyNoAa, diffNoAa))
-        }
-
-        val image = Surface.makeRasterN32Premul(panelWidth * columns.size, panelHeight * rows.size).use { surface ->
-            val canvas = surface.canvas
-            canvas.clear(Color.makeRGB(46, 61, 80))
-            rows.forEachIndexed { row, (floorY, view, images) ->
-                images.forEachIndexed { col, panel ->
-                    val x = col * panelWidth
-                    val y = row * panelHeight
-                    paint.color = Color.makeRGB(35, 45, 60)
-                    canvas.drawRect(Rect.makeXYWH(x.toFloat(), y.toFloat(), panelWidth.toFloat(), titleHeight.toFloat()), paint)
-                    paint.color = Color.makeRGB(232, 238, 246)
-                    canvas.drawString(
-                        "floor $floorY / pitch ${view.pitch.toInt()} / ${columns[col]}",
-                        x + 14f,
-                        y + 23f,
-                        titleFont,
-                        paint
-                    )
-                    canvas.drawImage(panel, x.toFloat(), y + titleHeight.toFloat())
-                }
-            }
-            surface.makeImageSnapshot()
-        }
-        ManualTestSupport.saveImage("render3d/3D-皮肤脚部覆盖诊断-yaw-45.png", image)
     }
 
     private fun renderMinecraftSkinWireframePanel(skinFileName: String, isSlim: Boolean): Image {
@@ -709,52 +616,97 @@ class TestRender3d {
                 antiAliasingLevel = 2,
                 lightDirection = Vec3(0.25f, 0.8f, 1f).normalized(),
                 lightIntensity = 0.72f,
-                enableShadows = false,
-                shadowMapSize = 256
+                enableShadows = false
             )
         ).let { ManualTestSupport.saveImage("render3d/3D-特殊-${name}.png", it) }
     }
 
     private fun translateMesh(mesh: Mesh, offset: Vec3): Mesh =
-        Mesh(mesh.vertices.map { Vertex(it.position + offset, it.uv) }, mesh.faces, mesh.texture, mesh.castsShadow)
+        Mesh(
+            mesh.vertices.map { Vertex(it.position + offset, it.uv) },
+            mesh.faces,
+            mesh.texture,
+            mesh.castsShadow,
+            mesh.receivesShadow
+        )
+
+    private val shadowFloorY = -0.65f
+    private val shadowLightDirection = Vec3(0.45f, 1.0f, 0.55f).normalized()
+    private val shadowLightMarkerPosition = shadowLightDirection * 3.0f
+    private val shadowLightAxisLength = 7.0f
+    private val shadowLightAxisThickness = 0.035f
 
     private fun shadowFloor(): Mesh =
         createPlane(
-            center = Vec3(0f, -0.65f, 0f),
+            center = Vec3(0f, shadowFloorY, 0f),
             size = Vec2(6f, 4.8f),
             color = Color.makeRGB(125, 140, 155),
             normalDirection = Vec3(0f, 1f, 0f),
             segments = 1,
-            castsShadow = false
+            castsShadow = false,
+            receivesShadow = true
         )
 
     private fun shadowBlock(color: Int = Color.makeRGB(230, 150, 70)): Mesh =
-        translateMesh(createCuboid(Vec3(1.1f, 1.2f, 1.1f), color), Vec3(-0.9f, 0.35f, 0.1f))
+        translateMesh(
+            createCuboid(Vec3(1.1f, 1.2f, 1.1f), color),
+            Vec3(-0.9f, shadowFloorY + 0.6f, 0.1f)
+        )
+
+    private fun shadowLightMarker(): Mesh =
+        translateMesh(
+            createCuboid(Vec3(0.18f, 0.18f, 0.18f), Color.makeRGB(255, 238, 80)).copy(
+                castsShadow = false,
+                receivesShadow = false
+            ),
+            shadowLightMarkerPosition
+        )
+
+    private fun shadowLightAxis(offset: Vec3, dimensions: Vec3, color: Int): Mesh =
+        translateMesh(
+            createCuboid(dimensions, color).copy(castsShadow = false, receivesShadow = false),
+            shadowLightMarkerPosition + offset
+        )
+
+    private fun shadowLightAxes(): List<Mesh> =
+        listOf(
+            shadowLightAxis(
+                offset = Vec3(0f, 0f, 0f),
+                dimensions = Vec3(shadowLightAxisLength, shadowLightAxisThickness, shadowLightAxisThickness),
+                color = Color.makeRGB(245, 75, 75)
+            ),
+            shadowLightAxis(
+                offset = Vec3(0f, 0f, 0f),
+                dimensions = Vec3(shadowLightAxisThickness, shadowLightAxisLength, shadowLightAxisThickness),
+                color = Color.makeRGB(80, 220, 95)
+            ),
+            shadowLightAxis(
+                offset = Vec3(0f, 0f, 0f),
+                dimensions = Vec3(shadowLightAxisThickness, shadowLightAxisThickness, shadowLightAxisLength),
+                color = Color.makeRGB(80, 145, 255)
+            )
+        )
 
     private fun renderShadowPanel(
         scene: Scene,
-        usePerspective: Boolean,
+        yaw: Float,
         enableShadows: Boolean = true,
-        shadowBias: Float = 0.01f,
-        shadowMapSize: Int = 2048
+        enableLighting: Boolean = true
     ): Image =
         renderSceneToImage(
             scene,
             RenderConfig(
                 width = 520,
                 height = 360,
-                camera = OrbitCamera(target = Vec3(0f, -0.05f, 0f), yaw = 38f, pitch = 28f, distance = 7.2f),
+                camera = OrbitCamera(target = Vec3(0f, -0.05f, 0f), yaw = yaw, pitch = 28f, distance = 7.2f),
                 renderFaces = true,
-                usePerspective = usePerspective,
+                usePerspective = true,
                 backgroundColor = Color.makeRGB(18, 24, 34),
                 useBackFaceCulling = false,
                 antiAliasingLevel = 2,
-                lightDirection = Vec3(0.45f, 1.0f, 0.55f).normalized(),
-                lightIntensity = 0.68f,
-                enableShadows = enableShadows,
-                shadowMapSize = shadowMapSize,
-                shadowBias = shadowBias,
-                shadowOrthoSize = 5f
+                lightDirection = shadowLightDirection,
+                lightIntensity = if (enableLighting) 0.68f else 1.0f,
+                enableShadows = enableLighting && enableShadows
             )
         )
 
@@ -765,19 +717,29 @@ class TestRender3d {
         val panelHeight = titleHeight + imageHeight
         val titleFont = Font(FontManager.resolve(ManualTestSupport.uiFont), 20f)
         val paint = Paint().apply { isAntiAlias = true }
-        val panels = listOf(
-            "透视 / 阴影关闭" to renderShadowPanel(scene, usePerspective = true, enableShadows = false),
-            "透视 / 阴影开启" to renderShadowPanel(scene, usePerspective = true, enableShadows = true),
-            "正交 / 阴影关闭" to renderShadowPanel(scene, usePerspective = false, enableShadows = false),
-            "正交 / 阴影开启" to renderShadowPanel(scene, usePerspective = false, enableShadows = true)
+        val yaws = listOf(-45f, -30f, 0f, 30f, 45f)
+        val rows = listOf(
+            Triple("阴影开启", true, true),
+            Triple("阴影关闭", false, true),
+            Triple("光照关闭", false, false)
         )
+        val panels = rows.flatMap { (label, enableShadows, enableLighting) ->
+            yaws.map { yaw ->
+                "$label / yaw ${yaw.toInt()}" to renderShadowPanel(
+                    scene = scene,
+                    yaw = yaw,
+                    enableShadows = enableShadows,
+                    enableLighting = enableLighting
+                )
+            }
+        }
 
-        val image = Surface.makeRasterN32Premul(panelWidth * 2, panelHeight * 2).use { surface ->
+        val image = Surface.makeRasterN32Premul(panelWidth * yaws.size, panelHeight * rows.size).use { surface ->
             val canvas = surface.canvas
             canvas.clear(Color.makeRGB(10, 14, 22))
             panels.forEachIndexed { index, (title, panel) ->
-                val col = index % 2
-                val row = index / 2
+                val col = index % yaws.size
+                val row = index / yaws.size
                 val x = col * panelWidth
                 val y = row * panelHeight
 
@@ -786,6 +748,16 @@ class TestRender3d {
                 paint.color = Color.makeRGB(230, 235, 242)
                 canvas.drawString(title, x + 18f, y + 25f, titleFont, paint)
                 canvas.drawImage(panel, x.toFloat(), y + titleHeight.toFloat())
+                paint.color = Color.makeRGB(255, 238, 80)
+                canvas.drawRect(Rect.makeXYWH(x + panelWidth - 184f, y + 11f, 12f, 12f), paint)
+                paint.color = Color.makeRGB(230, 235, 242)
+                canvas.drawString("光源", x + panelWidth - 166f, y + 25f, titleFont, paint)
+                paint.color = Color.makeRGB(245, 75, 75)
+                canvas.drawString("X", x + panelWidth - 112f, y + 25f, titleFont, paint)
+                paint.color = Color.makeRGB(80, 220, 95)
+                canvas.drawString("Y", x + panelWidth - 86f, y + 25f, titleFont, paint)
+                paint.color = Color.makeRGB(80, 145, 255)
+                canvas.drawString("Z", x + panelWidth - 60f, y + 25f, titleFont, paint)
             }
             surface.makeImageSnapshot()
         }
@@ -843,14 +815,20 @@ class TestRender3d {
             listOf(
                 shadowFloor(),
                 createPlane(
-                    center = Vec3(-0.1f, 1.1f, 0.25f),
+                    center = Vec3(-0.1f, shadowFloorY + 1.35f, 0.25f),
                     size = Vec2(2.0f, 1.5f),
                     color = Color.makeRGB(235, 185, 70),
                     normalDirection = Vec3(0f, 1f, 0f),
-                    segments = 1
+                    segments = 1,
+                    receivesShadow = false
                 ),
                 shadowBlock(),
-                translateMesh(createCuboid(Vec3(0.7f, 1.8f, 0.7f), Color.makeRGB(85, 175, 230)), Vec3(1.1f, 0.65f, -0.45f))
+                translateMesh(
+                    createCuboid(Vec3(0.7f, 1.8f, 0.7f), Color.makeRGB(85, 175, 230)),
+                    Vec3(1.1f, shadowFloorY + 0.9f, -0.45f)
+                ),
+                shadowLightMarker(),
+                *shadowLightAxes().toTypedArray()
             )
         )
 
