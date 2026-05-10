@@ -94,12 +94,12 @@ interface UiElement {
 
 - 尺寸约束：`size`、`width`、`height`、`sizeIn`、`widthIn`、`heightIn`。
 - 间距：`padding`。
-- 背景与裁剪：`background`、`clip`。
+- 背景与裁剪：`background(color)`、`background(image, imageOverflow)` / `backgroundImage(image, imageOverflow)`、`clip`。
 - 边框：`border`，支持实线、虚线、点线；传入 `shape` 时沿对应路径绘制圆角或圆形边框。
 - 效果：`shadow`、`rotate`。
 - 抗锯齿：`antiAlias`。
 
-`Modifier` 按链式顺序逐层应用。`padding` 和 `border` 会影响测量尺寸，`background`、`clip`、`shadow`、`rotate` 只影响绘制。
+`Modifier` 按链式顺序逐层应用。`padding` 和 `border` 会影响测量尺寸，`background`、`clip`、`shadow`、`rotate` 只影响绘制。图片背景支持 `ImageOverflow.Scale`、`ImageOverflow.Crop` 和 `ImageOverflow.Stretch`：`Scale` 保持比例完整显示并居中，`Crop` 保持比例居中裁剪并铺满当前 modifier 边界，`Stretch` 不保留比例，直接拉伸到当前 modifier 边界。
 
 ## TextModifier
 

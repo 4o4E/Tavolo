@@ -1,5 +1,6 @@
 package top.e404.tavolo.draw.compose
 
+import org.jetbrains.skia.Image
 import org.jetbrains.skia.Path
 import org.jetbrains.skia.RRect
 
@@ -52,6 +53,10 @@ sealed interface Shape {
 }
 
 data class Background(val color: Int) : ElementModifier
+data class BackgroundImage(
+    val image: Image,
+    val overflow: ImageOverflow = ImageOverflow.Crop
+) : ElementModifier
 data class Clip(val shape: Shape) : ElementModifier
 
 sealed interface StrokeStyle {

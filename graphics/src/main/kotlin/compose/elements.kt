@@ -194,6 +194,7 @@ abstract class BaseElement : UiElement {
                     val paint = Paint().apply { color = mod.color; isAntiAlias = antiAlias.enabled }
                     context.canvas.drawRect(Rect.makeXYWH(bounds.x, bounds.y, bounds.width, bounds.height), paint)
                 }
+                is BackgroundImage -> drawBackgroundImage(context, bounds, mod, antiAlias)
                 is Border -> {
                     drawBorder(context, bounds, mod, antiAlias)
                     bounds = bounds.inset(mod.asInsets())
@@ -234,6 +235,47 @@ abstract class BaseElement : UiElement {
             }
         }
         context.canvas.drawPath(path, paint)
+    }
+
+    private fun drawBackgroundImage(context: DrawContext, bounds: Bounds, background: BackgroundImage, antiAlias: AntiAlias) {
+        if (bounds.width <= 0f || bounds.height <= 0f) return
+        val image = background.image
+        val imageWidth = image.width.toFloat()
+        val imageHeight = image.height.toFloat()
+        if (imageWidth <= 0f || imageHeight <= 0f) return
+        val paint = Paint().apply { isAntiAlias = antiAlias.enabled }
+        val dst = Rect.makeXYWH(bounds.x, bounds.y, bounds.width, bounds.height)
+        when (background.overflow) {
+            ImageOverflow.Scale -> {
+                val scale = minOf(bounds.width / imageWidth, bounds.height / imageHeight)
+                val dstWidth = imageWidth * scale
+                val dstHeight = imageHeight * scale
+                val centeredDst = Rect.makeXYWH(
+                    bounds.x + (bounds.width - dstWidth) / 2f,
+                    bounds.y + (bounds.height - dstHeight) / 2f,
+                    dstWidth,
+                    dstHeight
+                )
+                val src = Rect.makeXYWH(0f, 0f, imageWidth, imageHeight)
+                context.canvas.drawImageRect(image, src, centeredDst, paint)
+            }
+            ImageOverflow.Crop -> {
+                val scale = maxOf(bounds.width / imageWidth, bounds.height / imageHeight)
+                val srcWidth = bounds.width / scale
+                val srcHeight = bounds.height / scale
+                val src = Rect.makeXYWH(
+                    (imageWidth - srcWidth) / 2f,
+                    (imageHeight - srcHeight) / 2f,
+                    srcWidth,
+                    srcHeight
+                )
+                context.canvas.drawImageRect(image, src, dst, paint)
+            }
+            ImageOverflow.Stretch -> {
+                val src = Rect.makeXYWH(0f, 0f, imageWidth, imageHeight)
+                context.canvas.drawImageRect(image, src, dst, paint)
+            }
+        }
     }
 
     private fun drawBorder(context: DrawContext, bounds: Bounds, border: Border, antiAlias: AntiAlias) {
@@ -835,7 +877,7 @@ class ImageElement(
                 contentWidth = targetWidth
                 contentHeight = targetHeight
                 srcRect = null
-            } else {
+            } else if (overflow == ImageOverflow.Crop) {
                 // Crop：目标尺寸受限于 sizeIn，但不放大图片；从中心裁剪源图
                 val dstW = if (sizeIn.maxWidth.isFinite()) minOf(sizeIn.maxWidth, iw) else iw
                 val dstH = if (sizeIn.maxHeight.isFinite()) minOf(sizeIn.maxHeight, ih) else ih
@@ -847,6 +889,12 @@ class ImageElement(
                 targetHeight = dstH
                 contentWidth = targetWidth
                 contentHeight = targetHeight
+            } else {
+                targetWidth = if (sizeIn.maxWidth.isFinite()) sizeIn.maxWidth else iw
+                targetHeight = if (sizeIn.maxHeight.isFinite()) sizeIn.maxHeight else ih
+                contentWidth = targetWidth
+                contentHeight = targetHeight
+                srcRect = null
             }
         } else {
             // 无限制

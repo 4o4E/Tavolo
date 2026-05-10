@@ -1,5 +1,7 @@
 package top.e404.tavolo.draw.compose
 
+import org.jetbrains.skia.Image
+
 fun Modifier.sizeIn(
     minWidth: Float = 0f,
     maxWidth: Float = Float.POSITIVE_INFINITY,
@@ -19,6 +21,14 @@ fun Modifier.width(width: Float): Modifier = this.then(Size(width = width))
 fun Modifier.height(height: Float): Modifier = this.then(Size(height = height))
 
 fun Modifier.background(color: Int): Modifier = this.then(Background(color))
+fun Modifier.background(
+    image: Image,
+    imageOverflow: ImageOverflow = ImageOverflow.Crop
+): Modifier = this.then(BackgroundImage(image, imageOverflow))
+fun Modifier.backgroundImage(
+    image: Image,
+    imageOverflow: ImageOverflow = ImageOverflow.Crop
+): Modifier = background(image, imageOverflow)
 fun Modifier.clip(shape: Shape): Modifier = this.then(Clip(shape))
 fun Modifier.shadow(
     blurRadius: Float,
