@@ -137,8 +137,8 @@ fun renderSceneToImage(
     // 3. 主渲染通道 (Main Pass)
     val ssBitmap = Bitmap()
     ssBitmap.allocN32Pixels(renderWidth, renderHeight)
-    val canvas = Canvas(ssBitmap)
-    canvas.clear(bgColor)
+    val ssTarget = BitmapRenderTarget(ssBitmap)
+    ssTarget.clear(bgColor)
     val zBuffer = FloatArray(renderWidth * renderHeight) { Float.POSITIVE_INFINITY }
 
     // 渲染
@@ -150,7 +150,7 @@ fun renderSceneToImage(
             renderWidth,
             renderHeight,
             zBuffer,
-            ssBitmap,
+            ssTarget,
             shadowMap,
             config,
             cameraPosition
@@ -160,6 +160,7 @@ fun renderSceneToImage(
     // 4. 抗锯齿下采样 (保持原逻辑)
     val finalBitmap = Bitmap()
     finalBitmap.allocN32Pixels(width, height)
+    val finalTarget = BitmapRenderTarget(finalBitmap)
     if (aaLevel > 1) {
         // 遍历最终图像的每个像素
         for (y in 0 until height) {
@@ -171,7 +172,7 @@ fun renderSceneToImage(
                 // 对超采样画布上对应的4个像素进行求和
                 for (ssY in 0 until aaLevel) {
                     for (ssX in 0 until aaLevel) {
-                        val color = ssBitmap.getColor(x * aaLevel + ssX, y * aaLevel + ssY)
+                        val color = ssTarget.getColor(x * aaLevel + ssX, y * aaLevel + ssY)
                         a += Color.getA(color)
                         r += Color.getR(color)
                         g += Color.getG(color)
@@ -182,11 +183,15 @@ fun renderSceneToImage(
                 val s2 = (aaLevel * aaLevel).toFloat()
                 val avgColor =
                     Color.makeARGB((a / s2).toInt(), (r / s2).toInt(), (g / s2).toInt(), (b / s2).toInt())
-                finalBitmap.erase(avgColor, IRect.makeXYWH(x, y, 1, 1))
+                finalTarget.setPixel(x, y, avgColor)
             }
         }
     } else {
-        Canvas(finalBitmap).drawImage(Image.makeFromBitmap(ssBitmap), 0f, 0f)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                finalTarget.setPixel(x, y, ssTarget.getColor(x, y))
+            }
+        }
     }
 
     return Image.makeFromBitmap(finalBitmap)
@@ -284,9 +289,34 @@ fun renderMeshMainPass(
     bitmap: Bitmap,
     shadowMap: ShadowMap,
     config: RenderConfig,
+    viewPos: Vec3
+) = renderMeshMainPass(
+    mesh = mesh,
+    vpMatrix = vpMatrix,
+    lightVP = lightVP,
+    width = width,
+    height = height,
+    zBuffer = zBuffer,
+    target = BitmapRenderTarget(bitmap),
+    shadowMap = shadowMap,
+    config = config,
+    viewPos = viewPos
+)
+
+fun renderMeshMainPass(
+    mesh: Mesh,
+    vpMatrix: Mat4,
+    lightVP: Mat4,
+    width: Int,
+    height: Int,
+    zBuffer: FloatArray,
+    target: RenderTarget,
+    shadowMap: ShadowMap,
+    config: RenderConfig,
     viewPos: Vec3 // 相机位置，用于高光计算
 ) {
     val lightDir = config.lightDirection
+    val texture = mesh.texture?.let(::BitmapRenderTexture)
 
     for (face in mesh.faces) {
         if (face.indices.size < 3) continue
@@ -324,13 +354,13 @@ fun renderMeshMainPass(
 
             if (config.renderFaces) {
                 rasterizeTriangleMain(
-                    shadedVertices, width, height, zBuffer, bitmap,
-                    mesh.texture, face.baseColor, faceNormal,
+                    shadedVertices, width, height, zBuffer, target,
+                    texture, face.baseColor, faceNormal,
                     lightVP, shadowMap, config, lightDir, viewDir
                 )
             } else {
                 drawWireframeTriangle(
-                    bitmap,
+                    target,
                     shadedVertices,
                     face.baseColor,
                     faceNormal,
@@ -343,7 +373,7 @@ fun renderMeshMainPass(
 }
 
 private fun drawWireframeTriangle(
-    bitmap: Bitmap,
+    target: RenderTarget,
     vertices: List<ShadedVertex>,
     baseColor: Int,
     normal: Vec3,
@@ -351,18 +381,12 @@ private fun drawWireframeTriangle(
     ambientIntensity: Float
 ) {
     val color = applyLight(baseColor, calculateLightIntensity(normal, lightDir, ambientIntensity))
-    val paint = Paint().apply {
-        this.color = color
-        strokeWidth = 1f
-        isAntiAlias = false
-    }
-    val canvas = Canvas(bitmap)
     val p0 = vertices[0].screenPos
     val p1 = vertices[1].screenPos
     val p2 = vertices[2].screenPos
-    canvas.drawLine(p0.x, p0.y, p1.x, p1.y, paint)
-    canvas.drawLine(p1.x, p1.y, p2.x, p2.y, paint)
-    canvas.drawLine(p2.x, p2.y, p0.x, p0.y, paint)
+    target.drawLine(p0.x, p0.y, p1.x, p1.y, color)
+    target.drawLine(p1.x, p1.y, p2.x, p2.y, color)
+    target.drawLine(p2.x, p2.y, p0.x, p0.y, color)
 }
 
 fun rasterizeTriangleMain(
@@ -371,6 +395,35 @@ fun rasterizeTriangleMain(
     zBuffer: FloatArray,
     bitmap: Bitmap,
     texture: Bitmap?,
+    baseColor: Int,
+    normal: Vec3,
+    lightVP: Mat4,
+    shadowMap: ShadowMap,
+    config: RenderConfig,
+    lightDir: Vec3,
+    viewDir: Vec3
+) = rasterizeTriangleMain(
+    vertices = vertices,
+    width = width,
+    height = height,
+    zBuffer = zBuffer,
+    target = BitmapRenderTarget(bitmap),
+    texture = texture?.let(::BitmapRenderTexture),
+    baseColor = baseColor,
+    normal = normal,
+    lightVP = lightVP,
+    shadowMap = shadowMap,
+    config = config,
+    lightDir = lightDir,
+    viewDir = viewDir
+)
+
+fun rasterizeTriangleMain(
+    vertices: List<ShadedVertex>,
+    width: Int, height: Int,
+    zBuffer: FloatArray,
+    target: RenderTarget,
+    texture: RenderTexture?,
     baseColor: Int,
     normal: Vec3, // 面法线
     lightVP: Mat4, // 光源变换矩阵
@@ -468,7 +521,7 @@ fun rasterizeTriangleMain(
                     )
 
                     zBuffer[bufferIndex] = zCorrect
-                    bitmap.erase(finalColor, IRect.makeXYWH(x, y, 1, 1))
+                    target.setPixel(x, y, finalColor)
                 }
             }
         }

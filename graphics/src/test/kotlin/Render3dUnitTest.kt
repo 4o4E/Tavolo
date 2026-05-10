@@ -5,11 +5,15 @@ import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Rect
 import org.junit.Test
+import top.e404.tavolo.draw.render3d.BitmapRenderTarget
+import top.e404.tavolo.draw.render3d.BitmapRenderTexture
 import top.e404.tavolo.draw.render3d.Face
 import top.e404.tavolo.draw.render3d.FaceDirection
 import top.e404.tavolo.draw.render3d.Mat4
 import top.e404.tavolo.draw.render3d.Mesh
 import top.e404.tavolo.draw.render3d.OrbitCamera
+import top.e404.tavolo.draw.render3d.RecordingRenderTarget
+import top.e404.tavolo.draw.render3d.RenderCommand
 import top.e404.tavolo.draw.render3d.RenderConfig
 import top.e404.tavolo.draw.render3d.Scene
 import top.e404.tavolo.draw.render3d.ShadedVertex
@@ -329,6 +333,100 @@ class Render3dLightAndShadowUnitTest {
     }
 }
 
+class Render3dTargetUnitTest {
+    @Test
+    fun bitmapRenderTargetAndTextureDelegateToBitmap() {
+        val bitmap = bitmap(4, 4)
+        val target = BitmapRenderTarget(bitmap)
+
+        target.clear(Color.BLUE)
+        assertEquals(Color.BLUE, target.getColor(0, 0))
+
+        target.setPixel(1, 1, Color.RED)
+        assertEquals(Color.RED, bitmap.getColor(1, 1))
+
+        target.drawLine(0f, 0f, 3f, 0f, Color.GREEN)
+        assertEquals(Color.GREEN, bitmap.getColor(0, 0))
+
+        val texture = BitmapRenderTexture(bitmap)
+        assertEquals(4, texture.width)
+        assertEquals(4, texture.height)
+        assertEquals(Color.RED, texture.getColor(1, 1))
+    }
+
+    @Test
+    fun recordingRenderTargetStoresCommandsAndReadablePixels() {
+        val target = RecordingRenderTarget(3, 3, defaultColor = Color.BLACK)
+
+        assertEquals(Color.BLACK, target.getColor(-1, 0))
+        target.clear(Color.BLUE)
+        target.setPixel(1, 1, Color.RED)
+        target.setPixel(-1, 1, Color.GREEN)
+        target.drawLine(0f, 0f, 2f, 2f, Color.WHITE)
+
+        assertEquals(Color.BLUE, target.getColor(0, 0))
+        assertEquals(Color.RED, target.getColor(1, 1))
+        assertEquals(Color.BLACK, target.getColor(3, 1))
+        assertEquals(RenderCommand.Clear(Color.BLUE), target.commands[0])
+        assertEquals(RenderCommand.Pixel(1, 1, Color.RED), target.commands[1])
+        assertEquals(RenderCommand.Pixel(-1, 1, Color.GREEN), target.commands[2])
+        assertEquals(RenderCommand.Line(0f, 0f, 2f, 2f, Color.WHITE), target.commands[3])
+    }
+
+    @Test
+    fun bitmapCompatibilityOverloadsDelegateToRenderTargetInterfaces() {
+        val target = bitmap(5, 5)
+        val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 0f))
+        )
+        val texture = bitmap(1, 1, Color.RED)
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f
+        )
+
+        rasterizeTriangleMain(
+            vertices = vertices,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            bitmap = target,
+            texture = texture,
+            baseColor = Color.BLUE,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        assertEquals(Color.RED, target.getColor(1, 1))
+
+        val wireframeTarget = bitmap(16, 16)
+        renderMeshMainPass(
+            mesh = simpleTriangleMesh(Color.GREEN),
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY },
+            bitmap = wireframeTarget,
+            shadowMap = ShadowMap(4, 4),
+            config = config.copy(width = 16, height = 16, renderFaces = false),
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertTrue(wireframeTarget.any { Color.getA(it) > 0 }, "Bitmap 兼容重载应能绘制线框")
+    }
+}
+
 class Render3dRasterAndRenderUnitTest {
     @Test
     fun mainRasterizerWritesTriangleAndKeepsNearestDepth() {
@@ -353,7 +451,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = zBuffer,
-            bitmap = bitmap,
+            target = BitmapRenderTarget(bitmap),
             texture = null,
             baseColor = Color.RED,
             normal = Vec3(0f, 0f, 1f),
@@ -375,7 +473,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = zBuffer,
-            bitmap = bitmap,
+            target = BitmapRenderTarget(bitmap),
             texture = null,
             baseColor = Color.BLUE,
             normal = Vec3(0f, 0f, 1f),
@@ -412,7 +510,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = zBuffer,
-            bitmap = target,
+            target = BitmapRenderTarget(target),
             texture = null,
             baseColor = Color.RED,
             normal = Vec3(0f, 0f, 1f),
@@ -439,7 +537,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = zBuffer,
-            bitmap = target,
+            target = BitmapRenderTarget(target),
             shadowMap = ShadowMap(4, 4),
             config = config,
             viewPos = Vec3(0f, 0f, 5f)
@@ -465,8 +563,8 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = zBuffer,
-            bitmap = target,
-            texture = transparentTexture,
+            target = BitmapRenderTarget(target),
+            texture = BitmapRenderTexture(transparentTexture),
             baseColor = Color.RED,
             normal = Vec3(0f, 0f, 1f),
             lightVP = Mat4(),
@@ -508,7 +606,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
-            bitmap = shadowed,
+            target = BitmapRenderTarget(shadowed),
             texture = null,
             baseColor = Color.makeRGB(100, 100, 100),
             normal = Vec3(0f, 0f, 1f),
@@ -532,7 +630,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 5,
             height = 5,
             zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
-            bitmap = outOfRange,
+            target = BitmapRenderTarget(outOfRange),
             texture = null,
             baseColor = Color.makeRGB(100, 100, 100),
             normal = Vec3(0f, 0f, 1f),
@@ -587,7 +685,7 @@ class Render3dRasterAndRenderUnitTest {
             width = 16,
             height = 16,
             zBuffer = zBuffer,
-            bitmap = target,
+            target = BitmapRenderTarget(target),
             shadowMap = ShadowMap(4, 4),
             config = RenderConfig(
                 width = 16,
@@ -602,6 +700,55 @@ class Render3dRasterAndRenderUnitTest {
 
         assertFalse(target.any { Color.getA(it) > 0 }, "开启背面剔除后朝向相机的面会被当前规则跳过")
         assertTrue(zBuffer.all { it.isInfinite() })
+    }
+
+    @Test
+    fun recordingRenderTargetCapturesPixelAndLineCommands() {
+        val config = RenderConfig(
+            width = 16,
+            height = 16,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f,
+            shadowMapSize = 4
+        )
+        val filledTarget = RecordingRenderTarget(16, 16)
+
+        renderMeshMainPass(
+            mesh = simpleTriangleMesh(Color.RED),
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY },
+            target = filledTarget,
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertTrue(
+            filledTarget.commands.any { it is RenderCommand.Pixel },
+            "实体模式应向 RenderTarget 写入像素命令"
+        )
+        assertEquals(0, filledTarget.commands.count { it is RenderCommand.Line })
+
+        val wireframeTarget = RecordingRenderTarget(16, 16)
+        renderMeshMainPass(
+            mesh = simpleTriangleMesh(Color.RED),
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY },
+            target = wireframeTarget,
+            shadowMap = ShadowMap(4, 4),
+            config = config.copy(renderFaces = false),
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertEquals(0, wireframeTarget.commands.count { it is RenderCommand.Pixel })
+        assertEquals(3, wireframeTarget.commands.count { it is RenderCommand.Line })
     }
 
     @Test
