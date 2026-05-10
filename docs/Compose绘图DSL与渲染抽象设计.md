@@ -145,4 +145,12 @@ text(
 - 使用固定文本测量器验证布局、换行、省略号和文本位置。
 - 使用 `RecordingDrawCanvas` 验证背景、边框、阴影、旋转、裁剪、文本下划线和图片绘制命令。
 - 少量 Skiko 后端测试确保真实 `SkiaDrawCanvas` 方法可调用。
+- 使用小尺寸真实渲染像素测试覆盖 Skiko 后端输出。测试不保存整图 golden snapshot，而是断言关键像素和透明度特征，并允许少量通道容差，降低平台抗锯齿和 Skia 版本差异造成的误报。
 - `graphics/src/manualTest/kotlin/TestComposeEffects.kt` 输出人工查看图片，用于检查阴影、旋转、边框路径和文本样式效果。
+
+当前像素测试位于 `graphics/src/test/kotlin/ComposeSkiaPixelTest.kt`，覆盖：
+
+- `render(backgroundColor = ...)` 的真实清屏结果与实色 `background`。
+- `clip(Shape.Circle)` 在真实光栅化后的透明角和中心填充。
+- `border`、`padding`、`background` 按 modifier 顺序应用后的关键像素。
+- 背景图片通过真实 Skiko 后端绘制后的像素结果。
