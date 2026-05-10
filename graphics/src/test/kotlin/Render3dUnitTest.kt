@@ -29,8 +29,10 @@ import top.e404.tavolo.draw.render3d.Vec4
 import top.e404.tavolo.draw.render3d.Vertex
 import top.e404.tavolo.draw.render3d.applyLight
 import top.e404.tavolo.draw.render3d.buildShadowFaceRegistry
+import top.e404.tavolo.draw.render3d.calculateFilteredShadowFactor
 import top.e404.tavolo.draw.render3d.calculateBlinnPhong
 import top.e404.tavolo.draw.render3d.calculateLightIntensity
+import top.e404.tavolo.draw.render3d.calculateLightOrthoBounds
 import top.e404.tavolo.draw.render3d.calculateShadowDepthBias
 import top.e404.tavolo.draw.render3d.clamp
 import top.e404.tavolo.draw.render3d.combineMeshes
@@ -310,6 +312,66 @@ class Render3dLightAndShadowUnitTest {
         assertEquals(4096, DEFAULT_SHADOW_MAP_SIZE)
         assertEquals(0.0005f, DEFAULT_SHADOW_BIAS)
         assertEquals(42f, DEFAULT_SHADOW_ORTHO_SIZE)
+    }
+
+    @Test
+    fun lightOrthoBoundsFitShadowRelevantSceneGeometry() {
+        val caster = Mesh(
+            vertices = listOf(
+                Vertex(Vec3(-1f, -2f, -3f), Vec2(0f, 0f)),
+                Vertex(Vec3(1f, 2f, 3f), Vec2(0f, 0f))
+            ),
+            faces = emptyList(),
+            castsShadow = true,
+            receivesShadow = false
+        )
+        val ignored = Mesh(
+            vertices = listOf(Vertex(Vec3(100f, 100f, 100f), Vec2(0f, 0f))),
+            faces = emptyList(),
+            castsShadow = false,
+            receivesShadow = false
+        )
+
+        val bounds = calculateLightOrthoBounds(listOf(caster, ignored), Mat4())
+
+        assertTrue(bounds.left <= -1f)
+        assertTrue(bounds.right >= 1f)
+        assertTrue(bounds.bottom <= -2f)
+        assertTrue(bounds.top >= 2f)
+        assertTrue(bounds.left > -10f, "自动收紧后不应被无关 mesh 或固定大范围拉宽")
+        assertTrue(bounds.right < 10f, "自动收紧后不应被无关 mesh 或固定大范围拉宽")
+        assertTrue(bounds.near < bounds.far)
+    }
+
+    @Test
+    fun filteredShadowFactorUsesBilinearWeightsAndIgnoredFaces() {
+        val shadowMap = ShadowMap(2, 2).apply {
+            set(0, 0, -0.5f, 1)
+            set(1, 0, 0.8f, 2)
+            set(0, 1, 0.8f, 3)
+            set(1, 1, 0.8f, 4)
+        }
+
+        val filtered = calculateFilteredShadowFactor(
+            shadowMap = shadowMap,
+            shadowMapX = 0.5f,
+            shadowMapY = 0.5f,
+            currentDepth = 0.2f,
+            slopeBias = 0f,
+            pcfRadius = 0
+        )
+        val ignored = calculateFilteredShadowFactor(
+            shadowMap = shadowMap,
+            shadowMapX = 0.5f,
+            shadowMapY = 0.5f,
+            currentDepth = 0.2f,
+            slopeBias = 0f,
+            ignoredShadowFaceIds = intArrayOf(1),
+            pcfRadius = 0
+        )
+
+        assertEquals(0.875f, filtered, 0.000001f)
+        assertEquals(1f, ignored, 0.000001f)
     }
 
     @Test

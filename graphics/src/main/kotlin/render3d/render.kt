@@ -104,14 +104,39 @@ internal const val DEFAULT_SHADOW_MAP_SIZE = 4096
 // 0 或过小会带来自阴影波纹；0.001 及以上会让接触阴影从几何交点后退，表现为 peter-panning。
 internal const val DEFAULT_SHADOW_BIAS = 0.0005f
 
-// 默认光源正交范围需要覆盖较大的角色/地面组合。
-// 过小会裁掉多视角图中的投影；过大则会摊薄 shadow map 精度，让细节阴影重新变粗糙。
+// 空场景或异常包围盒使用的回退半径；正常渲染会按场景自动收紧光源正交范围。
+// 自动范围会保留 margin，避免裁掉多视角图中的投影；范围过大则会摊薄 shadow map 精度，让细节阴影重新变粗糙。
 internal const val DEFAULT_SHADOW_ORTHO_SIZE = 42f
 
 private const val DEPTH_EPSILON = 1e-5f
 private const val SHADOW_SLOPE_BIAS_SCALE = 0.5f
 private const val NO_SHADOW_FACE_ID = -1
 private val EMPTY_SHADOW_FACE_IDS = IntArray(0)
+private const val SHADOW_ORTHO_MARGIN_RATIO = 0.12f
+private const val SHADOW_MIN_ORTHO_EXTENT = 4f
+private const val SHADOW_MIN_DEPTH_RANGE = 4f
+private const val SHADOW_CAMERA_DISTANCE_MARGIN = 10f
+private const val SHADOW_PCF_RADIUS = 0
+
+internal data class LightOrthoBounds(
+    val left: Float,
+    val right: Float,
+    val bottom: Float,
+    val top: Float,
+    val near: Float,
+    val far: Float
+)
+
+private data class SceneBounds(
+    val min: Vec3,
+    val max: Vec3
+) {
+    val center: Vec3
+        get() = (min + max) * 0.5f
+
+    val radius: Float
+        get() = (max - min).length() * 0.5f
+}
 
 internal fun calculateShadowDepthBias(normal: Vec3, lightDir: Vec3): Float {
     val ndotl = max(normal.normalized().dot(lightDir.normalized()), 0f)
@@ -139,10 +164,154 @@ private fun containsFaceId(faceIds: IntArray, faceId: Int): Boolean {
     return false
 }
 
+internal fun calculateFilteredShadowFactor(
+    shadowMap: ShadowMap,
+    shadowMapX: Float,
+    shadowMapY: Float,
+    currentDepth: Float,
+    slopeBias: Float,
+    ignoredShadowFaceIds: IntArray = EMPTY_SHADOW_FACE_IDS,
+    pcfRadius: Int = SHADOW_PCF_RADIUS
+): Float {
+    var occludedWeight = 0f
+    var validWeight = 0f
+
+    for (dy in -pcfRadius..pcfRadius) {
+        for (dx in -pcfRadius..pcfRadius) {
+            val sampleX = shadowMapX + dx
+            val sampleY = shadowMapY + dy
+            val baseX = floor(sampleX).toInt()
+            val baseY = floor(sampleY).toInt()
+            val fracX = sampleX - baseX
+            val fracY = sampleY - baseY
+
+            for (oy in 0..1) {
+                val wy = if (oy == 0) 1f - fracY else fracY
+                for (ox in 0..1) {
+                    val wx = if (ox == 0) 1f - fracX else fracX
+                    val weight = wx * wy
+                    if (weight <= 0f) continue
+
+                    val texelX = baseX + ox
+                    val texelY = baseY + oy
+                    val closestDepth = shadowMap.get(texelX, texelY)
+                    val casterFaceId = shadowMap.getFaceId(texelX, texelY)
+                    if (closestDepth.isFinite() && !containsFaceId(ignoredShadowFaceIds, casterFaceId)) {
+                        validWeight += weight
+                        if (currentDepth - slopeBias > closestDepth) {
+                            occludedWeight += weight
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return if (validWeight > 0f) {
+        1f - 0.5f * (occludedWeight / validWeight)
+    } else {
+        1f
+    }
+}
+
 private fun edgeKey(first: Int, second: Int): Long {
     val min = min(first, second)
     val max = max(first, second)
     return (min.toLong() shl 32) or (max.toLong() and 0xffffffffL)
+}
+
+private fun shadowLightUp(lightDir: Vec3): Vec3 =
+    if (abs(lightDir.normalized().dot(Vec3(0f, 1f, 0f))) > 0.95f) {
+        Vec3(0f, 0f, 1f)
+    } else {
+        Vec3(0f, 1f, 0f)
+    }
+
+private fun calculateSceneBounds(meshes: List<Mesh>): SceneBounds? {
+    var minX = Float.POSITIVE_INFINITY
+    var minY = Float.POSITIVE_INFINITY
+    var minZ = Float.POSITIVE_INFINITY
+    var maxX = Float.NEGATIVE_INFINITY
+    var maxY = Float.NEGATIVE_INFINITY
+    var maxZ = Float.NEGATIVE_INFINITY
+    var hasVertex = false
+
+    for (mesh in meshes) {
+        if (!mesh.castsShadow && !mesh.receivesShadow) continue
+        for (vertex in mesh.vertices) {
+            val position = vertex.position
+            minX = min(minX, position.x)
+            minY = min(minY, position.y)
+            minZ = min(minZ, position.z)
+            maxX = max(maxX, position.x)
+            maxY = max(maxY, position.y)
+            maxZ = max(maxZ, position.z)
+            hasVertex = true
+        }
+    }
+
+    if (!hasVertex) return null
+    return SceneBounds(Vec3(minX, minY, minZ), Vec3(maxX, maxY, maxZ))
+}
+
+internal fun calculateLightOrthoBounds(meshes: List<Mesh>, lightView: Mat4): LightOrthoBounds {
+    var minX = Float.POSITIVE_INFINITY
+    var minY = Float.POSITIVE_INFINITY
+    var minZ = Float.POSITIVE_INFINITY
+    var maxX = Float.NEGATIVE_INFINITY
+    var maxY = Float.NEGATIVE_INFINITY
+    var maxZ = Float.NEGATIVE_INFINITY
+    var hasVertex = false
+
+    for (mesh in meshes) {
+        if (!mesh.castsShadow && !mesh.receivesShadow) continue
+        for (vertex in mesh.vertices) {
+            val clip = lightView.transform(vertex.position)
+            val x = clip.x / clip.w
+            val y = clip.y / clip.w
+            val z = clip.z / clip.w
+            minX = min(minX, x)
+            minY = min(minY, y)
+            minZ = min(minZ, z)
+            maxX = max(maxX, x)
+            maxY = max(maxY, y)
+            maxZ = max(maxZ, z)
+            hasVertex = true
+        }
+    }
+
+    if (!hasVertex) {
+        return LightOrthoBounds(
+            -DEFAULT_SHADOW_ORTHO_SIZE,
+            DEFAULT_SHADOW_ORTHO_SIZE,
+            -DEFAULT_SHADOW_ORTHO_SIZE,
+            DEFAULT_SHADOW_ORTHO_SIZE,
+            1f,
+            100f
+        )
+    }
+
+    val width = max(maxX - minX, SHADOW_MIN_ORTHO_EXTENT)
+    val height = max(maxY - minY, SHADOW_MIN_ORTHO_EXTENT)
+    val depth = max(maxZ - minZ, SHADOW_MIN_DEPTH_RANGE)
+    val centerX = (minX + maxX) * 0.5f
+    val centerY = (minY + maxY) * 0.5f
+    val marginX = max(width * SHADOW_ORTHO_MARGIN_RATIO, 0.5f)
+    val marginY = max(height * SHADOW_ORTHO_MARGIN_RATIO, 0.5f)
+    val marginZ = max(depth * SHADOW_ORTHO_MARGIN_RATIO, 1f)
+    val halfWidth = width * 0.5f + marginX
+    val halfHeight = height * 0.5f + marginY
+    val near = max(0.1f, -maxZ - marginZ)
+    val far = max(near + SHADOW_MIN_DEPTH_RANGE, -minZ + marginZ)
+
+    return LightOrthoBounds(
+        left = centerX - halfWidth,
+        right = centerX + halfWidth,
+        bottom = centerY - halfHeight,
+        top = centerY + halfHeight,
+        near = near,
+        far = far
+    )
 }
 
 internal fun buildShadowFaceRegistry(meshes: List<Mesh>): ShadowFaceRegistry {
@@ -212,11 +381,21 @@ fun renderSceneToImage(
 
     // 2. 阴影通道 (Shadow Pass)
     // 创建光源视角的 ViewProjection 矩阵
-    // 光源位置：为了生成正交投影，我们假设光源在很远的地方，看向原点
-    val lightPos = lightDir * 50f
-    val lightView = Mat4.lookAt(lightPos, Vec3(0f, 0f, 0f), Vec3(0f, 1f, 0f))
-    val sSize = DEFAULT_SHADOW_ORTHO_SIZE
-    val lightProj = Mat4.orthographic(-sSize, sSize, -sSize, sSize, 1f, 100f)
+    // 光源位置：方向光只需要稳定的视图方向；相机看向场景中心，正交范围再按场景自动收紧。
+    val sceneBounds = calculateSceneBounds(scene.meshes)
+    val lightTarget = sceneBounds?.center ?: Vec3(0f, 0f, 0f)
+    val lightDistance = max(50f, (sceneBounds?.radius ?: 0f) + SHADOW_CAMERA_DISTANCE_MARGIN)
+    val lightPos = lightTarget + lightDir * lightDistance
+    val lightView = Mat4.lookAt(lightPos, lightTarget, shadowLightUp(lightDir))
+    val lightBounds = calculateLightOrthoBounds(scene.meshes, lightView)
+    val lightProj = Mat4.orthographic(
+        lightBounds.left,
+        lightBounds.right,
+        lightBounds.bottom,
+        lightBounds.top,
+        lightBounds.near,
+        lightBounds.far
+    )
     val lightVP = lightProj * lightView
 
     val shadowMap = ShadowMap(DEFAULT_SHADOW_MAP_SIZE, DEFAULT_SHADOW_MAP_SIZE)
@@ -783,31 +962,17 @@ private fun rasterizeTriangleMainInternal(
                     var shadowFactor = 1.0f
                     // 检查是否在阴影图范围内
                     if (receivesShadow && config.enableShadows && shadowU in 0f..1f && shadowV in 0f..1f && currentDepth < 1f) {
-                        val shadowMapX = (shadowU * (shadowMap.width - 1)).toInt()
-                        val shadowMapY = (shadowV * (shadowMap.height - 1)).toInt()
+                        val shadowMapX = shadowU * (shadowMap.width - 1)
+                        val shadowMapY = shadowV * (shadowMap.height - 1)
                         val slopeBias = calculateShadowDepthBias(normal, lightDir)
-                        var occludedSamples = 0
-                        var validSamples = 0
-
-                        for (dy in -1..1) {
-                            for (dx in -1..1) {
-                                val closestDepth = shadowMap.get(shadowMapX + dx, shadowMapY + dy)
-                                val casterFaceId = shadowMap.getFaceId(shadowMapX + dx, shadowMapY + dy)
-                                if (
-                                    closestDepth.isFinite() &&
-                                    !containsFaceId(ignoredShadowFaceIds, casterFaceId)
-                                ) {
-                                    validSamples++
-                                    if (currentDepth - slopeBias > closestDepth) {
-                                        occludedSamples++
-                                    }
-                                }
-                            }
-                        }
-
-                        if (validSamples > 0) {
-                            shadowFactor = 1f - 0.5f * (occludedSamples.toFloat() / validSamples)
-                        }
+                        shadowFactor = calculateFilteredShadowFactor(
+                            shadowMap = shadowMap,
+                            shadowMapX = shadowMapX,
+                            shadowMapY = shadowMapY,
+                            currentDepth = currentDepth,
+                            slopeBias = slopeBias,
+                            ignoredShadowFaceIds = ignoredShadowFaceIds
+                        )
                     }
 
                     // --- 纹理采样 ---
