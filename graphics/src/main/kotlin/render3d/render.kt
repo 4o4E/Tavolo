@@ -34,7 +34,7 @@ data class OrbitCamera(
         val eyePosition = Vec3(eyeX, eyeY, eyeZ)
         val viewMatrix = Mat4.lookAt(eyePosition, target, upVector)
         val cameraForward = (target - eyePosition).normalized()
-        return ViewMatrix(viewMatrix, cameraForward)
+        return ViewMatrix(viewMatrix, cameraForward, eyePosition)
     }
 }
 
@@ -43,8 +43,13 @@ data class OrbitCamera(
  *
  * @property viewMatrix 视图矩阵
  * @property cameraForward 相机的前向向量
+ * @property cameraPosition 相机的世界坐标
  */
-data class ViewMatrix(val viewMatrix: Mat4, val cameraForward: Vec3)
+data class ViewMatrix(
+    val viewMatrix: Mat4,
+    val cameraForward: Vec3,
+    val cameraPosition: Vec3 = Vec3(0f, 0f, 0f)
+)
 
 /**
  * 场景数据类，包含所有需要渲染的物体
@@ -91,7 +96,13 @@ fun renderSceneToImage(
     scene: Scene,
     config: RenderConfig
 ): Image {
-    val (width, height, camera, _, usePerspective, bgColor, _, aaLevel, lightDir) = config
+    val width = config.width
+    val height = config.height
+    val camera = config.camera
+    val usePerspective = config.usePerspective
+    val bgColor = config.backgroundColor
+    val aaLevel = config.antiAliasingLevel
+    val lightDir = config.lightDirection
 
     // 1. 准备矩阵
     val renderWidth = width * aaLevel
@@ -99,7 +110,7 @@ fun renderSceneToImage(
     val aspectRatio = width.toFloat() / height.toFloat()
 
     // 主相机矩阵
-    val (viewMatrix, cameraForward) = camera.createViewMatrix()
+    val (viewMatrix, _, cameraPosition) = camera.createViewMatrix()
     val fov = 45f * (PI / 180.0).toFloat()
     val projection = if (usePerspective) Mat4.perspective(fov, aspectRatio, 0.1f, 200f) else {
         val oh = 2f * camera.distance * tan(fov / 2f)
@@ -142,7 +153,7 @@ fun renderSceneToImage(
             ssBitmap,
             shadowMap,
             config,
-            camera.target - lightPos
+            cameraPosition
         )
     }
 
@@ -276,7 +287,6 @@ fun renderMeshMainPass(
     viewPos: Vec3 // 相机位置，用于高光计算
 ) {
     val lightDir = config.lightDirection
-    val viewDir = (viewPos - Vec3(0f, 0f, 0f)).normalized() // 简化：假设看向原点，或者传入实际相机位置计算
 
     for (face in mesh.faces) {
         if (face.indices.size < 3) continue
@@ -286,12 +296,11 @@ fun renderMeshMainPass(
         val v1_w = mesh.vertices[face.indices[1]].position
         val v2_w = mesh.vertices[face.indices[2]].position
         val faceNormal = (v1_w - v0_w).cross(v2_w - v0_w).normalized()
+        val viewDir = (viewPos - v0_w).normalized()
 
         // 背面剔除
         if (config.useBackFaceCulling) {
-            // 简单的视线方向判断，这里用固定的相机前向可能不准，最好用 (v0 - cameraPos)
-            // 沿用你框架里的逻辑，或者改进为：
-            if (faceNormal.dot(viewDir) > 0) continue // 假设 viewDir 指向相机
+            if (faceNormal.dot(viewDir) > 0) continue
         }
 
         for (i in 0 until face.indices.size - 2) {
@@ -313,13 +322,47 @@ fun renderMeshMainPass(
                 )
             }
 
-            rasterizeTriangleMain(
-                shadedVertices, width, height, zBuffer, bitmap,
-                mesh.texture, face.baseColor, faceNormal,
-                lightVP, shadowMap, config, lightDir, viewDir
-            )
+            if (config.renderFaces) {
+                rasterizeTriangleMain(
+                    shadedVertices, width, height, zBuffer, bitmap,
+                    mesh.texture, face.baseColor, faceNormal,
+                    lightVP, shadowMap, config, lightDir, viewDir
+                )
+            } else {
+                drawWireframeTriangle(
+                    bitmap,
+                    shadedVertices,
+                    face.baseColor,
+                    faceNormal,
+                    lightDir,
+                    config.lightIntensity
+                )
+            }
         }
     }
+}
+
+private fun drawWireframeTriangle(
+    bitmap: Bitmap,
+    vertices: List<ShadedVertex>,
+    baseColor: Int,
+    normal: Vec3,
+    lightDir: Vec3,
+    ambientIntensity: Float
+) {
+    val color = applyLight(baseColor, calculateLightIntensity(normal, lightDir, ambientIntensity))
+    val paint = Paint().apply {
+        this.color = color
+        strokeWidth = 1f
+        isAntiAlias = false
+    }
+    val canvas = Canvas(bitmap)
+    val p0 = vertices[0].screenPos
+    val p1 = vertices[1].screenPos
+    val p2 = vertices[2].screenPos
+    canvas.drawLine(p0.x, p0.y, p1.x, p1.y, paint)
+    canvas.drawLine(p1.x, p1.y, p2.x, p2.y, paint)
+    canvas.drawLine(p2.x, p2.y, p0.x, p0.y, paint)
 }
 
 fun rasterizeTriangleMain(

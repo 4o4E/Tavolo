@@ -1,0 +1,690 @@
+package top.e404.tavolo.draw.test
+
+import org.jetbrains.skia.Bitmap
+import org.jetbrains.skia.Canvas
+import org.jetbrains.skia.Color
+import org.jetbrains.skia.Rect
+import org.junit.Test
+import top.e404.tavolo.draw.render3d.Face
+import top.e404.tavolo.draw.render3d.FaceDirection
+import top.e404.tavolo.draw.render3d.Mat4
+import top.e404.tavolo.draw.render3d.Mesh
+import top.e404.tavolo.draw.render3d.OrbitCamera
+import top.e404.tavolo.draw.render3d.RenderConfig
+import top.e404.tavolo.draw.render3d.Scene
+import top.e404.tavolo.draw.render3d.ShadedVertex
+import top.e404.tavolo.draw.render3d.ShadowMap
+import top.e404.tavolo.draw.render3d.Transformation
+import top.e404.tavolo.draw.render3d.Vec2
+import top.e404.tavolo.draw.render3d.Vec3
+import top.e404.tavolo.draw.render3d.Vec4
+import top.e404.tavolo.draw.render3d.Vertex
+import top.e404.tavolo.draw.render3d.applyLight
+import top.e404.tavolo.draw.render3d.calculateBlinnPhong
+import top.e404.tavolo.draw.render3d.calculateLightIntensity
+import top.e404.tavolo.draw.render3d.clamp
+import top.e404.tavolo.draw.render3d.combineMeshes
+import top.e404.tavolo.draw.render3d.createCuboid
+import top.e404.tavolo.draw.render3d.createPlane
+import top.e404.tavolo.draw.render3d.createUVCuboid
+import top.e404.tavolo.draw.render3d.mix
+import top.e404.tavolo.draw.render3d.ndcToScreen
+import top.e404.tavolo.draw.render3d.rasterizeTriangleMain
+import top.e404.tavolo.draw.render3d.rasterizeTriangleShadow
+import top.e404.tavolo.draw.render3d.renderMeshMainPass
+import top.e404.tavolo.draw.render3d.renderShadowPass
+import top.e404.tavolo.draw.render3d.renderSceneToImage
+import top.e404.tavolo.util.any
+import top.e404.tavolo.util.toBitmap
+import kotlin.math.abs
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+private const val EPSILON_3D = 0.001f
+
+private fun assertFloatEquals3d(expected: Float, actual: Float) {
+    assertTrue(abs(expected - actual) <= EPSILON_3D, "期望 $expected，实际 $actual")
+}
+
+private fun assertVecEquals(expected: Vec3, actual: Vec3) {
+    assertFloatEquals3d(expected.x, actual.x)
+    assertFloatEquals3d(expected.y, actual.y)
+    assertFloatEquals3d(expected.z, actual.z)
+}
+
+private fun bitmap(width: Int, height: Int, color: Int = Color.TRANSPARENT): Bitmap =
+    Bitmap().apply {
+        allocN32Pixels(width, height)
+        Canvas(this).clear(color)
+    }
+
+private fun simpleTriangleMesh(color: Int = Color.RED): Mesh =
+    Mesh(
+        vertices = listOf(
+            Vertex(Vec3(-1f, -1f, 0f), Vec2(0f, 0f)),
+            Vertex(Vec3(1f, -1f, 0f), Vec2(1f, 0f)),
+            Vertex(Vec3(0f, 1f, 0f), Vec2(0.5f, 1f))
+        ),
+        faces = listOf(Face(listOf(0, 1, 2), color))
+    )
+
+class Render3dMathUnitTest {
+    @Test
+    fun vec3SupportsBasicOperationsAndTransforms() {
+        val a = Vec3(1f, 2f, 3f)
+        val b = Vec3(4f, -1f, 2f)
+
+        assertEquals(Vec3(5f, 1f, 5f), a + b)
+        assertEquals(Vec3(-3f, 3f, 1f), a - b)
+        assertEquals(Vec3(2f, 4f, 6f), a * 2f)
+        assertEquals(Vec3(4f, -2f, 6f), a * b)
+        assertEquals(Vec3(0.5f, 1f, 1.5f), a / 2f)
+        assertFloatEquals3d(8f, a.dot(b))
+        assertEquals(Vec3(7f, 10f, -9f), a.cross(b))
+        assertVecEquals(Vec3(0.6f, 0.8f, 0f), Vec3(3f, 4f, 0f).normalized())
+        assertEquals(Vec3(1f, 1f, 0f), Vec3(1f, -1f, 0f).reflect(Vec3(0f, 1f, 0f)))
+
+        assertVecEquals(Vec3(2f, 4f, 6f), a.scale(Transformation.Scale(2f, 2f, 2f)))
+        assertVecEquals(Vec3(2f, 1f, 5f), a.translate(Transformation.Translate(1f, -1f, 2f)))
+        assertVecEquals(Vec3(0f, 0f, -1f), Vec3(1f, 0f, 0f).rotate(Transformation.Rotate(y = 90f)))
+    }
+
+    @Test
+    fun scalarHelpersAndVectorEdgeBranchesAreCovered() {
+        assertFloatEquals3d(2f, 5f.clamp(0f, 2f))
+        assertFloatEquals3d(0f, (-1f).clamp(0f, 2f))
+        assertEquals(2, 5.clamp(0, 2))
+        assertEquals(0, (-1).clamp(0, 2))
+        assertFloatEquals3d(3f, mix(2f, 6f, 0.25f))
+
+        assertEquals(Vec3(0f, 0f, 0f), Vec3(0f, 0f, 0f).normalized())
+        assertEquals(Vec3(-1f, -2f, -3f), -Vec3(1f, 2f, 3f))
+        assertVecEquals(Vec3(0f, 0f, 1f), Vec3(0f, 1f, 0f).rotateX(Math.toRadians(90.0).toFloat()))
+        assertVecEquals(Vec3(0f, 1f, 0f), Vec3(1f, 0f, 0f).rotateZ(Math.toRadians(90.0).toFloat()))
+    }
+
+    @Test
+    fun mat4LookAtAndProjectionTransformExpectedPoints() {
+        val view = Mat4.lookAt(
+            eye = Vec3(0f, 0f, 5f),
+            center = Vec3(0f, 0f, 0f),
+            up = Vec3(0f, 1f, 0f)
+        )
+
+        val eyeInView = view.transform(Vec3(0f, 0f, 5f))
+        assertFloatEquals3d(0f, eyeInView.x)
+        assertFloatEquals3d(0f, eyeInView.y)
+        assertFloatEquals3d(0f, eyeInView.z)
+        assertFloatEquals3d(1f, eyeInView.w)
+
+        val ortho = Mat4.orthographic(-2f, 2f, -2f, 2f, 0f, 10f)
+        val topRight = ortho.transform(Vec3(2f, 2f, -5f))
+        assertFloatEquals3d(1f, topRight.x)
+        assertFloatEquals3d(1f, topRight.y)
+        assertFloatEquals3d(0f, topRight.z)
+        assertFloatEquals3d(1f, topRight.w)
+
+        val perspective = Mat4.perspective(Math.toRadians(90.0).toFloat(), 1f, 1f, 10f)
+        val projected = perspective.transform(Vec3(0f, 0f, -5f))
+        assertFloatEquals3d(5f, projected.w)
+        assertTrue(projected.z < projected.w, "透视投影后的 z 应在裁剪空间内")
+
+        val identity = Mat4()
+        assertTrue(identity == Mat4())
+        assertFalse(identity == Mat4.orthographic(-1f, 1f, -1f, 1f, 0f, 1f))
+        assertEquals(identity.hashCode(), Mat4().hashCode())
+    }
+
+    @Test
+    fun ndcToScreenMapsClipCoordinates() {
+        val screen = ndcToScreen(Vec4(0.5f, -0.5f, 0.25f, 2f), 20, 10)
+
+        assertVecEquals(Vec3(12.5f, 6.25f, 0.125f), screen)
+    }
+}
+
+class Render3dCameraAndMeshUnitTest {
+    @Test
+    fun orbitCameraExposesViewMatrixForwardAndPosition() {
+        val camera = OrbitCamera(distance = 10f)
+        val view = camera.createViewMatrix()
+
+        assertVecEquals(Vec3(0f, 0f, 10f), view.cameraPosition)
+        assertVecEquals(Vec3(0f, 0f, -1f), view.cameraForward)
+
+        val yawView = camera.copy(yaw = 90f).createViewMatrix()
+        assertFloatEquals3d(10f, yawView.cameraPosition.x)
+        assertFloatEquals3d(0f, yawView.cameraPosition.z)
+        assertVecEquals(Vec3(-1f, 0f, 0f), yawView.cameraForward)
+    }
+
+    @Test
+    fun meshFactoriesBuildExpectedGeometry() {
+        val cuboid = createCuboid(Vec3(2f, 4f, 6f), Color.RED)
+        assertEquals(8, cuboid.vertices.size)
+        assertEquals(6, cuboid.faces.size)
+        assertTrue(cuboid.vertices.any { it.position == Vec3(-1f, -2f, -3f) })
+        assertTrue(cuboid.vertices.any { it.position == Vec3(1f, 2f, 3f) })
+        cuboid.faces.forEach { face ->
+            assertEquals(4, face.indices.size)
+            assertTrue(face.indices.all { it in cuboid.vertices.indices })
+            assertEquals(Color.RED, face.baseColor)
+        }
+
+        val uvCuboid = createUVCuboid(
+            dims = Vec3(2f, 2f, 2f),
+            faceUVs = mapOf(FaceDirection.FRONT to Rect.makeXYWH(0f, 0f, 4f, 4f)),
+            textureWidth = 8f,
+            textureHeight = 8f
+        )
+        assertEquals(4, uvCuboid.vertices.size)
+        assertEquals(1, uvCuboid.faces.size)
+        assertFloatEquals3d(0.0625f, uvCuboid.vertices.first().uv.u)
+        assertFloatEquals3d(0.4375f, uvCuboid.vertices.first().uv.v)
+
+        val plane = createPlane(center = Vec3(0f, 0f, 0f), size = Vec2(2f, 2f), segments = 2)
+        assertEquals(9, plane.vertices.size)
+        assertEquals(8, plane.faces.size)
+        assertTrue(plane.vertices.all { it.position.y == 0f })
+
+        val verticalPlane = createPlane(
+            center = Vec3(0f, 0f, 0f),
+            size = Vec2(2f, 2f),
+            normalDirection = Vec3(0f, 0f, 1f),
+            segments = 1
+        )
+        assertEquals(4, verticalPlane.vertices.size)
+        assertEquals(2, verticalPlane.faces.size)
+        assertTrue(verticalPlane.vertices.all { abs(it.position.z) <= EPSILON_3D })
+    }
+
+    @Test
+    fun uvCuboidCanBuildAllFacesOrNoFaces() {
+        val uvRects = FaceDirection.entries.associateWith { direction ->
+            val offset = direction.ordinal.toFloat()
+            Rect.makeXYWH(offset, offset, 2f, 2f)
+        }
+
+        val full = createUVCuboid(Vec3(2f, 2f, 2f), uvRects, textureWidth = 16f, textureHeight = 16f)
+        val empty = createUVCuboid(Vec3(2f, 2f, 2f), emptyMap(), textureWidth = 16f, textureHeight = 16f)
+
+        assertEquals(24, full.vertices.size)
+        assertEquals(6, full.faces.size)
+        assertTrue(full.faces.all { it.baseColor == Color.WHITE })
+        assertEquals(0, empty.vertices.size)
+        assertEquals(0, empty.faces.size)
+    }
+
+    @Test
+    fun combineMeshesOffsetsFaceIndicesAndKeepsTextureFallback() {
+        val first = simpleTriangleMesh(Color.RED)
+        val second = simpleTriangleMesh(Color.BLUE)
+
+        val combined = combineMeshes(listOf(first, second))
+
+        assertEquals(6, combined.vertices.size)
+        assertEquals(2, combined.faces.size)
+        assertEquals(listOf(0, 1, 2), combined.faces[0].indices)
+        assertEquals(listOf(3, 4, 5), combined.faces[1].indices)
+        assertEquals(Color.BLUE, combined.faces[1].baseColor)
+
+        val explicitTexture = bitmap(1, 1, Color.GREEN)
+        assertEquals(explicitTexture, combineMeshes(listOf(first), texture = explicitTexture).texture)
+        assertEquals(0, combineMeshes(emptyList()).vertices.size)
+        assertEquals(0, combineMeshes(emptyList()).faces.size)
+    }
+}
+
+class Render3dLightAndShadowUnitTest {
+    @Test
+    fun lightFunctionsClampAndPreserveAlpha() {
+        assertFloatEquals3d(
+            1f,
+            calculateLightIntensity(Vec3(0f, 0f, 1f), Vec3(0f, 0f, 1f), ambientIntensity = 0.25f)
+        )
+        assertFloatEquals3d(
+            0.25f,
+            calculateLightIntensity(Vec3(0f, 0f, 1f), Vec3(0f, 0f, -1f), ambientIntensity = 0.25f)
+        )
+
+        val lit = applyLight(Color.makeARGB(200, 100, 50, 25), 0.5f)
+        assertEquals(200, Color.getA(lit))
+        assertEquals(50, Color.getR(lit))
+        assertEquals(25, Color.getG(lit))
+        assertEquals(12, Color.getB(lit))
+
+        val fullLight = calculateBlinnPhong(
+            normal = Vec3(0f, 0f, 1f),
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f),
+            baseColor = Color.makeRGB(100, 80, 60),
+            shadowFactor = 1f,
+            ambientStrength = 0.2f,
+            specularStrength = 0f
+        )
+        val shadowed = calculateBlinnPhong(
+            normal = Vec3(0f, 0f, 1f),
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f),
+            baseColor = Color.makeRGB(100, 80, 60),
+            shadowFactor = 0f,
+            ambientStrength = 0.2f,
+            specularStrength = 0f
+        )
+
+        assertEquals(Color.makeRGB(100, 80, 60), fullLight)
+        assertEquals(Color.makeRGB(20, 16, 12), shadowed)
+    }
+
+    @Test
+    fun shadowMapBoundsClearAndTriangleDepthUpdates() {
+        val shadowMap = ShadowMap(5, 5)
+        shadowMap.set(2, 2, 0.8f)
+        shadowMap.set(-1, 2, 0.1f)
+        shadowMap.set(2, -1, 0.1f)
+        shadowMap.set(5, 2, 0.1f)
+        shadowMap.set(2, 5, 0.1f)
+
+        assertFloatEquals3d(0.8f, shadowMap.get(2, 2))
+        assertTrue(shadowMap.get(-1, 2).isInfinite(), "越界读取应返回正无穷")
+        assertTrue(shadowMap.get(2, -1).isInfinite(), "越界读取应返回正无穷")
+        assertTrue(shadowMap.get(5, 2).isInfinite(), "越界读取应返回正无穷")
+        assertTrue(shadowMap.get(2, 5).isInfinite(), "越界读取应返回正无穷")
+
+        rasterizeTriangleShadow(
+            p0 = Vec3(1f, 1f, 0.7f),
+            p1 = Vec3(3f, 1f, 0.7f),
+            p2 = Vec3(1f, 3f, 0.7f),
+            shadowMap = shadowMap
+        )
+        assertFloatEquals3d(0.7f, shadowMap.get(1, 1))
+
+        rasterizeTriangleShadow(
+            p0 = Vec3(1f, 1f, 0.3f),
+            p1 = Vec3(3f, 1f, 0.3f),
+            p2 = Vec3(1f, 3f, 0.3f),
+            shadowMap = shadowMap
+        )
+        assertFloatEquals3d(0.3f, shadowMap.get(1, 1))
+
+        rasterizeTriangleShadow(
+            p0 = Vec3(1f, 1f, 0.9f),
+            p1 = Vec3(3f, 1f, 0.9f),
+            p2 = Vec3(1f, 3f, 0.9f),
+            shadowMap = shadowMap
+        )
+        assertFloatEquals3d(0.3f, shadowMap.get(1, 1))
+
+        rasterizeTriangleShadow(
+            p0 = Vec3(1f, 1f, 0.1f),
+            p1 = Vec3(2f, 2f, 0.1f),
+            p2 = Vec3(3f, 3f, 0.1f),
+            shadowMap = shadowMap
+        )
+        assertFloatEquals3d(0.3f, shadowMap.get(1, 1))
+
+        shadowMap.clear()
+        assertTrue(shadowMap.get(1, 1).isInfinite(), "clear 后深度应重置")
+    }
+}
+
+class Render3dRasterAndRenderUnitTest {
+    @Test
+    fun mainRasterizerWritesTriangleAndKeepsNearestDepth() {
+        val bitmap = bitmap(5, 5)
+        val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
+        val shadowMap = ShadowMap(4, 4)
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f
+        )
+
+        val nearTriangle = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+        rasterizeTriangleMain(
+            vertices = nearTriangle,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            bitmap = bitmap,
+            texture = null,
+            baseColor = Color.RED,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = shadowMap,
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        assertEquals(Color.RED, bitmap.getColor(1, 1))
+        assertFloatEquals3d(0.2f, zBuffer[1 * 5 + 1])
+
+        val farTriangle = nearTriangle.map {
+            it.copy(screenPos = it.screenPos.copy(z = 0.8f))
+        }
+        rasterizeTriangleMain(
+            vertices = farTriangle,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            bitmap = bitmap,
+            texture = null,
+            baseColor = Color.BLUE,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = shadowMap,
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        assertEquals(Color.RED, bitmap.getColor(1, 1))
+        assertFloatEquals3d(0.2f, zBuffer[1 * 5 + 1])
+    }
+
+    @Test
+    fun degenerateTrianglesAndSkippedFacesDoNotWritePixels() {
+        val target = bitmap(5, 5)
+        val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f
+        )
+        val collinear = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(2f, 2f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 0f))
+        )
+
+        rasterizeTriangleMain(
+            vertices = collinear,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            bitmap = target,
+            texture = null,
+            baseColor = Color.RED,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+        rasterizeTriangleShadow(
+            p0 = Vec3(1f, 1f, 0.2f),
+            p1 = Vec3(2f, 2f, 0.2f),
+            p2 = Vec3(3f, 3f, 0.2f),
+            shadowMap = ShadowMap(4, 4)
+        )
+
+        renderMeshMainPass(
+            mesh = Mesh(
+                vertices = listOf(Vertex(Vec3(0f, 0f, 0f), Vec2(0f, 0f))),
+                faces = listOf(Face(listOf(0), Color.BLUE))
+            ),
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            bitmap = target,
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertFalse(target.any { Color.getA(it) > 0 }, "退化三角形和无效面不应写入像素")
+        assertTrue(zBuffer.all { it.isInfinite() }, "退化三角形和无效面不应写入深度")
+    }
+
+    @Test
+    fun mainRasterizerSkipsTransparentTexturePixels() {
+        val target = bitmap(5, 5)
+        val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
+        val transparentTexture = bitmap(1, 1, Color.TRANSPARENT)
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 0f))
+        )
+
+        rasterizeTriangleMain(
+            vertices = vertices,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            bitmap = target,
+            texture = transparentTexture,
+            baseColor = Color.RED,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = ShadowMap(4, 4),
+            config = RenderConfig(
+                width = 5,
+                height = 5,
+                camera = OrbitCamera(distance = 5f),
+                lightDirection = Vec3(0f, 0f, 1f),
+                lightIntensity = 1f
+            ),
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        assertEquals(Color.TRANSPARENT, target.getColor(1, 1))
+        assertTrue(zBuffer[1 * 5 + 1].isInfinite(), "透明纹理像素不应写入深度")
+    }
+
+    @Test
+    fun mainRasterizerAppliesShadowFactorAndIgnoresOutOfRangeShadowLookup() {
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 0.2f,
+            shadowBias = 0f
+        )
+        val shadowMap = ShadowMap(4, 4).apply { set(2, 2, -0.5f) }
+        val shadowed = bitmap(5, 5)
+        rasterizeTriangleMain(
+            vertices = vertices,
+            width = 5,
+            height = 5,
+            zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
+            bitmap = shadowed,
+            texture = null,
+            baseColor = Color.makeRGB(100, 100, 100),
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = shadowMap,
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        val outOfRange = bitmap(5, 5)
+        val outsideShadowLookup = Mat4(FloatArray(16).apply {
+            this[0] = 1f
+            this[5] = 1f
+            this[10] = 1f
+            this[12] = 4f
+            this[15] = 1f
+        })
+        rasterizeTriangleMain(
+            vertices = vertices,
+            width = 5,
+            height = 5,
+            zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
+            bitmap = outOfRange,
+            texture = null,
+            baseColor = Color.makeRGB(100, 100, 100),
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = outsideShadowLookup,
+            shadowMap = shadowMap,
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        assertTrue(
+            Color.getR(shadowed.getColor(1, 1)) < Color.getR(outOfRange.getColor(1, 1)),
+            "命中阴影贴图时像素应比越界阴影查询更暗"
+        )
+    }
+
+    @Test
+    fun renderShadowPassSkipsInvalidAndBehindLightFaces() {
+        val shadowMap = ShadowMap(8, 8)
+        val negativeW = Mat4(FloatArray(16).apply {
+            this[0] = 1f
+            this[5] = 1f
+            this[10] = 1f
+            this[15] = -1f
+        })
+        val mesh = Mesh(
+            vertices = listOf(
+                Vertex(Vec3(-0.5f, -0.5f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(0.5f, -0.5f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(0f, 0.5f, 0f), Vec2(0f, 0f))
+            ),
+            faces = listOf(
+                Face(listOf(0), Color.RED),
+                Face(listOf(0, 1, 2), Color.RED)
+            )
+        )
+
+        renderShadowPass(listOf(mesh), negativeW, shadowMap)
+
+        assertTrue(shadowMap.buffer.all { it.isInfinite() }, "无效面和光源背后的面不应写入阴影深度")
+    }
+
+    @Test
+    fun backFaceCullingSkipsFacesPointingAtCamera() {
+        val target = bitmap(16, 16)
+        val zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY }
+
+        renderMeshMainPass(
+            mesh = simpleTriangleMesh(Color.RED),
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = zBuffer,
+            bitmap = target,
+            shadowMap = ShadowMap(4, 4),
+            config = RenderConfig(
+                width = 16,
+                height = 16,
+                camera = OrbitCamera(distance = 5f),
+                useBackFaceCulling = true,
+                lightDirection = Vec3(0f, 0f, 1f),
+                lightIntensity = 1f
+            ),
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertFalse(target.any { Color.getA(it) > 0 }, "开启背面剔除后朝向相机的面会被当前规则跳过")
+        assertTrue(zBuffer.all { it.isInfinite() })
+    }
+
+    @Test
+    fun renderSceneKeepsBackgroundForEmptySceneAndDrawsTriangleForBothProjections() {
+        val empty = renderSceneToImage(
+            Scene(emptyList()),
+            RenderConfig(
+                width = 8,
+                height = 8,
+                camera = OrbitCamera(distance = 5f),
+                backgroundColor = Color.BLUE,
+                antiAliasingLevel = 1
+            )
+        ).toBitmap()
+        assertEquals(Color.BLUE, empty.getColor(0, 0))
+
+        listOf(true, false).forEach { usePerspective ->
+            val image = renderSceneToImage(
+                scene = Scene(listOf(simpleTriangleMesh(Color.GREEN))),
+                config = RenderConfig(
+                    width = 32,
+                    height = 32,
+                    camera = OrbitCamera(distance = 5f),
+                    usePerspective = usePerspective,
+                    backgroundColor = Color.TRANSPARENT,
+                    antiAliasingLevel = 2,
+                    lightDirection = Vec3(0f, 0f, 1f),
+                    lightIntensity = 1f,
+                    shadowMapSize = 16
+                )
+            ).toBitmap()
+
+            assertEquals(32, image.width)
+            assertEquals(32, image.height)
+            assertTrue(
+                image.any { Color.getA(it) > 0 },
+                "透视开关为 $usePerspective 时应渲染出非背景像素"
+            )
+        }
+    }
+
+    @Test
+    fun renderFacesFalseDrawsWireframeInsteadOfFilledFaces() {
+        val filled = renderSceneToImage(
+            scene = Scene(listOf(simpleTriangleMesh(Color.RED))),
+            config = RenderConfig(
+                width = 32,
+                height = 32,
+                camera = OrbitCamera(distance = 5f),
+                renderFaces = true,
+                usePerspective = false,
+                backgroundColor = Color.TRANSPARENT,
+                antiAliasingLevel = 1,
+                lightDirection = Vec3(0f, 0f, 1f),
+                lightIntensity = 1f,
+                shadowMapSize = 16
+            )
+        ).toBitmap()
+        val wireframe = renderSceneToImage(
+            scene = Scene(listOf(simpleTriangleMesh(Color.RED))),
+            config = RenderConfig(
+                width = 32,
+                height = 32,
+                camera = OrbitCamera(distance = 5f),
+                renderFaces = false,
+                usePerspective = false,
+                backgroundColor = Color.TRANSPARENT,
+                antiAliasingLevel = 1,
+                lightDirection = Vec3(0f, 0f, 1f),
+                lightIntensity = 1f,
+                shadowMapSize = 16
+            )
+        ).toBitmap()
+
+        assertTrue(Color.getA(filled.getColor(16, 16)) > 0, "实体模式应填充三角形中心")
+        assertEquals(Color.TRANSPARENT, wireframe.getColor(16, 16))
+        assertTrue(
+            wireframe.any { Color.getA(it) > 0 },
+            "线框模式仍应绘制边线像素"
+        )
+        assertFalse(
+            filled.getColor(16, 16) == wireframe.getColor(16, 16),
+            "线框模式不应和实体模式渲染出相同中心像素"
+        )
+    }
+}
