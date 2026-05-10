@@ -11,6 +11,7 @@ import top.e404.tavolo.draw.render3d.Face
 import top.e404.tavolo.draw.render3d.FaceDirection
 import top.e404.tavolo.draw.render3d.Mat4
 import top.e404.tavolo.draw.render3d.Mesh
+import top.e404.tavolo.draw.render3d.MainRenderPass
 import top.e404.tavolo.draw.render3d.OrbitCamera
 import top.e404.tavolo.draw.render3d.RecordingRenderTarget
 import top.e404.tavolo.draw.render3d.RenderCommand
@@ -184,12 +185,13 @@ class Render3dCameraAndMeshUnitTest {
         )
         assertEquals(4, uvCuboid.vertices.size)
         assertEquals(1, uvCuboid.faces.size)
-        assertFloatEquals3d(0.0625f, uvCuboid.vertices.first().uv.u)
-        assertFloatEquals3d(0.4375f, uvCuboid.vertices.first().uv.v)
+        assertFloatEquals3d(0f, uvCuboid.vertices.first().uv.u)
+        assertFloatEquals3d(0.5f, uvCuboid.vertices.first().uv.v)
 
         val plane = createPlane(center = Vec3(0f, 0f, 0f), size = Vec2(2f, 2f), segments = 2)
         assertEquals(9, plane.vertices.size)
         assertEquals(8, plane.faces.size)
+        assertTrue(plane.castsShadow)
         assertTrue(plane.vertices.all { it.position.y == 0f })
 
         val verticalPlane = createPlane(
@@ -201,6 +203,13 @@ class Render3dCameraAndMeshUnitTest {
         assertEquals(4, verticalPlane.vertices.size)
         assertEquals(2, verticalPlane.faces.size)
         assertTrue(verticalPlane.vertices.all { abs(it.position.z) <= EPSILON_3D })
+
+        val shadowReceiver = createPlane(
+            center = Vec3(0f, 0f, 0f),
+            size = Vec2(2f, 2f),
+            castsShadow = false
+        )
+        assertFalse(shadowReceiver.castsShadow)
     }
 
     @Test
@@ -235,6 +244,8 @@ class Render3dCameraAndMeshUnitTest {
 
         val explicitTexture = bitmap(1, 1, Color.GREEN)
         assertEquals(explicitTexture, combineMeshes(listOf(first), texture = explicitTexture).texture)
+        assertTrue(combineMeshes(listOf(first, second)).castsShadow)
+        assertFalse(combineMeshes(listOf(first.copy(castsShadow = false), second.copy(castsShadow = false))).castsShadow)
         assertEquals(0, combineMeshes(emptyList()).vertices.size)
         assertEquals(0, combineMeshes(emptyList()).faces.size)
     }
@@ -243,6 +254,9 @@ class Render3dCameraAndMeshUnitTest {
 class Render3dLightAndShadowUnitTest {
     @Test
     fun lightFunctionsClampAndPreserveAlpha() {
+        assertFloatEquals3d(0.6f, RenderConfig(1, 1, OrbitCamera()).lightIntensity)
+        assertTrue(RenderConfig(1, 1, OrbitCamera()).enableShadows)
+
         assertFloatEquals3d(
             1f,
             calculateLightIntensity(Vec3(0f, 0f, 1f), Vec3(0f, 0f, 1f), ambientIntensity = 0.25f)
@@ -331,6 +345,21 @@ class Render3dLightAndShadowUnitTest {
         shadowMap.clear()
         assertTrue(shadowMap.get(1, 1).isInfinite(), "clear 后深度应重置")
     }
+
+    @Test
+    fun shadowRasterizerSkipsTransparentTexturePixels() {
+        val shadowMap = ShadowMap(4, 4)
+        val transparentTexture = BitmapRenderTexture(bitmap(1, 1, Color.TRANSPARENT))
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 0f))
+        )
+
+        rasterizeTriangleShadow(vertices, shadowMap, transparentTexture)
+
+        assertTrue(shadowMap.buffer.all { it.isInfinite() }, "透明纹理像素不应写入阴影深度")
+    }
 }
 
 class Render3dTargetUnitTest {
@@ -370,7 +399,7 @@ class Render3dTargetUnitTest {
         assertEquals(RenderCommand.Clear(Color.BLUE), target.commands[0])
         assertEquals(RenderCommand.Pixel(1, 1, Color.RED), target.commands[1])
         assertEquals(RenderCommand.Pixel(-1, 1, Color.GREEN), target.commands[2])
-        assertEquals(RenderCommand.Line(0f, 0f, 2f, 2f, Color.WHITE), target.commands[3])
+        assertEquals(RenderCommand.Line(0f, 0f, 2f, 2f, Color.WHITE, 1f, false), target.commands[3])
     }
 
     @Test
@@ -489,6 +518,43 @@ class Render3dRasterAndRenderUnitTest {
     }
 
     @Test
+    fun mainRasterizerInterpolatesNdcDepthLinearlyInScreenSpace() {
+        val target = bitmap(5, 5, Color.BLUE)
+        val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
+        zBuffer[1 * 5 + 1] = 0.4f
+        val vertices = listOf(
+            ShadedVertex(Vec3(0f, 0f, 0f), Vec3(0f, 0f, 0f), 10f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(4f, 0f, 0.8f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(0f, 4f, 0.8f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+
+        rasterizeTriangleMain(
+            vertices = vertices,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            target = BitmapRenderTarget(target),
+            texture = null,
+            baseColor = Color.RED,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = ShadowMap(4, 4),
+            config = RenderConfig(
+                width = 5,
+                height = 5,
+                camera = OrbitCamera(distance = 5f),
+                lightDirection = Vec3(0f, 0f, 1f),
+                lightIntensity = 1f
+            ),
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        assertEquals(Color.BLUE, target.getColor(1, 1), "深度应按屏幕空间线性插值，不能被 oneOverW 再次透视校正")
+        assertFloatEquals3d(0.4f, zBuffer[1 * 5 + 1])
+    }
+
+    @Test
     fun degenerateTrianglesAndSkippedFacesDoNotWritePixels() {
         val target = bitmap(5, 5)
         val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
@@ -585,6 +651,122 @@ class Render3dRasterAndRenderUnitTest {
     }
 
     @Test
+    fun mainRasterizerBlendsSemitransparentPixelsWithoutReplacingDepth() {
+        val target = bitmap(5, 5)
+        val zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY }
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.8f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.8f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.8f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f
+        )
+
+        rasterizeTriangleMain(
+            vertices = vertices,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            target = BitmapRenderTarget(target),
+            texture = null,
+            baseColor = Color.BLUE,
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        val semitransparentNear = vertices.map {
+            it.copy(screenPos = it.screenPos.copy(z = 0.2f))
+        }
+        rasterizeTriangleMain(
+            vertices = semitransparentNear,
+            width = 5,
+            height = 5,
+            zBuffer = zBuffer,
+            target = BitmapRenderTarget(target),
+            texture = null,
+            baseColor = Color.makeARGB(128, 255, 0, 0),
+            normal = Vec3(0f, 0f, 1f),
+            lightVP = Mat4(),
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            lightDir = Vec3(0f, 0f, 1f),
+            viewDir = Vec3(0f, 0f, 1f)
+        )
+
+        val mixed = target.getColor(1, 1)
+        assertTrue(Color.getR(mixed) > 0 && Color.getB(mixed) > 0, "半透明像素应与已有颜色混合")
+        assertFloatEquals3d(0.8f, zBuffer[1 * 5 + 1])
+    }
+
+    @Test
+    fun renderPassesDrawSemitransparentFacesAfterOpaqueFaces() {
+        fun triangleAtDepth(depth: Float, color: Int) = Mesh(
+            vertices = listOf(
+                Vertex(Vec3(-1f, -1f, depth), Vec2(0f, 0f)),
+                Vertex(Vec3(1f, -1f, depth), Vec2(1f, 0f)),
+                Vertex(Vec3(0f, 1f, depth), Vec2(0.5f, 1f))
+            ),
+            faces = listOf(Face(listOf(0, 1, 2), color))
+        )
+
+        val target = bitmap(16, 16)
+        val zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY }
+        val config = RenderConfig(
+            width = 16,
+            height = 16,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f
+        )
+        val transparentNear = triangleAtDepth(0.2f, Color.makeARGB(128, 255, 0, 0))
+        val opaqueFar = triangleAtDepth(0.8f, Color.BLUE)
+
+        listOf(transparentNear, opaqueFar).forEach {
+            renderMeshMainPass(
+                mesh = it,
+                vpMatrix = Mat4(),
+                lightVP = Mat4(),
+                width = 16,
+                height = 16,
+                zBuffer = zBuffer,
+                target = BitmapRenderTarget(target),
+                shadowMap = ShadowMap(4, 4),
+                config = config,
+                viewPos = Vec3(0f, 0f, 5f),
+                renderPass = MainRenderPass.OPAQUE_ONLY
+            )
+        }
+        listOf(transparentNear, opaqueFar).forEach {
+            renderMeshMainPass(
+                mesh = it,
+                vpMatrix = Mat4(),
+                lightVP = Mat4(),
+                width = 16,
+                height = 16,
+                zBuffer = zBuffer,
+                target = BitmapRenderTarget(target),
+                shadowMap = ShadowMap(4, 4),
+                config = config,
+                viewPos = Vec3(0f, 0f, 5f),
+                renderPass = MainRenderPass.TRANSPARENT_ONLY
+            )
+        }
+
+        val mixed = target.getColor(8, 8)
+        assertTrue(Color.getR(mixed) > 0 && Color.getB(mixed) > 0, "半透明面应在不透明面之后混合")
+        assertFloatEquals3d(0.8f, zBuffer[8 * 16 + 8])
+    }
+
+    @Test
     fun mainRasterizerAppliesShadowFactorAndIgnoresOutOfRangeShadowLookup() {
         val vertices = listOf(
             ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
@@ -648,6 +830,49 @@ class Render3dRasterAndRenderUnitTest {
     }
 
     @Test
+    fun mainRasterizerCanDisableShadowLookup() {
+        val vertices = listOf(
+            ShadedVertex(Vec3(1f, 1f, 0.2f), Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(Vec3(3f, 1f, 0.2f), Vec3(1f, 0f, 0f), 1f, Vec2(1f, 0f)),
+            ShadedVertex(Vec3(1f, 3f, 0.2f), Vec3(0f, 1f, 0f), 1f, Vec2(0f, 1f))
+        )
+        val shadowMap = ShadowMap(4, 4).apply { set(2, 2, -0.5f) }
+        val withShadows = bitmap(5, 5)
+        val withoutShadows = bitmap(5, 5)
+        val config = RenderConfig(
+            width = 5,
+            height = 5,
+            camera = OrbitCamera(distance = 5f),
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 0.2f,
+            shadowBias = 0f
+        )
+
+        listOf(withShadows to config, withoutShadows to config.copy(enableShadows = false)).forEach { (target, renderConfig) ->
+            rasterizeTriangleMain(
+                vertices = vertices,
+                width = 5,
+                height = 5,
+                zBuffer = FloatArray(25) { Float.POSITIVE_INFINITY },
+                target = BitmapRenderTarget(target),
+                texture = null,
+                baseColor = Color.makeRGB(100, 100, 100),
+                normal = Vec3(0f, 0f, 1f),
+                lightVP = Mat4(),
+                shadowMap = shadowMap,
+                config = renderConfig,
+                lightDir = Vec3(0f, 0f, 1f),
+                viewDir = Vec3(0f, 0f, 1f)
+            )
+        }
+
+        assertTrue(
+            Color.getR(withoutShadows.getColor(1, 1)) > Color.getR(withShadows.getColor(1, 1)),
+            "关闭阴影后应忽略 shadowMap 遮挡"
+        )
+    }
+
+    @Test
     fun renderShadowPassSkipsInvalidAndBehindLightFaces() {
         val shadowMap = ShadowMap(8, 8)
         val negativeW = Mat4(FloatArray(16).apply {
@@ -674,7 +899,69 @@ class Render3dRasterAndRenderUnitTest {
     }
 
     @Test
-    fun backFaceCullingSkipsFacesPointingAtCamera() {
+    fun renderShadowPassSkipsMeshesThatDoNotCastShadow() {
+        val shadowMap = ShadowMap(8, 8)
+        val receiverOnly = simpleTriangleMesh(Color.RED).copy(castsShadow = false)
+
+        renderShadowPass(listOf(receiverOnly), Mat4(), shadowMap)
+
+        assertTrue(shadowMap.buffer.all { it.isInfinite() }, "不投影的网格不应写入 shadowMap")
+    }
+
+    @Test
+    fun backFaceCullingKeepsFrontFacesAndSkipsBackFaces() {
+        val frontTarget = bitmap(16, 16)
+        val frontZBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY }
+        val config = RenderConfig(
+            width = 16,
+            height = 16,
+            camera = OrbitCamera(distance = 5f),
+            useBackFaceCulling = true,
+            lightDirection = Vec3(0f, 0f, 1f),
+            lightIntensity = 1f
+        )
+
+        renderMeshMainPass(
+            mesh = simpleTriangleMesh(Color.RED),
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = frontZBuffer,
+            target = BitmapRenderTarget(frontTarget),
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertTrue(frontTarget.any { Color.getA(it) > 0 }, "开启背面剔除后朝向相机的面应保留")
+
+        val backTarget = bitmap(16, 16)
+        val backZBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY }
+        val backFacingMesh = Mesh(
+            vertices = simpleTriangleMesh().vertices,
+            faces = listOf(Face(listOf(0, 2, 1), Color.RED))
+        )
+
+        renderMeshMainPass(
+            mesh = backFacingMesh,
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = backZBuffer,
+            target = BitmapRenderTarget(backTarget),
+            shadowMap = ShadowMap(4, 4),
+            config = config,
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        assertFalse(backTarget.any { Color.getA(it) > 0 }, "开启背面剔除后背向相机的面应跳过")
+        assertTrue(backZBuffer.all { it.isInfinite() })
+    }
+
+    @Test
+    fun backFaceCullingDoesNotDependOnSingleVertexViewDirection() {
         val target = bitmap(16, 16)
         val zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY }
 
@@ -695,11 +982,10 @@ class Render3dRasterAndRenderUnitTest {
                 lightDirection = Vec3(0f, 0f, 1f),
                 lightIntensity = 1f
             ),
-            viewPos = Vec3(0f, 0f, 5f)
+            viewPos = Vec3(-1f, -1f, 0f)
         )
 
-        assertFalse(target.any { Color.getA(it) > 0 }, "开启背面剔除后朝向相机的面会被当前规则跳过")
-        assertTrue(zBuffer.all { it.isInfinite() })
+        assertTrue(target.any { Color.getA(it) > 0 }, "背面剔除应基于投影 winding，而不是单个顶点到相机的方向")
     }
 
     @Test
@@ -749,6 +1035,52 @@ class Render3dRasterAndRenderUnitTest {
 
         assertEquals(0, wireframeTarget.commands.count { it is RenderCommand.Pixel })
         assertEquals(3, wireframeTarget.commands.count { it is RenderCommand.Line })
+        wireframeTarget.commands.filterIsInstance<RenderCommand.Line>().forEach {
+            assertEquals(2f, it.strokeWidth)
+            assertEquals(true, it.antiAlias)
+        }
+    }
+
+    @Test
+    fun wireframeDrawsOriginalFaceEdgesWithoutTriangulationDiagonals() {
+        val quad = Mesh(
+            vertices = listOf(
+                Vertex(Vec3(-1f, -1f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(1f, -1f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(1f, 1f, 0f), Vec2(0f, 0f)),
+                Vertex(Vec3(-1f, 1f, 0f), Vec2(0f, 0f))
+            ),
+            faces = listOf(Face(listOf(0, 1, 2, 3), Color.WHITE))
+        )
+        val target = RecordingRenderTarget(16, 16)
+
+        renderMeshMainPass(
+            mesh = quad,
+            vpMatrix = Mat4(),
+            lightVP = Mat4(),
+            width = 16,
+            height = 16,
+            zBuffer = FloatArray(16 * 16) { Float.POSITIVE_INFINITY },
+            target = target,
+            shadowMap = ShadowMap(4, 4),
+            config = RenderConfig(
+                width = 16,
+                height = 16,
+                camera = OrbitCamera(distance = 5f),
+                renderFaces = false,
+                antiAliasingLevel = 1,
+                lightDirection = Vec3(0f, 0f, 1f),
+                lightIntensity = 1f
+            ),
+            viewPos = Vec3(0f, 0f, 5f)
+        )
+
+        val lines = target.commands.filterIsInstance<RenderCommand.Line>()
+        assertEquals(4, lines.size)
+        assertFalse(
+            lines.any { it.x0 == 4f && it.y0 == 12f && it.x1 == 12f && it.y1 == 4f },
+            "线框模式不应绘制 fan triangulation 产生的对角线"
+        )
     }
 
     @Test

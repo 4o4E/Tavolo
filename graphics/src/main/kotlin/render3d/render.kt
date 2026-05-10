@@ -85,12 +85,21 @@ data class RenderConfig(
     val antiAliasingLevel: Int = 2,
     // 光照配置
     val lightDirection: Vec3 = Vec3(0.5f, 1.0f, 0.5f).normalized(), // 光源方向
-    val lightIntensity: Float = 0.4f,
+    val lightIntensity: Float = 0.6f,
     // 阴影配置
+    val enableShadows: Boolean = true, // 是否启用阴影贴图
     val shadowMapSize: Int = 1024, // 阴影图分辨率
     val shadowBias: Float = 0.002f, // 阴影偏移，防止波纹
     val shadowOrthoSize: Float = 30f // 阴影相机的正交投影范围
 )
+
+enum class MainRenderPass {
+    ALL,
+    OPAQUE_ONLY,
+    TRANSPARENT_ONLY
+}
+
+private const val DEPTH_EPSILON = 1e-5f
 
 fun renderSceneToImage(
     scene: Scene,
@@ -132,7 +141,9 @@ fun renderSceneToImage(
 
     // 渲染阴影：只渲染玩家产生阴影，背景通常不产生投射到玩家身上的阴影（根据需求可调整）
     // 优化：这里可以传入简化版的 Mesh (不带 3D Overlay) 以提升性能
-    renderShadowPass(scene.meshes, lightVP, shadowMap)
+    if (config.enableShadows) {
+        renderShadowPass(scene.meshes, lightVP, shadowMap)
+    }
 
     // 3. 主渲染通道 (Main Pass)
     val ssBitmap = Bitmap()
@@ -153,7 +164,23 @@ fun renderSceneToImage(
             ssTarget,
             shadowMap,
             config,
-            cameraPosition
+            cameraPosition,
+            MainRenderPass.OPAQUE_ONLY
+        )
+    }
+    scene.meshes.forEach { mesh ->
+        renderMeshMainPass(
+            mesh,
+            vpMatrix,
+            lightVP,
+            renderWidth,
+            renderHeight,
+            zBuffer,
+            ssTarget,
+            shadowMap,
+            config,
+            cameraPosition,
+            MainRenderPass.TRANSPARENT_ONLY
         )
     }
 
@@ -204,8 +231,11 @@ fun renderShadowPass(meshes: List<Mesh>, lightVP: Mat4, shadowMap: ShadowMap) {
     val height = shadowMap.height
 
     for (mesh in meshes) {
+        if (!mesh.castsShadow) continue
+        val texture = mesh.texture?.let(::BitmapRenderTexture)
         for (face in mesh.faces) {
             if (face.indices.size < 3) continue
+            if (texture == null && Color.getA(face.baseColor) < 255) continue
 
             // 三角形剖分
             for (i in 0 until face.indices.size - 2) {
@@ -231,7 +261,15 @@ fun renderShadowPass(meshes: List<Mesh>, lightVP: Mat4, shadowMap: ShadowMap) {
                 val sc1 = ndcToScreen(p1, width, height)
                 val sc2 = ndcToScreen(p2, width, height)
 
-                rasterizeTriangleShadow(sc0, sc1, sc2, shadowMap)
+                rasterizeTriangleShadow(
+                    vertices = listOf(
+                        ShadedVertex(sc0, v0.position, 1.0f / p0.w, v0.uv),
+                        ShadedVertex(sc1, v1.position, 1.0f / p1.w, v1.uv),
+                        ShadedVertex(sc2, v2.position, 1.0f / p2.w, v2.uv)
+                    ),
+                    shadowMap = shadowMap,
+                    texture = texture
+                )
             }
         }
     }
@@ -251,6 +289,29 @@ fun ndcToScreen(clip: Vec4, w: Int, h: Int): Vec3 {
 }
 
 fun rasterizeTriangleShadow(p0: Vec3, p1: Vec3, p2: Vec3, shadowMap: ShadowMap) {
+    rasterizeTriangleShadow(
+        vertices = listOf(
+            ShadedVertex(p0, Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(p1, Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f)),
+            ShadedVertex(p2, Vec3(0f, 0f, 0f), 1f, Vec2(0f, 0f))
+        ),
+        shadowMap = shadowMap,
+        texture = null
+    )
+}
+
+fun rasterizeTriangleShadow(
+    vertices: List<ShadedVertex>,
+    shadowMap: ShadowMap,
+    texture: RenderTexture? = null
+) {
+    val v0 = vertices[0]
+    val v1 = vertices[1]
+    val v2 = vertices[2]
+    val p0 = v0.screenPos
+    val p1 = v1.screenPos
+    val p2 = v2.screenPos
+
     val minX = max(0, min(p0.x, min(p1.x, p2.x)).toInt())
     val maxX = min(shadowMap.width - 1, max(p0.x, max(p1.x, p2.x)).toInt())
     val minY = max(0, min(p0.y, min(p1.y, p2.y)).toInt())
@@ -261,11 +322,23 @@ fun rasterizeTriangleShadow(p0: Vec3, p1: Vec3, p2: Vec3, shadowMap: ShadowMap) 
 
     for (y in minY..maxY) {
         for (x in minX..maxX) {
-            val w0 = ((p1.y - p2.y) * (x - p2.x) + (p2.x - p1.x) * (y - p2.y)) / denom
-            val w1 = ((p2.y - p0.y) * (x - p2.x) + (p0.x - p2.x) * (y - p2.y)) / denom
+            val sampleX = x + 0.5f
+            val sampleY = y + 0.5f
+            val w0 = ((p1.y - p2.y) * (sampleX - p2.x) + (p2.x - p1.x) * (sampleY - p2.y)) / denom
+            val w1 = ((p2.y - p0.y) * (sampleX - p2.x) + (p0.x - p2.x) * (sampleY - p2.y)) / denom
             val w2 = 1.0f - w0 - w1
 
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                if (texture != null) {
+                    val oneOverW = v0.oneOverW * w0 + v1.oneOverW * w1 + v2.oneOverW * w2
+                    val w = 1.0f / oneOverW
+                    val uOverW = v0.uv.u * v0.oneOverW * w0 + v1.uv.u * v1.oneOverW * w1 + v2.uv.u * v2.oneOverW * w2
+                    val vOverW = v0.uv.v * v0.oneOverW * w0 + v1.uv.v * v1.oneOverW * w1 + v2.uv.v * v2.oneOverW * w2
+                    val tx = (uOverW * w * texture.width).toInt().clamp(0, texture.width - 1)
+                    val ty = (vOverW * w * texture.height).toInt().clamp(0, texture.height - 1)
+                    if (Color.getA(texture.getColor(tx, ty)) < 255) continue
+                }
+
                 // 插值深度
                 val z = p0.z * w0 + p1.z * w1 + p2.z * w2
                 // 写入深度缓冲 (越小越近)
@@ -289,7 +362,8 @@ fun renderMeshMainPass(
     bitmap: Bitmap,
     shadowMap: ShadowMap,
     config: RenderConfig,
-    viewPos: Vec3
+    viewPos: Vec3,
+    renderPass: MainRenderPass = MainRenderPass.ALL
 ) = renderMeshMainPass(
     mesh = mesh,
     vpMatrix = vpMatrix,
@@ -300,7 +374,8 @@ fun renderMeshMainPass(
     target = BitmapRenderTarget(bitmap),
     shadowMap = shadowMap,
     config = config,
-    viewPos = viewPos
+    viewPos = viewPos,
+    renderPass = renderPass
 )
 
 fun renderMeshMainPass(
@@ -313,10 +388,28 @@ fun renderMeshMainPass(
     target: RenderTarget,
     shadowMap: ShadowMap,
     config: RenderConfig,
-    viewPos: Vec3 // 相机位置，用于高光计算
+    viewPos: Vec3,
+    renderPass: MainRenderPass = MainRenderPass.ALL
 ) {
     val lightDir = config.lightDirection
     val texture = mesh.texture?.let(::BitmapRenderTexture)
+    val wireframeStrokeWidth = max(1f, config.antiAliasingLevel.toFloat())
+
+    fun shadeVertex(index: Int): ShadedVertex {
+        val vertex = mesh.vertices[index]
+        val clipPos = vpMatrix.transform(vertex.position)
+        val oneOverW = 1.0f / clipPos.w
+        val ndc = Vec3(clipPos.x * oneOverW, clipPos.y * oneOverW, clipPos.z * oneOverW)
+        val screenX = (ndc.x + 1f) * 0.5f * width
+        val screenY = (-ndc.y + 1f) * 0.5f * height
+
+        return ShadedVertex(
+            screenPos = Vec3(screenX, screenY, ndc.z),
+            worldPos = vertex.position,
+            oneOverW = oneOverW,
+            uv = vertex.uv
+        )
+    }
 
     for (face in mesh.faces) {
         if (face.indices.size < 3) continue
@@ -327,66 +420,67 @@ fun renderMeshMainPass(
         val v2_w = mesh.vertices[face.indices[2]].position
         val faceNormal = (v1_w - v0_w).cross(v2_w - v0_w).normalized()
         val viewDir = (viewPos - v0_w).normalized()
+        val faceVertices = face.indices.map(::shadeVertex)
 
         // 背面剔除
         if (config.useBackFaceCulling) {
-            if (faceNormal.dot(viewDir) > 0) continue
+            if (isBackFacingInScreen(faceVertices)) continue
+        }
+
+        if (!config.renderFaces) {
+            if (renderPass == MainRenderPass.TRANSPARENT_ONLY) continue
+            drawWireframeFace(
+                target = target,
+                vertices = faceVertices,
+                baseColor = face.baseColor,
+                normal = faceNormal,
+                lightDir = lightDir,
+                ambientIntensity = config.lightIntensity,
+                strokeWidth = wireframeStrokeWidth
+            )
+            continue
         }
 
         for (i in 0 until face.indices.size - 2) {
-            val triIndices = listOf(face.indices[0], face.indices[i + 1], face.indices[i + 2])
-
-            val shadedVertices = triIndices.map { index ->
-                val vertex = mesh.vertices[index]
-                val clipPos = vpMatrix.transform(vertex.position)
-                val oneOverW = 1.0f / clipPos.w
-                val ndc = Vec3(clipPos.x * oneOverW, clipPos.y * oneOverW, clipPos.z * oneOverW)
-                val screenX = (ndc.x + 1f) * 0.5f * width
-                val screenY = (-ndc.y + 1f) * 0.5f * height
-
-                ShadedVertex(
-                    screenPos = Vec3(screenX, screenY, ndc.z),
-                    worldPos = vertex.position, // 保存世界坐标
-                    oneOverW = oneOverW,
-                    uv = vertex.uv
-                )
-            }
-
-            if (config.renderFaces) {
-                rasterizeTriangleMain(
-                    shadedVertices, width, height, zBuffer, target,
-                    texture, face.baseColor, faceNormal,
-                    lightVP, shadowMap, config, lightDir, viewDir
-                )
-            } else {
-                drawWireframeTriangle(
-                    target,
-                    shadedVertices,
-                    face.baseColor,
-                    faceNormal,
-                    lightDir,
-                    config.lightIntensity
-                )
-            }
+            val shadedVertices = listOf(faceVertices[0], faceVertices[i + 1], faceVertices[i + 2])
+            rasterizeTriangleMain(
+                shadedVertices, width, height, zBuffer, target,
+                texture, face.baseColor, faceNormal,
+                lightVP, shadowMap, config, lightDir, viewDir, renderPass
+            )
         }
     }
 }
 
-private fun drawWireframeTriangle(
+private fun isBackFacingInScreen(vertices: List<ShadedVertex>): Boolean {
+    if (vertices.size < 3) return true
+
+    var signedArea = 0f
+    for (i in vertices.indices) {
+        val p0 = vertices[i].screenPos
+        val p1 = vertices[(i + 1) % vertices.size].screenPos
+        signedArea += p0.x * p1.y - p1.x * p0.y
+    }
+
+    // 屏幕坐标的 Y 轴向下，朝向相机的面投影后为负面积。
+    return signedArea >= -0.0001f
+}
+
+private fun drawWireframeFace(
     target: RenderTarget,
     vertices: List<ShadedVertex>,
     baseColor: Int,
     normal: Vec3,
     lightDir: Vec3,
-    ambientIntensity: Float
+    ambientIntensity: Float,
+    strokeWidth: Float
 ) {
     val color = applyLight(baseColor, calculateLightIntensity(normal, lightDir, ambientIntensity))
-    val p0 = vertices[0].screenPos
-    val p1 = vertices[1].screenPos
-    val p2 = vertices[2].screenPos
-    target.drawLine(p0.x, p0.y, p1.x, p1.y, color)
-    target.drawLine(p1.x, p1.y, p2.x, p2.y, color)
-    target.drawLine(p2.x, p2.y, p0.x, p0.y, color)
+    for (i in vertices.indices) {
+        val p0 = vertices[i].screenPos
+        val p1 = vertices[(i + 1) % vertices.size].screenPos
+        target.drawLine(p0.x, p0.y, p1.x, p1.y, color, strokeWidth, antiAlias = true)
+    }
 }
 
 fun rasterizeTriangleMain(
@@ -401,7 +495,8 @@ fun rasterizeTriangleMain(
     shadowMap: ShadowMap,
     config: RenderConfig,
     lightDir: Vec3,
-    viewDir: Vec3
+    viewDir: Vec3,
+    renderPass: MainRenderPass = MainRenderPass.ALL
 ) = rasterizeTriangleMain(
     vertices = vertices,
     width = width,
@@ -415,7 +510,8 @@ fun rasterizeTriangleMain(
     shadowMap = shadowMap,
     config = config,
     lightDir = lightDir,
-    viewDir = viewDir
+    viewDir = viewDir,
+    renderPass = renderPass
 )
 
 fun rasterizeTriangleMain(
@@ -430,7 +526,8 @@ fun rasterizeTriangleMain(
     shadowMap: ShadowMap,
     config: RenderConfig,
     lightDir: Vec3,
-    viewDir: Vec3
+    viewDir: Vec3,
+    renderPass: MainRenderPass = MainRenderPass.ALL
 ) {
     val v0 = vertices[0];
     val v1 = vertices[1];
@@ -449,8 +546,10 @@ fun rasterizeTriangleMain(
 
     for (y in minY..maxY) {
         for (x in minX..maxX) {
-            val w0 = ((p1.y - p2.y) * (x - p2.x) + (p2.x - p1.x) * (y - p2.y)) / denom
-            val w1 = ((p2.y - p0.y) * (x - p2.x) + (p0.x - p2.x) * (y - p2.y)) / denom
+            val sampleX = x + 0.5f
+            val sampleY = y + 0.5f
+            val w0 = ((p1.y - p2.y) * (sampleX - p2.x) + (p2.x - p1.x) * (sampleY - p2.y)) / denom
+            val w1 = ((p2.y - p0.y) * (sampleX - p2.x) + (p0.x - p2.x) * (sampleY - p2.y)) / denom
             val w2 = 1.0f - w0 - w1
 
             if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
@@ -458,13 +557,11 @@ fun rasterizeTriangleMain(
                 val oneOverW = v0.oneOverW * w0 + v1.oneOverW * w1 + v2.oneOverW * w2
                 val w = 1.0f / oneOverW
 
-                // 深度测试
-                val zOverW =
-                    v0.screenPos.z * v0.oneOverW * w0 + v1.screenPos.z * v1.oneOverW * w1 + v2.screenPos.z * v2.oneOverW * w2
-                val zCorrect = zOverW * w
+                // NDC 深度已经完成透视除法，应在屏幕空间线性插值；UV/世界坐标才需要透视校正。
+                val zDepth = p0.z * w0 + p1.z * w1 + p2.z * w2
                 val bufferIndex = y * width + x
 
-                if (zCorrect < zBuffer[bufferIndex]) {
+                if (zDepth < zBuffer[bufferIndex] - DEPTH_EPSILON) {
                     // 插值世界坐标 (用于阴影查找)
                     // 注意：WorldPos 也是线性插值，严格来说透视投影下也需要透视校正，但对于阴影查找误差可接受
                     // 为了精确，我们还是做透视校正
@@ -486,14 +583,28 @@ fun rasterizeTriangleMain(
 
                     var shadowFactor = 1.0f
                     // 检查是否在阴影图范围内
-                    if (shadowU in 0f..1f && shadowV in 0f..1f && currentDepth < 1f) {
-                        val shadowMapX = (shadowU * shadowMap.width).toInt()
-                        val shadowMapY = (shadowV * shadowMap.height).toInt()
-                        val closestDepth = shadowMap.get(shadowMapX, shadowMapY)
+                    if (config.enableShadows && shadowU in 0f..1f && shadowV in 0f..1f && currentDepth < 1f) {
+                        val shadowMapX = (shadowU * (shadowMap.width - 1)).toInt()
+                        val shadowMapY = (shadowV * (shadowMap.height - 1)).toInt()
+                        val ndotl = max(normal.normalized().dot(lightDir.normalized()), 0f)
+                        val slopeBias = config.shadowBias * (1f + (1f - ndotl) * 8f)
+                        var occludedSamples = 0
+                        var validSamples = 0
 
-                        // 比较深度 + 偏移量 (Bias)
-                        if (currentDepth - config.shadowBias > closestDepth) {
-                            shadowFactor = 0.5f // 在阴影中
+                        for (dy in -1..1) {
+                            for (dx in -1..1) {
+                                val closestDepth = shadowMap.get(shadowMapX + dx, shadowMapY + dy)
+                                if (closestDepth.isFinite()) {
+                                    validSamples++
+                                    if (currentDepth - slopeBias > closestDepth) {
+                                        occludedSamples++
+                                    }
+                                }
+                            }
+                        }
+
+                        if (validSamples > 0) {
+                            shadowFactor = 1f - 0.5f * (occludedSamples.toFloat() / validSamples)
                         }
                     }
 
@@ -512,18 +623,45 @@ fun rasterizeTriangleMain(
                         baseColor
                     }
 
-                    if (Color.getA(texelColor) < 200) continue
+                    if (Color.getA(texelColor) == 0) continue
 
                     // --- Blinn-Phong 光照应用 ---
                     val finalColor = calculateBlinnPhong(
                         normal, lightDir, viewDir, texelColor, shadowFactor,
                         config.lightIntensity
                     )
+                    val finalAlpha = Color.getA(finalColor)
 
-                    zBuffer[bufferIndex] = zCorrect
-                    target.setPixel(x, y, finalColor)
+                    if (renderPass == MainRenderPass.OPAQUE_ONLY && finalAlpha < 255) continue
+                    if (renderPass == MainRenderPass.TRANSPARENT_ONLY && finalAlpha == 255) continue
+
+                    if (finalAlpha == 255) {
+                        zBuffer[bufferIndex] = zDepth
+                        target.setPixel(x, y, finalColor)
+                    } else {
+                        target.setPixel(x, y, blendSourceOver(finalColor, target.getColor(x, y)))
+                    }
                 }
             }
         }
     }
+}
+
+private fun blendSourceOver(src: Int, dst: Int): Int {
+    val srcA = Color.getA(src) / 255f
+    val dstA = Color.getA(dst) / 255f
+    val outA = srcA + dstA * (1f - srcA)
+    if (outA <= 0f) return Color.TRANSPARENT
+
+    fun blendChannel(srcChannel: Int, dstChannel: Int): Int {
+        val value = (srcChannel * srcA + dstChannel * dstA * (1f - srcA)) / outA
+        return value.roundToInt().clamp(0, 255)
+    }
+
+    return Color.makeARGB(
+        (outA * 255f).roundToInt().clamp(0, 255),
+        blendChannel(Color.getR(src), Color.getR(dst)),
+        blendChannel(Color.getG(src), Color.getG(dst)),
+        blendChannel(Color.getB(src), Color.getB(dst))
+    )
 }

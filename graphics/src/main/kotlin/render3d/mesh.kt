@@ -31,7 +31,7 @@ fun createCuboid(dimensions: Vec3, baseColor: Int): Mesh {
 enum class FaceDirection { RIGHT, LEFT, TOP, BOTTOM, FRONT, BACK }
 
 /**
- * 创建一个带UV坐标的长方体，用于纹理映射。采用“纹素中心对齐”替换“UV内缩”，以实现像素级精确渲染
+ * 创建一个带UV坐标的长方体，用于纹理映射。
  * @param dims 长方体尺寸
  * @param faceUVs 一个Map，指定每个面的UV坐标在纹理图上的矩形区域
  * @param textureWidth 纹理图的总宽度
@@ -59,18 +59,19 @@ fun createUVCuboid(dims: Vec3, faceUVs: Map<FaceDirection, Rect>, textureWidth: 
 
     fun addFace(vIndices: List<Int>, uvRect: Rect) {
         val faceIndices = mutableListOf<Int>()
-        // 纹素中心对齐：将UV坐标指向每个像素的中心，而不是边缘，从根本上解决接缝和错位问题。
-        val texelCenterOffset = 0.5f
-        val centeredRect = Rect.makeLTRB(
-            uvRect.left + texelCenterOffset,
-            uvRect.top + texelCenterOffset,
-            uvRect.right - texelCenterOffset,
-            uvRect.bottom - texelCenterOffset
+        // 使用像素边界映射，让 UV 区域内每个纹素占据相同宽度。
+        // 右/下边界略微回退，避免 nearest + floor 采样在边界处落入相邻 atlas 区域。
+        val edgeEpsilon = 0.001f
+        val samplingRect = Rect.makeLTRB(
+            uvRect.left,
+            uvRect.top,
+            uvRect.right - edgeEpsilon,
+            uvRect.bottom - edgeEpsilon
         )
         // 定义当前面的4个顶点的UV坐标
         val uvs = listOf(
-            Vec2(u(centeredRect.left), v(centeredRect.bottom)), Vec2(u(centeredRect.right), v(centeredRect.bottom)),
-            Vec2(u(centeredRect.right), v(centeredRect.top)), Vec2(u(centeredRect.left), v(centeredRect.top))
+            Vec2(u(samplingRect.left), v(samplingRect.bottom)), Vec2(u(samplingRect.right), v(samplingRect.bottom)),
+            Vec2(u(samplingRect.right), v(samplingRect.top)), Vec2(u(samplingRect.left), v(samplingRect.top))
         )
         // 为每个顶点创建Vertex对象并添加到列表中
         for (i in vIndices.indices) {
@@ -106,5 +107,10 @@ fun combineMeshes(meshes: List<Mesh>, texture: Bitmap? = null): Mesh {
         }
         vertexOffset += mesh.vertices.size
     }
-    return Mesh(combinedVertices, combinedFaces, texture ?: meshes.firstOrNull()?.texture)
+    return Mesh(
+        combinedVertices,
+        combinedFaces,
+        texture ?: meshes.firstOrNull()?.texture,
+        castsShadow = meshes.any { it.castsShadow }
+    )
 }

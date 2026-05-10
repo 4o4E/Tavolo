@@ -22,7 +22,15 @@ interface RenderTexture {
 interface RenderTarget : RenderTexture {
     fun clear(color: Int)
     fun setPixel(x: Int, y: Int, color: Int)
-    fun drawLine(x0: Float, y0: Float, x1: Float, y1: Float, color: Int)
+    fun drawLine(
+        x0: Float,
+        y0: Float,
+        x1: Float,
+        y1: Float,
+        color: Int,
+        strokeWidth: Float = 1f,
+        antiAlias: Boolean = false
+    )
 }
 
 /**
@@ -54,11 +62,19 @@ class BitmapRenderTarget(val bitmap: Bitmap) : RenderTarget {
         bitmap.erase(color, IRect.makeXYWH(x, y, 1, 1))
     }
 
-    override fun drawLine(x0: Float, y0: Float, x1: Float, y1: Float, color: Int) {
+    override fun drawLine(
+        x0: Float,
+        y0: Float,
+        x1: Float,
+        y1: Float,
+        color: Int,
+        strokeWidth: Float,
+        antiAlias: Boolean
+    ) {
         val paint = Paint().apply {
             this.color = color
-            strokeWidth = 1f
-            isAntiAlias = false
+            this.strokeWidth = strokeWidth
+            isAntiAlias = antiAlias
         }
         canvas.drawLine(x0, y0, x1, y1, paint)
     }
@@ -67,7 +83,15 @@ class BitmapRenderTarget(val bitmap: Bitmap) : RenderTarget {
 sealed interface RenderCommand {
     data class Clear(val color: Int) : RenderCommand
     data class Pixel(val x: Int, val y: Int, val color: Int) : RenderCommand
-    data class Line(val x0: Float, val y0: Float, val x1: Float, val y1: Float, val color: Int) : RenderCommand
+    data class Line(
+        val x0: Float,
+        val y0: Float,
+        val x1: Float,
+        val y1: Float,
+        val color: Int,
+        val strokeWidth: Float,
+        val antiAlias: Boolean
+    ) : RenderCommand
 }
 
 /**
@@ -96,7 +120,15 @@ class RecordingRenderTarget(
         commands += RenderCommand.Pixel(x, y, color)
     }
 
-    override fun drawLine(x0: Float, y0: Float, x1: Float, y1: Float, color: Int) {
-        commands += RenderCommand.Line(x0, y0, x1, y1, color)
+    override fun drawLine(
+        x0: Float,
+        y0: Float,
+        x1: Float,
+        y1: Float,
+        color: Int,
+        strokeWidth: Float,
+        antiAlias: Boolean
+    ) {
+        commands += RenderCommand.Line(x0, y0, x1, y1, color, strokeWidth, antiAlias)
     }
 }

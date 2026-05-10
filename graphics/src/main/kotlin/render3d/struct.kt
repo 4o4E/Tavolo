@@ -129,6 +129,7 @@ data class Mesh(
     val vertices: List<Vertex>,
     val faces: List<Face>,
     val texture: org.jetbrains.skia.Bitmap? = null,
+    val castsShadow: Boolean = true,
 )
 
 /**

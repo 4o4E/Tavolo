@@ -38,7 +38,7 @@ fun calculateBlinnPhong(
     viewDir: Vec3,      // 指向相机的方向 (normalized)
     baseColor: Int,     // 材质颜色
     shadowFactor: Float,// 阴影因子 (0=全阴影, 1=无阴影)
-    ambientStrength: Float = 0.4f, // 环境光强度 (提高一点以防阴影太黑)
+    ambientStrength: Float = 0.6f, // 环境光强度，默认偏亮以保留纹理细节
     specularStrength: Float = 0.3f, // 高光强度
     shininess: Float = 32f          // 高光反光度
 ): Int {
