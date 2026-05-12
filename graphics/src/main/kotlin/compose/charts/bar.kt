@@ -28,7 +28,9 @@ data class BarTheme(
     val strokeColor: Int = Color.WHITE,
     val strokeWidth: Float = 2f,
     val start: Float = -90f,
-)
+) {
+    val stroke: ChartStroke get() = ChartStroke(strokeColor, strokeWidth)
+}
 
 /**
  * 绘制一个空心饼图（甜甜圈图）到指定的 Canvas 上
@@ -46,20 +48,17 @@ fun drawDonutChart(
 ) {
     val centerX = left + theme.outerRadius
     val centerY = top + theme.outerRadius
-    val total = data.sumOf { it.second.toDouble() }.toFloat()
+    val positiveData = data.filter { it.second > 0f }
+    val total = positiveData.sumOf { it.second.toDouble() }.toFloat()
 
     // 计算弧形的边界
     val right = left + theme.outerRadius * 2
     val bottom = top + theme.outerRadius * 2
+    val strokeWidth = theme.stroke.width
 
     // 定义用于填充和描边的 Paint
-    val fillPaint = Paint().apply { isAntiAlias = true; mode = PaintMode.FILL }
-    val strokePaint = Paint().apply {
-        isAntiAlias = true
-        mode = PaintMode.STROKE
-        color = theme.strokeColor
-        strokeWidth = theme.strokeWidth
-    }
+    val fillPaint = ChartFill(Color.TRANSPARENT).toPaint()
+    val strokePaint = theme.stroke.toPaint()
 
     var startAngle = theme.start
 
@@ -72,11 +71,11 @@ fun drawDonutChart(
     canvas.clipPath(clipPath)
 
     // 遍历数据并绘制每个扇形
-    val l = left + theme.strokeWidth
-    val t = top + theme.strokeWidth
-    val r = right - theme.strokeWidth
-    val b = bottom - theme.strokeWidth
-    for ((color, value) in data) {
+    val l = left + strokeWidth
+    val t = top + strokeWidth
+    val r = right - strokeWidth
+    val b = bottom - strokeWidth
+    for ((color, value) in positiveData) {
         val sweepAngle = 360 * (value / total)
         fillPaint.color = color
         canvas.drawArc(l, t, r, b, startAngle, sweepAngle, true, fillPaint)
@@ -89,6 +88,6 @@ fun drawDonutChart(
     canvas.restore()
 
     // 描边
-    canvas.drawCircle(centerX, centerY, theme.outerRadius - theme.strokeWidth, strokePaint)
+    canvas.drawCircle(centerX, centerY, theme.outerRadius - strokeWidth, strokePaint)
     canvas.drawCircle(centerX, centerY, theme.innerRadius, strokePaint)
 }

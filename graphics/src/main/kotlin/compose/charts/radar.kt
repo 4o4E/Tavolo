@@ -1,115 +1,130 @@
 package top.e404.tavolo.draw.compose.charts
 
-import org.jetbrains.skia.*
-import top.e404.tavolo.draw.compose.*
+import org.jetbrains.skia.Color
+import org.jetbrains.skia.Path
+import org.jetbrains.skia.TextLine
+import top.e404.tavolo.draw.compose.CanvasElement
+import top.e404.tavolo.draw.compose.DrawCanvas
+import top.e404.tavolo.draw.compose.MeasureContext
+import top.e404.tavolo.draw.compose.StrokeStyle
+import top.e404.tavolo.draw.compose.UiElement
 import top.e404.tavolo.util.Colors
 import top.e404.tavolo.util.FontManager
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
- * 在 UiElement 上添加雷达图
+ * 在 UiElement 上添加雷达图。
  *
  * @param theme 雷达图主题
- * @param data 数据列表，包含标签和对应的数值, second是在整个轴上的占比
+ * @param data 数据列表，second 表示当前轴上的比例
  */
 fun UiElement.radar(theme: RadarTheme, data: List<Pair<String, Float>>) = add(
     CanvasElement(
         theme.width,
         theme.height
-    ) { canvas ->
-        drawRadarChart(canvas, parentX, parentY, data, theme)
+    ) { canvas, measureContext ->
+        drawRadarChart(canvas, parentX, parentY, data, theme, measureContext)
     }
 )
 
 /**
- * Theme 数据类，用于定义图表外观
+ * Theme 数据类，用于定义雷达图外观。
+ *
+ * 主题字段只暴露稳定配置，不要求调用方直接创建 Skia Paint 或 Font。
  */
 data class RadarTheme(
-    /** 雷达图的宽度 */
+    /** 雷达图宽度 */
     val width: Float,
     /** 雷达图高度 */
     val height: Float,
-    /** 雷达图半径 即使设置了gridStart尺寸依然不变 */
+    /** 雷达图半径，即使设置了 gridStart 尺寸依然不变 */
     val radius: Float = 200f,
 
-    /** 数据填充轮廓颜色 */
+    /** 数据填充轮廓 */
     val fillOutlineColor: Int = Colors.LIGHT_BLUE.argb,
-    val fillOutlinePaint: Paint = Paint().apply {
-        color = fillOutlineColor
-        strokeWidth = 2f
-        mode = PaintMode.STROKE
-        isAntiAlias = true
-    },
+    val fillOutlineWidth: Float = 2f,
 
-    /** 数据填充颜色 */
-    val fillColor: Int = fillOutlineColor and 0xFFFFFF or (0x66 shl 24), // 半透明
-    val fillPaint: Paint = Paint().apply {
-        color = fillColor
-        isAntiAlias = true
-    },
+    /** 数据填充 */
+    val fillColor: Int = fillOutlineColor and 0xFFFFFF or (0x66 shl 24),
 
-    /** 背景颜色 填充网格间的空白部分 */
+    /** 背景填充，用于网格之间的空白部分 */
     val bgColor: Int = Color.TRANSPARENT,
-    val bgPaint: Paint = Paint().apply {
-        color = bgColor
-        isAntiAlias = true
-    },
 
-    /** 网格数量 */
+    /** 网格 */
     val gridCount: Int = 5,
-    /** 网格线颜色 */
     val gridLineColor: Int = 0xFFCCCCCC.toInt(),
-    val gridLinePaint: Paint = Paint().apply {
-        color = gridLineColor
-        strokeWidth = 1f
-        isAntiAlias = true
-        mode = PaintMode.STROKE
-        pathEffect = PathEffect.makeDash(floatArrayOf(10f, 10f), 0f)
-    },
-    /** 网格坐标生成逻辑 */
+    val gridLineWidth: Float = 1f,
+    val gridLineStyle: StrokeStyle = StrokeStyle.Dashed(listOf(10f, 10f)),
+    /** 网格坐标文案生成逻辑 */
     val gridFontProvider: (Int) -> String? = { it.toString() },
-    /** 网格坐标字体 */
-    val gridFont: Font = Font(FontManager.resolve(), 12f),
-    /** 网格坐标字体颜色 */
+    val gridFontSize: Float = 12f,
+    val gridFontFamily: String = FontManager.defaultFamily,
     val gridFontColor: Int = Color.WHITE,
-    val gridFontPaint: Paint = Paint().apply {
-        color = gridFontColor
-        isAntiAlias = true
-    },
+    val gridFontWeight: Int? = null,
+    val gridItalic: Boolean = false,
+    val gridScaleX: Float? = null,
+    val gridTextAntiAlias: Boolean = true,
 
     val labelOuterLength: Float = 10F,
-    /** 标签位置修正 处理标签覆盖坐标的问题 */
+    /** 标签位置修正，处理标签覆盖坐标的问题 */
     val labelFixPolicy: RadarFixPolicy = RadarFixPolicy.RATED_FIX,
-    /** 标签字体 */
-    val labelFont: Font = Font(FontManager.resolve(), 25f),
-    /** 标签字体颜色 */
+    val labelFontSize: Float = 25f,
+    val labelFontFamily: String = FontManager.defaultFamily,
     val labelFontColor: Int = Color.WHITE,
-    val labelFontPaint: Paint = Paint().apply {
-        color = labelFontColor
-        isAntiAlias = true
-    }
+    val labelFontWeight: Int? = null,
+    val labelItalic: Boolean = false,
+    val labelScaleX: Float? = null,
+    val labelTextAntiAlias: Boolean = true
 ) {
-    /** 每个网格的单位距离 */
-    val gridUnit = radius / gridCount
+    /** 每个网格的单位距离。gridCount 非法时返回 0，避免产生 Infinity。 */
+    val gridUnit: Float get() = if (gridCount > 0) radius / gridCount else 0f
+
+    val fillOutline: ChartStroke get() = ChartStroke(fillOutlineColor, fillOutlineWidth)
+    val fill: ChartFill get() = ChartFill(fillColor)
+    val background: ChartFill get() = ChartFill(bgColor)
+    val gridLine: ChartStroke get() = ChartStroke(gridLineColor, gridLineWidth, gridLineStyle)
+    val gridTextStyle: ChartTextStyle
+        get() = ChartTextStyle(
+            fontSize = gridFontSize,
+            color = gridFontColor,
+            fontFamily = gridFontFamily,
+            fontWeight = gridFontWeight,
+            italic = gridItalic,
+            scaleX = gridScaleX,
+            antiAlias = gridTextAntiAlias
+        )
+    val labelTextStyle: ChartTextStyle
+        get() = ChartTextStyle(
+            fontSize = labelFontSize,
+            color = labelFontColor,
+            fontFamily = labelFontFamily,
+            fontWeight = labelFontWeight,
+            italic = labelItalic,
+            scaleX = labelScaleX,
+            antiAlias = labelTextAntiAlias
+        )
 }
 
 @Suppress("UNUSED")
 enum class RadarFixPolicy(val fix: (
     angle: Double,
     a: Double,
-    line: TextLine,
+    box: ChartTextBox,
     centerX: Float,
     centerY: Float,
     theme: RadarTheme
 ) -> Pair<Float, Float>) {
     /** 不进行修正，标签起点始终在图表外侧固定位置 */
-    NONE({ angle, _, line, centerX, centerY, theme ->
+    NONE({ angle, _, box, centerX, centerY, theme ->
         val x = centerX + (theme.radius + theme.labelOuterLength) * cos(angle).toFloat()
         val y = centerY + (theme.radius + theme.labelOuterLength) * sin(angle).toFloat()
-        x - line.width / 2 to y
+        x - box.width / 2 to y
     }),
     /** 对于两边的标签向外移动 */
-    MOVE_OUTSIDE({ angle, a, line, centerX, centerY, theme ->
+    MOVE_OUTSIDE({ angle, a, box, centerX, centerY, theme ->
         val r = theme.radius + theme.labelOuterLength
 
         val x = centerX + r * cos(angle).toFloat()
@@ -123,23 +138,20 @@ enum class RadarFixPolicy(val fix: (
         }
 
         val px = when (location) {
-            Location.LEFT -> x - line.width
+            Location.LEFT -> x - box.width
             Location.RIGHT -> x
-            else -> x - line.width / 2
+            else -> x - box.width / 2
         }
         px to y
     }),
-    /** 按比例修正 标签依然除了顶部和底部都向外偏移 */
-    RATED_FIX({ angle, a, line, centerX, centerY, theme ->
-        // 距离上下顶点越近, 修正越大
+    /** 按比例修正，标签仍然除了顶部和底部都向外偏移 */
+    RATED_FIX({ angle, a, box, centerX, centerY, theme ->
         val v = abs((a % 1) - 0.5)
         val fix = (1 - v).toFloat() * theme.labelOuterLength * 1.5f
-        // 修正起点, 保持标签和图表的距离
         val r = theme.radius + theme.labelOuterLength + fix
 
         val x = centerX + r * cos(angle).toFloat()
         val y = centerY + r * sin(angle).toFloat()
-
 
         val location = when {
             abs(a - 1.5) < 1e-6 -> Location.TOP
@@ -149,33 +161,32 @@ enum class RadarFixPolicy(val fix: (
         }
 
         val px = when (location) {
-            Location.LEFT -> x - line.width
+            Location.LEFT -> x - box.width
             Location.RIGHT -> x
-            else -> x - line.width / 2
+            else -> x - box.width / 2
         }
         px to y
     }),
-    /** 倾斜 */
-    TILT({ angle, _, line, centerX, centerY, theme ->
-        /**
-         * 计算从文本中心 (tx,ty) 指向雷达中心 (cx,cy) 的线段
-         * 在矩形 (left, top, right, bottom) 内的长度（从中心到盒子边界的距离）。
-         */
+    /** 倾斜修正 */
+    TILT({ angle, _, box, centerX, centerY, theme ->
         fun computeTextCenterToRadarInsideFontBoxLength(
-            tx: Float, ty: Float,
-            cx: Float, cy: Float,
-            left: Float, top: Float, right: Float, bottom: Float
+            tx: Float,
+            ty: Float,
+            cx: Float,
+            cy: Float,
+            left: Float,
+            top: Float,
+            right: Float,
+            bottom: Float
         ): Float {
             val dx = cx - tx
             val dy = cy - ty
             val eps = 1e-6f
 
-            // 如果方向向量几乎为零，返回 0
             if (abs(dx) < eps && abs(dy) < eps) return 0f
 
             val candidates = mutableListOf<Float>()
 
-            // 与竖直边相交 (x = left 或 x = right)
             if (abs(dx) > eps) {
                 val tLeft = (left - tx) / dx
                 if (tLeft > 0f) {
@@ -189,7 +200,6 @@ enum class RadarFixPolicy(val fix: (
                 }
             }
 
-            // 与水平边相交 (y = top 或 y = bottom)
             if (abs(dy) > eps) {
                 val tTop = (top - ty) / dy
                 if (tTop > 0f) {
@@ -205,47 +215,82 @@ enum class RadarFixPolicy(val fix: (
 
             if (candidates.isEmpty()) return 0f
 
-            // 选择最近的正交交点 (最小正 t)
             val tMin = candidates.min()
-            val dist = sqrt(dx * dx + dy * dy) * tMin
-            return dist
+            return sqrt(dx * dx + dy * dy) * tMin
         }
 
         val x = centerX + (theme.radius + theme.labelOuterLength) * cos(angle).toFloat()
         val y = centerY + (theme.radius + theme.labelOuterLength) * sin(angle).toFloat()
 
-        val boxLeft = line.width / 2
-        val boxTop = line.ascent
-        val boxRight = line.width / 2
-        val boxBottom = line.descent
-        // 计算文本中心点连接雷达图中心点的线在字体盒中的长度
+        val boxLeft = box.width / 2
+        val boxTop = box.ascent
+        val boxRight = box.width / 2
+        val boxBottom = box.descent
         val distance = computeTextCenterToRadarInsideFontBoxLength(
-            x, y,
-            centerX, centerY,
-            boxLeft, boxTop,
-            boxRight, boxBottom
+            x,
+            y,
+            centerX,
+            centerY,
+            boxLeft,
+            boxTop,
+            boxRight,
+            boxBottom
         )
 
-        val r = theme.radius + theme.labelOuterLength - distance + line.run { sqrt(width * width + height * height) } / 2
+        val r = theme.radius + theme.labelOuterLength - distance + sqrt(box.width * box.width + box.height * box.height) / 2
 
         val dx = centerX + r * cos(angle).toFloat()
         val dy = centerY + r * sin(angle).toFloat()
 
-        val dpx = dx - line.width / 2
-        val dpy = dy - line.descent / 2
+        val dpx = dx - box.width / 2
+        val dpy = dy - box.descent / 2
         dpx to dpy
     });
 }
 
 enum class Location { LEFT, TOP, RIGHT, BOTTOM }
 
-fun drawRadarChart(canvas: DrawCanvas, parentX: Float, parentY: Float, data: List<Pair<String, Float>>, theme: RadarTheme) {
+private data class MeasuredChartText(
+    val line: TextLine,
+    val box: ChartTextBox
+)
+
+private fun measureChartText(text: String, style: ChartTextStyle, measureContext: MeasureContext): MeasuredChartText {
+    val font = style.toFont()
+    val paint = style.toPaint()
+    val metrics = measureContext.textMeasurer.metrics(font)
+    val width = measureContext.textMeasurer.measureTextWidth(text, font, paint)
+    return MeasuredChartText(
+        line = TextLine.make(text, font),
+        box = ChartTextBox(
+            width = width,
+            height = metrics.lineHeight,
+            ascent = metrics.ascent,
+            descent = metrics.descent
+        )
+    )
+}
+
+fun drawRadarChart(
+    canvas: DrawCanvas,
+    parentX: Float,
+    parentY: Float,
+    data: List<Pair<String, Float>>,
+    theme: RadarTheme,
+    measureContext: MeasureContext = MeasureContext()
+) {
     val centerX = parentX + theme.width / 2f
     val centerY = parentY + theme.height / 2f
     val n = data.size
-    val angleStep = 2 * Math.PI / n
+    val angleStep = if (n > 0) 2 * Math.PI / n else 0.0
+    val gridCount = theme.gridCount.coerceAtLeast(0)
+    val backgroundPaint = theme.background.toPaint()
+    val gridLinePaint = theme.gridLine.toPaint()
+    val fillPaint = theme.fill.toPaint()
+    val fillOutlinePaint = theme.fillOutline.toPaint()
+    val gridTextPaint = theme.gridTextStyle.toPaint()
+    val labelTextPaint = theme.labelTextStyle.toPaint()
 
-    // 绘制雷达图背景
     val path = Path().run {
         for (i in 0 until n) {
             val angle = i * angleStep - Math.PI / 2
@@ -259,11 +304,10 @@ fun drawRadarChart(canvas: DrawCanvas, parentX: Float, parentY: Float, data: Lis
         }
         closePath()
     }
-    canvas.drawPath(path, theme.bgPaint)
+    canvas.drawPath(path, backgroundPaint)
 
-    // 绘制网格线 和 网格坐标
-    for (ringIndex in 1..theme.gridCount) {
-        val r = theme.radius * ringIndex / theme.gridCount
+    for (ringIndex in 1..gridCount) {
+        val r = theme.radius * ringIndex / gridCount
         val gridPath = Path()
         for (j in 0 until n) {
             val angle = j * angleStep - Math.PI / 2
@@ -276,31 +320,31 @@ fun drawRadarChart(canvas: DrawCanvas, parentX: Float, parentY: Float, data: Lis
             }
         }
         gridPath.closePath()
-        canvas.drawPath(gridPath, theme.gridLinePaint)
+        canvas.drawPath(gridPath, gridLinePaint)
         theme.gridFontProvider.invoke(ringIndex - 1)?.let { gridText ->
+            val measured = measureChartText(gridText, theme.gridTextStyle, measureContext)
             canvas.drawTextLine(
-                TextLine.make(gridText, theme.gridFont),
+                measured.line,
                 centerX + 3f,
                 centerY - r - 3f,
-                theme.gridFontPaint
+                gridTextPaint
             )
         }
     }
 
-    // 绘制放射线
     for (i in 0 until n) {
         val angle = i * angleStep - Math.PI / 2
         val tx = centerX + theme.radius * cos(angle).toFloat()
         val ty = centerY + theme.radius * sin(angle).toFloat()
         val fx = centerX + theme.gridUnit * cos(angle).toFloat()
         val fy = centerY + theme.gridUnit * sin(angle).toFloat()
-        canvas.drawLine(fx, fy, tx, ty, theme.gridLinePaint)
+        canvas.drawLine(fx, fy, tx, ty, gridLinePaint)
     }
 
-    // 绘制数据层
     val dataPath = Path().run {
         data.forEachIndexed { i, (_, rate) ->
-            val r = (theme.radius - theme.gridUnit) * rate + theme.gridUnit
+            val safeRate = rate.coerceIn(0f, 1f)
+            val r = (theme.radius - theme.gridUnit) * safeRate + theme.gridUnit
             val angle = i * angleStep - Math.PI / 2
             val x = centerX + r * cos(angle).toFloat()
             val y = centerY + r * sin(angle).toFloat()
@@ -313,17 +357,16 @@ fun drawRadarChart(canvas: DrawCanvas, parentX: Float, parentY: Float, data: Lis
         closePath()
     }
 
-    canvas.drawPath(dataPath, theme.fillPaint)
-    canvas.drawPath(dataPath, theme.fillOutlinePaint)
+    canvas.drawPath(dataPath, fillPaint)
+    canvas.drawPath(dataPath, fillOutlinePaint)
 
-    // 绘制标签
     data.forEachIndexed { i, (label) ->
         val angle = (i * angleStep + Math.PI / 2 * 3) % (2 * Math.PI)
-        val line = TextLine.make(label, theme.labelFont)
+        val measured = measureChartText(label, theme.labelTextStyle, measureContext)
         val a = angle / Math.PI
 
-        theme.labelFixPolicy.fix(angle, a, line, centerX, centerY, theme).let { (px, py) ->
-            canvas.drawTextLine(line, px, py, theme.labelFontPaint)
+        theme.labelFixPolicy.fix(angle, a, measured.box, centerX, centerY, theme).let { (px, py) ->
+            canvas.drawTextLine(measured.line, px, py, labelTextPaint)
         }
     }
 }

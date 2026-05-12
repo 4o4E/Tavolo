@@ -50,11 +50,12 @@ interface TextMeasurer {
 
 ## 绘制抽象
 
-绘制上下文只依赖 `DrawCanvas`：
+绘制上下文包含 `DrawCanvas`，并保留本次渲染使用的 `MeasureContext`，方便自定义绘制在 draw 阶段复用同一套文本测量能力：
 
 ```kotlin
 class DrawContext(
-    val canvas: DrawCanvas
+    val canvas: DrawCanvas,
+    val measureContext: MeasureContext = MeasureContext()
 )
 ```
 
@@ -87,6 +88,19 @@ interface UiElement {
 - `ImageElement`。
 - `CanvasElement`。
 - 图表和图标组件基于 `CanvasElement` 与 `DrawCanvas` 绘制。
+
+`CanvasElement` 支持两种绘制 lambda：旧的 `(DrawCanvas) -> Unit` 写法仍可使用；需要文本测量或测量阶段上下文时，可以使用 `(DrawCanvas, MeasureContext) -> Unit`。渲染入口会把测量阶段使用的同一个 `MeasureContext` 传入绘制阶段。
+
+## 图表主题
+
+图表主题 API 不要求调用方直接构造 Skia `Paint` 或 `Font`。当前图表组件使用稳定配置描述样式：
+
+- `ChartFill`：填充颜色和抗锯齿。
+- `ChartStroke`：描边颜色、宽度、线型和抗锯齿。
+- `ChartTextStyle`：字号、颜色、字体名、字重、斜体、横向缩放和抗锯齿。
+- `ChartTextBox`：文本测量后的宽高和 ascent/descent，用于标签位置修正。
+
+雷达图标签和网格文字会通过 `MeasureContext.textMeasurer` 计算宽度与字体指标，`RadarFixPolicy` 只接收 `ChartTextBox`，不暴露 Skia `TextLine`。真实绘制时再由内部把主题配置转换为 Skia 对象。
 
 ## Modifier
 

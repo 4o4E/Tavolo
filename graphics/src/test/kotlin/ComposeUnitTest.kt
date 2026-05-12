@@ -42,6 +42,7 @@ import top.e404.tavolo.draw.compose.background
 import top.e404.tavolo.draw.compose.border
 import top.e404.tavolo.draw.compose.box
 import top.e404.tavolo.draw.compose.charts.BarTheme
+import top.e404.tavolo.draw.compose.charts.ChartTextBox
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.bar
@@ -113,6 +114,14 @@ private fun assertFloatEquals(expected: Float, actual: Float) {
         "期望 $expected，实际 $actual"
     )
 }
+
+private fun fixedTextBox(text: String, charWidth: Float = 10f): ChartTextBox =
+    ChartTextBox(
+        width = text.length * charWidth,
+        height = 10f,
+        ascent = -8f,
+        descent = 2f
+    )
 
 private fun assertElementBounds(element: UiElement, x: Float, y: Float, width: Float, height: Float) {
     assertFloatEquals(x, element.x)
@@ -920,6 +929,25 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun canvasElementDrawCanUseMeasureContext() {
+        var measuredWidth = 0f
+
+        renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 7f))
+        ) {
+            add(CanvasElement(10f, 10f) { _, measureContext ->
+                measuredWidth = measureContext.textMeasurer.measureTextWidth(
+                    "abc",
+                    Font(Typeface.makeEmpty(), 10f),
+                    Paint()
+                )
+            })
+        }
+
+        assertFloatEquals(21f, measuredWidth)
+    }
+
+    @Test
     fun barChartRecordsClipArcsAndOutlineCircles() {
         val commands = renderCommands {
             bar(
@@ -998,6 +1026,22 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun donutChartSkipsNonPositiveSegmentsWithoutInvalidArcs() {
+        val recorder = RecordingDrawCanvas()
+
+        drawDonutChart(
+            canvas = recorder,
+            left = 0f,
+            top = 0f,
+            data = listOf(Color.RED to 0f, Color.BLUE to -1f),
+            theme = BarTheme(outerRadius = 20f, innerRadius = 8f)
+        )
+
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.Arc>().size)
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.Circle>().size)
+    }
+
+    @Test
     fun radarChartRecordsPathsLinesAndTextLines() {
         val recorder = RecordingDrawCanvas()
         val theme = RadarTheme(
@@ -1007,8 +1051,8 @@ class ComposeCanvasAndChartUnitTest {
             gridCount = 2,
             gridFontProvider = { "g$it" },
             labelFixPolicy = RadarFixPolicy.NONE,
-            labelFont = Font(Typeface.makeEmpty(), 10f),
-            gridFont = Font(Typeface.makeEmpty(), 8f)
+            labelFontSize = 10f,
+            gridFontSize = 8f
         )
 
         drawRadarChart(
@@ -1016,7 +1060,8 @@ class ComposeCanvasAndChartUnitTest {
             parentX = 0f,
             parentY = 0f,
             data = listOf("a" to 0.2f, "b" to 0.6f, "c" to 1f),
-            theme = theme
+            theme = theme,
+            measureContext = MeasureContext(FixedTextMeasurer())
         )
 
         assertEquals(5, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
@@ -1036,10 +1081,10 @@ class ComposeCanvasAndChartUnitTest {
             gridCount = 2,
             gridLineColor = Color.GREEN,
             gridFontProvider = { if (it == 0) null else "g$it" },
-            gridFont = Font(Typeface.makeEmpty(), 8f),
+            gridFontSize = 8f,
             gridFontColor = Color.BLUE,
             labelFixPolicy = RadarFixPolicy.NONE,
-            labelFont = Font(Typeface.makeEmpty(), 10f),
+            labelFontSize = 10f,
             labelFontColor = Color.WHITE
         )
 
@@ -1048,7 +1093,8 @@ class ComposeCanvasAndChartUnitTest {
             parentX = 10f,
             parentY = 20f,
             data = listOf("top" to 1f, "right" to 0.5f, "bottom" to 0.25f, "left" to 0.75f),
-            theme = theme
+            theme = theme,
+            measureContext = MeasureContext(FixedTextMeasurer())
         )
 
         val paths = recorder.commands.filterIsInstance<DrawCommand.Path>()
@@ -1084,9 +1130,65 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun radarChartLabelPositionsUseInjectedTextMeasurer() {
+        val recorder = RecordingDrawCanvas()
+        val theme = RadarTheme(
+            width = 100f,
+            height = 100f,
+            radius = 20f,
+            gridCount = 0,
+            labelOuterLength = 10f,
+            labelFixPolicy = RadarFixPolicy.NONE,
+            labelFontSize = 10f
+        )
+
+        drawRadarChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf("wide" to 1f),
+            theme = theme,
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 20f))
+        )
+
+        val label = recorder.commands.filterIsInstance<DrawCommand.TextLine>().single()
+        assertFloatEquals(10f, label.x)
+        assertFloatEquals(20f, label.y)
+    }
+
+    @Test
+    fun radarChartHandlesNonEmptyDataWithZeroGridCount() {
+        val recorder = RecordingDrawCanvas()
+
+        drawRadarChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf("a" to -1f, "b" to 2f),
+            theme = RadarTheme(
+                width = 100f,
+                height = 100f,
+                radius = 20f,
+                gridCount = 0,
+                gridFontProvider = { "g$it" },
+                labelFixPolicy = RadarFixPolicy.NONE
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val lines = recorder.commands.filterIsInstance<DrawCommand.Line>()
+        assertEquals(2, lines.size)
+        lines.forEach {
+            assertTrue(it.x0.isFinite())
+            assertTrue(it.y0.isFinite())
+            assertTrue(it.x1.isFinite())
+            assertTrue(it.y1.isFinite())
+        }
+    }
+
+    @Test
     fun radarChartAppliesLabelFixPolicyToRecordedTextLinePositions() {
         val data = listOf("top" to 1f, "right" to 1f, "bottom" to 1f, "left" to 1f)
-        val labelFont = Font(Typeface.makeEmpty(), 10f)
 
         listOf(RadarFixPolicy.MOVE_OUTSIDE, RadarFixPolicy.RATED_FIX).forEach { policy ->
             val recorder = RecordingDrawCanvas()
@@ -1098,7 +1200,7 @@ class ComposeCanvasAndChartUnitTest {
                 gridFontProvider = { null },
                 labelOuterLength = 10f,
                 labelFixPolicy = policy,
-                labelFont = labelFont
+                labelFontSize = 10f
             )
 
             drawRadarChart(
@@ -1106,7 +1208,8 @@ class ComposeCanvasAndChartUnitTest {
                 parentX = 0f,
                 parentY = 0f,
                 data = data,
-                theme = theme
+                theme = theme,
+                measureContext = MeasureContext(FixedTextMeasurer())
             )
 
             val labels = recorder.commands.filterIsInstance<DrawCommand.TextLine>()
@@ -1114,11 +1217,10 @@ class ComposeCanvasAndChartUnitTest {
             data.forEachIndexed { index, (label) ->
                 val angleStep = 2 * Math.PI / data.size
                 val angle = (index * angleStep + Math.PI / 2 * 3) % (2 * Math.PI)
-                val line = org.jetbrains.skia.TextLine.make(label, labelFont)
                 val (expectedX, expectedY) = policy.fix(
                     angle,
                     angle / Math.PI,
-                    line,
+                    fixedTextBox(label),
                     50f,
                     50f,
                     theme
@@ -1138,7 +1240,7 @@ class ComposeCanvasAndChartUnitTest {
             radius = 20f,
             gridCount = 0,
             gridFontProvider = { "g$it" },
-            labelFont = Font(Typeface.makeEmpty(), 10f)
+            labelFontSize = 10f
         )
 
         drawRadarChart(
@@ -1156,14 +1258,14 @@ class ComposeCanvasAndChartUnitTest {
 
     @Test
     fun radarFixPoliciesCoverRightSideAndTiltIntersectionBranches() {
-        val line = org.jetbrains.skia.TextLine.make("Commit", Font(Typeface.makeEmpty(), 10f))
+        val box = fixedTextBox("Commit")
         val theme = RadarTheme(width = 100f, height = 100f, radius = 20f, labelOuterLength = 10f)
 
         listOf(RadarFixPolicy.MOVE_OUTSIDE, RadarFixPolicy.RATED_FIX).forEach { policy ->
             val (x, y) = policy.fix(
                 Math.PI * 1.75,
                 1.75,
-                line,
+                box,
                 50f,
                 50f,
                 theme
@@ -1180,7 +1282,7 @@ class ComposeCanvasAndChartUnitTest {
             val labelOuterLength: Float
         )
 
-        val halfWidth = line.width / 2f
+        val halfWidth = box.width / 2f
         listOf(
             // 文本中心和雷达中心重合，覆盖零向量分支。
             TiltCase(0.0, 0f, 0f, 0f, 0f),
@@ -1198,7 +1300,7 @@ class ComposeCanvasAndChartUnitTest {
             val (x, y) = RadarFixPolicy.TILT.fix(
                 case.angle,
                 case.angle / Math.PI,
-                line,
+                box,
                 case.centerX,
                 case.centerY,
                 RadarTheme(
@@ -1206,7 +1308,7 @@ class ComposeCanvasAndChartUnitTest {
                     height = 100f,
                     radius = case.radius,
                     labelOuterLength = case.labelOuterLength,
-                    labelFont = Font(Typeface.makeEmpty(), 10f)
+                    labelFontSize = 10f
                 )
             )
             assertTrue(x.isFinite(), "TILT x 应为有限值: $case")
@@ -1216,7 +1318,7 @@ class ComposeCanvasAndChartUnitTest {
 
     @Test
     fun radarFixPoliciesUsedByConsumersProduceFiniteLabelPositions() {
-        val line = org.jetbrains.skia.TextLine.make("Commit", Font(Typeface.makeEmpty(), 10f))
+        val box = fixedTextBox("Commit")
         val theme = RadarTheme(width = 100f, height = 100f, radius = 30f, labelOuterLength = 10f)
 
         listOf(
@@ -1227,7 +1329,7 @@ class ComposeCanvasAndChartUnitTest {
             val (x, y) = policy.fix(
                 -Math.PI / 2,
                 1.5,
-                line,
+                box,
                 50f,
                 50f,
                 theme

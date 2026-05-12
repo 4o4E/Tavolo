@@ -434,34 +434,19 @@ class TestComposeThemes {
                     height = 292f,
                     radius = 88f,
                     fillOutlineColor = color,
-                    fillOutlinePaint = Paint().apply {
-                        this.color = color
-                        strokeWidth = 2.5f
-                        mode = PaintMode.STROKE
-                        isAntiAlias = true
-                    },
+                    fillOutlineWidth = 2.5f,
                     fillColor = color and 0x00FFFFFF or (0x55 shl 24),
-                    fillPaint = Paint().apply {
-                        this.color = color and 0x00FFFFFF or (0x55 shl 24)
-                        isAntiAlias = true
-                    },
                     gridCount = gridCount,
                     gridLineColor = Color.makeRGB(194, 203, 216),
                     gridFontProvider = { if (showGridText) "${it + 1}" else null },
-                    gridFont = Font(FontManager.resolve(uiFont), 10f),
+                    gridFontSize = 10f,
+                    gridFontFamily = uiFont,
                     gridFontColor = Color.makeRGB(109, 122, 142),
-                    gridFontPaint = Paint().apply {
-                        this.color = Color.makeRGB(109, 122, 142)
-                        isAntiAlias = true
-                    },
                     labelOuterLength = 16f,
                     labelFixPolicy = fixPolicy,
-                    labelFont = Font(FontManager.resolve(uiFont), 16f),
+                    labelFontSize = 16f,
+                    labelFontFamily = uiFont,
                     labelFontColor = Color.makeRGB(43, 52, 68),
-                    labelFontPaint = Paint().apply {
-                        this.color = Color.makeRGB(43, 52, 68)
-                        isAntiAlias = true
-                    }
                 ),
                 radarData
             )

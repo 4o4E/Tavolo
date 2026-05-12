@@ -432,8 +432,14 @@ class Box(
 class CanvasElement(
     override var width: Float,
     override var height: Float,
-    val draw: CanvasElement.(DrawCanvas) -> Unit
+    val draw: CanvasElement.(DrawCanvas, MeasureContext) -> Unit
 ) : BaseElement() {
+    constructor(
+        width: Float,
+        height: Float,
+        draw: CanvasElement.(DrawCanvas) -> Unit
+    ) : this(width, height, { canvas, _ -> draw(canvas) })
+
     internal var parentX: Float = 0f
     internal var parentY: Float = 0f
     override var contentWidth = width
@@ -445,7 +451,7 @@ class CanvasElement(
         this.parentY = content.y
     }
     override fun drawContent(context: DrawContext) {
-        draw.invoke(this, context.canvas)
+        draw.invoke(this, context.canvas, context.measureContext)
     }
 }
 

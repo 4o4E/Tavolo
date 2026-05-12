@@ -7,7 +7,8 @@ class MeasureContext(
 )
 
 class DrawContext(
-    val canvas: DrawCanvas
+    val canvas: DrawCanvas,
+    val measureContext: MeasureContext = MeasureContext()
 )
 
 data class TextMetrics(

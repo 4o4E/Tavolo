@@ -50,7 +50,7 @@ fun render(
 ): Image {
     val prepared = prepareRenderTree(root, measureContext, content)
     return Surface.makeRasterN32Premul(prepared.width, prepared.height).use { surface ->
-        val drawContext = DrawContext(SkiaDrawCanvas(surface.canvas))
+        val drawContext = DrawContext(SkiaDrawCanvas(surface.canvas), measureContext)
         drawContext.canvas.clear(backgroundColor)
         prepared.root.draw(drawContext)
         surface.makeImageSnapshot()
@@ -68,7 +68,7 @@ fun renderCommands(
 ): List<DrawCommand> {
     val prepared = prepareRenderTree(root, measureContext, content)
     val recorder = RecordingDrawCanvas()
-    val drawContext = DrawContext(recorder)
+    val drawContext = DrawContext(recorder, measureContext)
     drawContext.canvas.clear(backgroundColor)
     prepared.root.draw(drawContext)
     return recorder.commands
