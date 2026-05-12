@@ -17,6 +17,7 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Surface
 import top.e404.tavolo.frame.Frame
+import top.e404.tavolo.frame.decodeToFrames
 import top.e404.tavolo.frame.encodeToBytes
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -87,6 +88,31 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun executeHandlerIgnoresUnrelatedPipelineField() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/handlers/round/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+                append("pipeline", "not-json")
+            }
+        )
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(ContentType.Image.PNG.toString(), response.headers[HttpHeaders.ContentType])
+        assertTrue(response.body<ByteArray>().isNotEmpty())
+    }
+
+    @Test
     fun executeGeneratorReturnsImageBytes() = testApplication {
         application {
             tavoloModule()
@@ -140,6 +166,129 @@ class CommandRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(ContentType.Image.PNG.toString(), response.headers[HttpHeaders.ContentType])
         assertTrue(response.body<ByteArray>().isNotEmpty())
+    }
+
+    @Test
+    fun executePipelineRunsHandlerSteps() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+                append(
+                    "pipeline",
+                    """[{"id":"round","args":{}},{"id":"resize","args":{"w":"2","h":"2"}}]"""
+                )
+            }
+        )
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(ContentType.Image.PNG.toString(), response.headers[HttpHeaders.ContentType])
+        val frames = response.body<ByteArray>().decodeToFrames()
+        assertEquals(1, frames.size)
+        assertEquals(2, frames.single().image.width)
+        assertEquals(2, frames.single().image.height)
+    }
+
+    @Test
+    fun executePipelineWithoutStepsReturnsBadRequest() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+                append("pipeline", "[]")
+            }
+        )
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = json.decodeFromString<ErrorResponse>(response.bodyAsText())
+        assertTrue(body.message.contains("pipeline"))
+    }
+
+    @Test
+    fun executePipelineWithoutImageReturnsBadRequest() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append("pipeline", """[{"id":"round","args":{}}]""")
+            }
+        )
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = json.decodeFromString<ErrorResponse>(response.bodyAsText())
+        assertTrue(body.message.contains("image"))
+    }
+
+    @Test
+    fun executePipelineWithoutPipelineFieldReturnsBadRequest() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+            }
+        )
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = json.decodeFromString<ErrorResponse>(response.bodyAsText())
+        assertTrue(body.message.contains("pipeline"))
+    }
+
+    @Test
+    fun executePipelineWithUnknownHandlerReturnsNotFound() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+                append("pipeline", """[{"id":"not_exists","args":{}}]""")
+            }
+        )
+
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        val body = json.decodeFromString<ErrorResponse>(response.bodyAsText())
+        assertTrue(body.message.contains("not_exists"))
     }
 
     @Test

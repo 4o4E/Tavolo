@@ -16,6 +16,7 @@ import top.e404.tavolo.http.server.dto.ExecuteRequest
 import top.e404.tavolo.http.server.service.BadExecuteRequestException
 import top.e404.tavolo.http.server.service.CommandExecuteService
 import top.e404.tavolo.http.server.service.ExecutedImage
+import top.e404.tavolo.pipeline.HandlerPipelineStep
 
 fun Route.executeRoutes(executeService: CommandExecuteService) {
     post("/handlers/{id}/execute") {
@@ -49,11 +50,25 @@ fun Route.executeRoutes(executeService: CommandExecuteService) {
             }
         }
     }
+
+    post("/pipelines/execute") {
+        val request = call.receivePipelineMultipart()
+        val image = request.image ?: throw BadExecuteRequestException("pipeline 执行缺少 image")
+        val pipeline = request.pipeline ?: throw BadExecuteRequestException("pipeline 执行缺少 pipeline")
+        call.respondExecuted {
+            executeService.executePipeline(image, pipeline)
+        }
+    }
 }
 
 private data class MultipartExecuteRequest(
     val image: ByteArray?,
     val args: Map<String, String>,
+)
+
+private data class MultipartPipelineRequest(
+    val image: ByteArray?,
+    val pipeline: List<HandlerPipelineStep>?,
 )
 
 private suspend fun io.ktor.server.application.ApplicationCall.receiveExecuteMultipart(): MultipartExecuteRequest {
@@ -78,6 +93,30 @@ private suspend fun io.ktor.server.application.ApplicationCall.receiveExecuteMul
         part.dispose()
     }
     return MultipartExecuteRequest(image, args)
+}
+
+private suspend fun io.ktor.server.application.ApplicationCall.receivePipelineMultipart(): MultipartPipelineRequest {
+    var image: ByteArray? = null
+    var pipeline: List<HandlerPipelineStep>? = null
+    receiveMultipart().forEachPart { part ->
+        when (part) {
+            is PartData.FileItem -> {
+                if (part.name == "image") {
+                    image = part.streamProvider().use { it.readBytes() }
+                }
+            }
+
+            is PartData.FormItem -> {
+                if (part.name == "pipeline" && part.value.isNotBlank()) {
+                    pipeline = Json.decodeFromString<List<HandlerPipelineStep>>(part.value)
+                }
+            }
+
+            else -> Unit
+        }
+        part.dispose()
+    }
+    return MultipartPipelineRequest(image, pipeline)
 }
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondExecuted(

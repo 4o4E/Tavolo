@@ -1,12 +1,16 @@
 package top.e404.tavolo.http.server.service
 
 import top.e404.tavolo.frame.encodeToBytes
+import top.e404.tavolo.pipeline.HandlerPipelineExecutor
+import top.e404.tavolo.pipeline.HandlerPipelineStep
 import top.e404.tavolo.registry.CommandCategory
 import top.e404.tavolo.registry.CommandRegistry
 
 class CommandExecuteService(
     private val registryProvider: () -> CommandRegistry = { CommandRegistry.load() }
 ) {
+    private val pipelineExecutor = HandlerPipelineExecutor(registryProvider)
+
     suspend fun executeHandler(id: String, image: ByteArray, args: Map<String, String>): ExecutedImage {
         val registry = registryProvider()
         val registered = registry.handlers.firstOrNull { it.descriptor.id == id }
@@ -42,6 +46,11 @@ class CommandExecuteService(
                 registered.generator.generate(args.toMutableMap()).toExecutedImage()
             }
         }
+    }
+
+    suspend fun executePipeline(image: ByteArray, steps: List<HandlerPipelineStep>): ExecutedImage {
+        val frames = pipelineExecutor.executeHandlers(image, steps)
+        return frames.toExecutedImage()
     }
 
     private fun List<top.e404.tavolo.frame.Frame>.toExecutedImage(): ExecutedImage =
