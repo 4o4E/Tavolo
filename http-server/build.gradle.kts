@@ -33,6 +33,7 @@ dependencies {
     testImplementation(kotlin("test", Versions.KOTLIN))
     testImplementation(ktor("server-tests-jvm"))
     testImplementation(skiko("windows-x64"))
+    testImplementation(skiko("linux-x64"))
 }
 
 tasks {

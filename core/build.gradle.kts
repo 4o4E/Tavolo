@@ -17,6 +17,7 @@ dependencies {
     api(project(":bdf-parser"))
     // skiko
     compileOnly(skiko("windows-x64"))
+    compileOnly(skiko("linux-x64"))
     // serialization
     implementation(kotlinx("serialization-core-jvm", Versions.KOTLINX_SERIALIZATION))
     // kaml
@@ -28,6 +29,7 @@ dependencies {
     testImplementation(kotlin("test", Versions.KOTLIN))
     // skiko
     testImplementation(skiko("windows-x64"))
+    testImplementation(skiko("linux-x64"))
 }
 
 tasks {
