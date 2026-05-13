@@ -67,12 +67,17 @@ jobs:
             {
               echo "### Gradle 失败日志"
               echo '```text'
-              tail -n 80 build/ci-gradle-test.log
+              tail -n 160 build/ci-gradle-test.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            tail -n 40 build/ci-gradle-test.log | while IFS= read -r line; do
-              echo "::error title=Gradle 失败日志::$line"
-            done
+            message="$(grep -E "^(> Task|FAILURE:|\\* What went wrong:|Execution failed|Caused by:|Cannot run program|A problem occurred starting process)" build/ci-gradle-test.log | tail -n 20)"
+            if [ -z "$message" ]; then
+              message="$(tail -n 40 build/ci-gradle-test.log)"
+            fi
+            message="${message//'%'/'%25'}"
+            message="${message//$'\n'/'%0A'}"
+            message="${message//$'\r'/'%0D'}"
+            echo "::error title=Gradle 失败摘要::$message"
           fi
 
       - name: 上传失败测试报告
