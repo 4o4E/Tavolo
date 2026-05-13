@@ -38,9 +38,12 @@ jobs:
             libfreetype6 \
             libgl1 \
             libx11-6 \
+            libxext6 \
+            libxfixes3 \
             libxi6 \
             libxrender1 \
-            libxtst6
+            libxtst6 \
+            xvfb
 
       - name: 设置 Gradle 缓存
         uses: gradle/actions/setup-gradle@v4
@@ -49,7 +52,11 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: 运行单元测试
-        run: ./gradlew :core:clean test --stacktrace --console=plain
+        shell: bash
+        run: |
+          mkdir -p build
+          set -o pipefail
+          xvfb-run -a ./gradlew :core:clean test --stacktrace --console=plain 2>&1 | tee build/ci-gradle-test.log
 
       - name: 上传失败测试报告
         if: failure()
@@ -57,5 +64,6 @@ jobs:
         with:
           name: test-reports
           path: |
+            build/ci-gradle-test.log
             **/build/reports/tests/test/
             **/build/test-results/test/
