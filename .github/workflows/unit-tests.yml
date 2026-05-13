@@ -27,6 +27,21 @@ jobs:
           distribution: temurin
           java-version: "11"
 
+      - name: 安装图形测试运行依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            fontconfig \
+            fonts-dejavu-core \
+            libegl1 \
+            libfontconfig1 \
+            libfreetype6 \
+            libgl1 \
+            libx11-6 \
+            libxi6 \
+            libxrender1 \
+            libxtst6
+
       - name: 设置 Gradle 缓存
         uses: gradle/actions/setup-gradle@v4
 
@@ -34,7 +49,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: 运行单元测试
-        run: ./gradlew :core:clean test --stacktrace
+        run: ./gradlew :core:clean test --stacktrace --console=plain
 
       - name: 上传失败测试报告
         if: failure()
