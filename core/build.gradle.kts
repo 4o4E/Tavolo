@@ -35,7 +35,11 @@ dependencies {
 tasks {
     test {
         useJUnitPlatform()
-        workingDir = rootProject.projectDir.resolve("run")
+        val runDir = rootProject.projectDir.resolve("run")
+        workingDir = runDir
+        doFirst {
+            runDir.mkdirs()
+        }
         systemProperty("tavolo.assets.dir", rootProject.projectDir.resolve("assets").absolutePath)
 //        maxHeapSize = "8G"
 //        minHeapSize = "8G"
@@ -154,7 +158,11 @@ tasks.register<Test>("manualTest") {
     group = "verification"
     testClassesDirs = manualTest.output.classesDirs
     classpath = manualTest.runtimeClasspath
-    workingDir = rootProject.projectDir.resolve("run")
+    val runDir = rootProject.projectDir.resolve("run")
+    workingDir = runDir
+    doFirst {
+        runDir.mkdirs()
+    }
     systemProperty("tavolo.assets.dir", rootProject.projectDir.resolve("assets").absolutePath)
     shouldRunAfter(tasks.test)
     useJUnitPlatform()

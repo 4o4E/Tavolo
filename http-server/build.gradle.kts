@@ -39,7 +39,11 @@ dependencies {
 tasks {
     test {
         useJUnitPlatform()
-        workingDir = rootProject.projectDir.resolve("run")
+        val runDir = rootProject.projectDir.resolve("run")
+        workingDir = runDir
+        doFirst {
+            runDir.mkdirs()
+        }
         systemProperty("tavolo.assets.dir", rootProject.projectDir.resolve("assets").absolutePath)
     }
 }

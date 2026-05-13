@@ -23,7 +23,11 @@ configurations["manualTestImplementation"].extendsFrom(configurations["testImple
 configurations["manualTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
 
 tasks.test {
-    workingDir = rootDir.resolve("run")
+    val runDir = rootDir.resolve("run")
+    workingDir = runDir
+    doFirst {
+        runDir.mkdirs()
+    }
 }
 
 tasks.jacocoTestReport {
@@ -40,6 +44,10 @@ tasks.register<Test>("manualTest") {
     group = "verification"
     testClassesDirs = manualTest.output.classesDirs
     classpath = manualTest.runtimeClasspath
-    workingDir = rootDir.resolve("run")
+    val runDir = rootDir.resolve("run")
+    workingDir = runDir
+    doFirst {
+        runDir.mkdirs()
+    }
     shouldRunAfter(tasks.test)
 }
