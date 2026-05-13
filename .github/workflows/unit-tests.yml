@@ -52,11 +52,28 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: 运行单元测试
+        id: unit-tests
         shell: bash
         run: |
           mkdir -p build
           set -o pipefail
           xvfb-run -a ./gradlew :core:clean test --stacktrace --console=plain 2>&1 | tee build/ci-gradle-test.log
+
+      - name: 输出失败日志摘要
+        if: failure() && steps.unit-tests.outcome == 'failure'
+        shell: bash
+        run: |
+          if [ -f build/ci-gradle-test.log ]; then
+            {
+              echo "### Gradle 失败日志"
+              echo '```text'
+              tail -n 80 build/ci-gradle-test.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            tail -n 40 build/ci-gradle-test.log | while IFS= read -r line; do
+              echo "::error title=Gradle 失败日志::$line"
+            done
+          fi
 
       - name: 上传失败测试报告
         if: failure()
