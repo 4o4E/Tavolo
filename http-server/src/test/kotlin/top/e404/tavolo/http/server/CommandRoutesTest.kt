@@ -292,6 +292,56 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun executePipelineWithInvalidPipelineJsonReturnsBadRequest() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+                append("pipeline", "not-json")
+            }
+        )
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = json.decodeFromString<ErrorResponse>(response.bodyAsText())
+        assertTrue(body.message.isNotBlank())
+    }
+
+    @Test
+    fun executePipelineStepFailureReturnsInternalServerError() = testApplication {
+        application {
+            tavoloModule()
+        }
+
+        val response = client.submitFormWithBinaryData(
+            url = "/pipelines/execute",
+            formData = formData {
+                append(
+                    key = "image",
+                    value = samplePng(),
+                    headers = Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"input.png\"")
+                    }
+                )
+                append("pipeline", """[{"id":"resize","args":{"w":"0","h":"2"}}]""")
+            }
+        )
+
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+        val body = json.decodeFromString<ErrorResponse>(response.bodyAsText())
+        assertTrue(body.message.contains("resize"))
+    }
+
+    @Test
     fun executeUnknownCommandReturnsNotFound() = testApplication {
         application {
             tavoloModule()
