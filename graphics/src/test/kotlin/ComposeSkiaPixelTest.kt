@@ -17,6 +17,7 @@ import top.e404.tavolo.draw.compose.clip
 import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.size
+import top.e404.tavolo.draw.compose.svg
 import top.e404.tavolo.util.toBitmap
 import kotlin.math.abs
 import kotlin.test.assertEquals
@@ -96,6 +97,28 @@ class ComposeSkiaPixelTest {
         assertColorNear(Color.GREEN, bitmap.getColor(3, 0))
         assertColorNear(Color.BLUE, bitmap.getColor(0, 3))
         assertColorNear(Color.YELLOW, bitmap.getColor(3, 3))
+    }
+
+    @Test
+    fun skiaRenderDrawsFullSvgDomPixels() {
+        val image = render(
+            backgroundColor = Color.TRANSPARENT,
+            root = Box().apply { modifier = Modifier.size(10f, 10f) }
+        ) {
+            svg(
+                """
+                <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+                  <g transform="translate(2 2)">
+                    <polygon points="0,0 6,0 6,6 0,6" style="fill:#ff0000"/>
+                  </g>
+                </svg>
+                """.trimIndent()
+            )
+        }
+        val bitmap = image.toBitmap()
+
+        assertColorNear(Color.RED, bitmap.getColor(5, 5))
+        assertAlphaNear(0, bitmap.getColor(0, 0))
     }
 
     private fun quadrantImage(): Image =

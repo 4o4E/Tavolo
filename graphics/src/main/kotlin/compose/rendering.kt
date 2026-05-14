@@ -1,6 +1,7 @@
 package top.e404.tavolo.draw.compose
 
 import org.jetbrains.skia.*
+import org.jetbrains.skia.svg.SVGDOM
 
 class MeasureContext(
     val textMeasurer: TextMeasurer = SkiaTextMeasurer
@@ -43,6 +44,7 @@ interface DrawCanvas {
     fun drawString(text: String, x: Float, y: Float, font: Font, paint: Paint)
     fun drawTextLine(line: TextLine, x: Float, y: Float, paint: Paint)
     fun drawImageRect(image: Image, src: Rect, dst: Rect, paint: Paint)
+    fun drawSvg(svg: SVGDOM, dst: Rect)
     fun drawPath(path: Path, paint: Paint)
     fun drawArc(
         left: Float,
@@ -91,6 +93,17 @@ class SkiaDrawCanvas(private val canvas: Canvas) : DrawCanvas {
     }
     override fun drawImageRect(image: Image, src: Rect, dst: Rect, paint: Paint) {
         canvas.drawImageRect(image, src, dst, paint)
+    }
+    override fun drawSvg(svg: SVGDOM, dst: Rect) {
+        if (dst.width <= 0f || dst.height <= 0f) return
+        canvas.save()
+        try {
+            canvas.translate(dst.left, dst.top)
+            svg.setContainerSize(dst.width, dst.height)
+            svg.render(canvas)
+        } finally {
+            canvas.restore()
+        }
     }
     override fun drawPath(path: Path, paint: Paint) {
         canvas.drawPath(path, paint)
@@ -201,6 +214,7 @@ sealed interface DrawCommand {
         val dst: RectSnapshot,
         val paint: PaintSnapshot
     ) : DrawCommand
+    data class Svg(val dst: RectSnapshot) : DrawCommand
     data class Path(val path: PathSnapshot, val paint: PaintSnapshot) : DrawCommand
     data class Arc(
         val left: Float,
@@ -260,6 +274,9 @@ class RecordingDrawCanvas : DrawCanvas {
             RectSnapshot.from(dst),
             PaintSnapshot.from(paint)
         )
+    }
+    override fun drawSvg(svg: SVGDOM, dst: Rect) {
+        commands += DrawCommand.Svg(RectSnapshot.from(dst))
     }
     override fun drawPath(path: Path, paint: Paint) {
         commands += DrawCommand.Path(PathSnapshot.from(path), PaintSnapshot.from(paint))

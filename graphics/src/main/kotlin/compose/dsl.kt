@@ -97,6 +97,22 @@ fun UiElement.image(
 }
 
 @UiDsl
+fun UiElement.svg(
+    svg: String,
+    modifier: Modifier = Modifier
+) {
+    add(SvgElement(svg.encodeToByteArray()).apply { this.modifier = modifier })
+}
+
+@UiDsl
+fun UiElement.svg(
+    bytes: ByteArray,
+    modifier: Modifier = Modifier
+) {
+    add(SvgElement(bytes).apply { this.modifier = modifier })
+}
+
+@UiDsl
 fun UiElement.iconText(
     text: String,
     fontSize: Float,
