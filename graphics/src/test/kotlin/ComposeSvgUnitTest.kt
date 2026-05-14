@@ -2,6 +2,8 @@ package top.e404.tavolo.draw.test
 
 import org.junit.Test
 import top.e404.tavolo.draw.compose.*
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class ComposeSvgUnitTest {
     @Test
@@ -41,6 +43,57 @@ class ComposeSvgUnitTest {
         val command = commands.filterIsInstance<DrawCommand.Svg>().single()
         assertFloatEquals(40f, command.dst.width)
         assertFloatEquals(20f, command.dst.height)
+    }
+
+    @Test
+    fun svgSizeInWithOnlyMaxWidthKeepsAspectRatio() {
+        val commands = renderCommands {
+            svg(
+                """<svg viewBox="0 0 100 50"><rect width="100" height="50" style="fill:#ff0000"/></svg>""",
+                Modifier.sizeIn(maxWidth = 25f)
+            )
+        }
+
+        val command = commands.filterIsInstance<DrawCommand.Svg>().single()
+        assertFloatEquals(25f, command.dst.width)
+        assertFloatEquals(12.5f, command.dst.height)
+    }
+
+    @Test
+    fun svgSizeInWithOnlyMaxHeightKeepsAspectRatio() {
+        val commands = renderCommands {
+            svg(
+                """<svg viewBox="0 0 100 50"><rect width="100" height="50" style="fill:#ff0000"/></svg>""",
+                Modifier.sizeIn(maxHeight = 25f)
+            )
+        }
+
+        val command = commands.filterIsInstance<DrawCommand.Svg>().single()
+        assertFloatEquals(50f, command.dst.width)
+        assertFloatEquals(25f, command.dst.height)
+    }
+
+    @Test
+    fun svgUsesWidthAndHeightAsNaturalSize() {
+        val commands = renderCommands {
+            svg("""<svg width="30" height="20" xmlns="http://www.w3.org/2000/svg"><rect width="30" height="20"/></svg>""")
+        }
+
+        val command = commands.filterIsInstance<DrawCommand.Svg>().single()
+        assertFloatEquals(30f, command.dst.width)
+        assertFloatEquals(20f, command.dst.height)
+    }
+
+    @Test
+    fun svgByteArrayDslUsesBytesInput() {
+        val bytes = """<svg viewBox="0 0 9 6"><rect width="9" height="6"/></svg>""".encodeToByteArray()
+        val commands = renderCommands {
+            svg(bytes)
+        }
+
+        val command = commands.filterIsInstance<DrawCommand.Svg>().single()
+        assertFloatEquals(9f, command.dst.width)
+        assertFloatEquals(6f, command.dst.height)
     }
 
     @Test
@@ -90,6 +143,24 @@ class ComposeSvgUnitTest {
         val command = commands.filterIsInstance<DrawCommand.Svg>().single()
         assertFloatEquals(10f, command.dst.width)
         assertFloatEquals(10f, command.dst.height)
+    }
+
+    @Test
+    fun svgWithoutAvailableSizeFailsClearly() {
+        val error = assertFailsWith<IllegalStateException> {
+            renderCommands {
+                svg("""<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 L 10 10"/></svg>""")
+            }
+        }
+
+        assertTrue(error.message.orEmpty().contains("SVG 缺少可用尺寸"))
+    }
+
+    @Test
+    fun invalidSvgFailsClearly() {
+        assertFailsWith<RuntimeException> {
+            parseSvgDom("not svg")
+        }
     }
 }
 

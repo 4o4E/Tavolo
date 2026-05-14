@@ -121,6 +121,31 @@ class ComposeSkiaPixelTest {
         assertAlphaNear(0, bitmap.getColor(0, 0))
     }
 
+    @Test
+    fun skiaRenderDrawsSvgDefsClipPathPixels() {
+        val image = render(
+            backgroundColor = Color.TRANSPARENT,
+            root = Box().apply { modifier = Modifier.size(10f, 10f) }
+        ) {
+            svg(
+                """
+                <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <clipPath id="clip">
+                      <circle cx="5" cy="5" r="3"/>
+                    </clipPath>
+                  </defs>
+                  <rect width="10" height="10" clip-path="url(#clip)" style="fill:#00ff00"/>
+                </svg>
+                """.trimIndent()
+            )
+        }
+        val bitmap = image.toBitmap()
+
+        assertColorNear(Color.GREEN, bitmap.getColor(5, 5))
+        assertAlphaNear(0, bitmap.getColor(0, 0))
+    }
+
     private fun quadrantImage(): Image =
         Surface.makeRasterN32Premul(4, 4).use { surface ->
             val canvas = surface.canvas
