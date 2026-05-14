@@ -15,96 +15,66 @@
 
 ## 渲染示例
 
-这些示例图片由 `graphics` 模块的 Compose DSL 人工测试生成，适合快速了解 Tavolo 在图片布局、SVG、图表和视觉效果上的能力。
+这些示例图片由 `graphics` 模块的 Compose DSL 人工测试生成。README 只保留一个最小示例，复杂示例直接链接到对应人工测试源码，避免图片和简化代码不一致。
 
-### 标准 SVG 组件
+### Hello World
 
-![SVG Compose 组件](docs/assets/readme/compose-svg.png)
+![Hello World Compose 示例](docs/assets/readme/compose-hello-world.png)
+
+对应人工测试：[`ComposeHelloWorldManualTest.kt`](graphics/src/manualTest/kotlin/ComposeHelloWorldManualTest.kt)
 
 对应 Compose 语法：
 
 ```kotlin
-val badgeSvg = """
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160">
-        <rect x="8" y="8" width="224" height="144" rx="28" fill="#3068ff"/>
-        <circle cx="78" cy="80" r="42" fill="#2bc37a"/>
-        <path d="M120 120 L172 38 L218 120 Z" fill="#f5b130"/>
-    </svg>
-"""
+val uiFont = ManualTestSupport.uiFont
 
-render(Color.TRANSPARENT) {
-    column(modifier = Modifier.padding(30f).background(Color.makeRGB(27, 34, 46))) {
-        text("SVG Compose 组件", fontSize = 31f, textColor = Color.WHITE)
-
-        row(modifier = Modifier.padding(top = 24f)) {
-            svg(badgeSvg)
-            svg(
-                badgeSvg.encodeToByteArray(),
-                Modifier.sizeIn(maxWidth = 260f, maxHeight = 190f)
+ManualTestSupport.saveCompose("README-01-Hello-World") {
+    box(
+        modifier = Modifier
+            .size(860f, 360f)
+            .background(Color.makeRGB(26, 34, 48))
+            .padding(42f)
+    ) {
+        column(
+            modifier = Modifier
+                .background(Color.makeRGB(255, 255, 255))
+                .padding(36f)
+        ) {
+            text(
+                "Hello, World!",
+                fontSize = 56f,
+                textColor = Color.makeRGB(38, 58, 92),
+                fontFamily = uiFont
+            )
+            text(
+                "Tavolo Compose DSL",
+                modifier = Modifier.padding(top = 18f),
+                fontSize = 28f,
+                textColor = Color.makeRGB(87, 103, 128),
+                fontFamily = uiFont
             )
         }
     }
 }
 ```
 
+### 标准 SVG 组件
+
+![SVG Compose 组件](docs/assets/readme/compose-svg.png)
+
+对应人工测试：[`ComposeSvgManualTest.kt`](graphics/src/manualTest/kotlin/ComposeSvgManualTest.kt)
+
 ### Modifier 视觉效果
 
 ![Compose Modifier 效果](docs/assets/readme/compose-effects.png)
 
-对应 Compose 语法：
-
-```kotlin
-box(
-    modifier = Modifier
-        .size(220f, 140f)
-        .shadow(
-            blurRadius = 18f,
-            color = Color.makeARGB(90, 29, 37, 56),
-            offsetY = 10f,
-            shape = Shape.RoundedRect(24f)
-        )
-        .rotate(-6f)
-        .clip(Shape.RoundedRect(24f))
-        .background(Color.makeRGB(48, 104, 255))
-        .border(
-            4f,
-            Color.WHITE,
-            StrokeStyle.Dashed(listOf(14f, 8f)),
-            shape = Shape.RoundedRect(24f)
-        )
-        .padding(18f),
-    horizontalAlignment = HorizontalAlignment.Center,
-    verticalAlignment = VerticalAlignment.Center
-) {
-    text("clip + shadow", textModifier = TextModifier.font(22f, Color.WHITE, uiFont))
-}
-```
+对应人工测试：[`ComposeEffectManualTest.kt`](graphics/src/manualTest/kotlin/ComposeEffectManualTest.kt)
 
 ### 图表组件
 
 ![Compose 图表组件](docs/assets/readme/compose-charts.png)
 
-对应 Compose 语法：
-
-```kotlin
-render(Color.makeRGB(24, 28, 34)) {
-    row(modifier = Modifier.padding(24f), verticalAlignment = VerticalAlignment.Center) {
-        bar(
-            BarTheme(outerRadius = 90f),
-            listOf(
-                Color.makeRGB(72, 149, 239) to 42f,
-                Color.makeRGB(247, 127, 0) to 28f,
-                Color.makeRGB(76, 175, 80) to 30f,
-            )
-        )
-
-        radar(
-            RadarTheme(width = 360f, height = 260f, radius = 90f),
-            listOf("布局" to 0.82f, "文本" to 0.74f, "SVG" to 0.9f, "图表" to 0.86f)
-        )
-    }
-}
-```
+对应人工测试：[`ComposeThemeManualTest.kt`](graphics/src/manualTest/kotlin/ComposeThemeManualTest.kt)
 
 ## 设计文档
 
