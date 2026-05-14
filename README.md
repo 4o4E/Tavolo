@@ -117,18 +117,18 @@ dependencies {
 
 ## 本地验证
 
+请先确保本机已安装并配置 Java 11 或更高版本。
+
 常规测试：
 
-```powershell
-$env:JAVA_HOME='D:\Jdk\dragonwell-11.0.21.18+9-GA'
-.\gradlew.bat test
+```shell
+./gradlew test
 ```
 
 只生成 README 的 Hello World 示例图：
 
-```powershell
-$env:JAVA_HOME='D:\Jdk\dragonwell-11.0.21.18+9-GA'
-.\gradlew.bat :graphics:manualTest --tests "*ComposeHelloWorldManualTest"
+```shell
+./gradlew :graphics:manualTest --tests "*ComposeHelloWorldManualTest"
 ```
 
 人工测试输出位于 `run/out`。

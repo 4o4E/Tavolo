@@ -117,18 +117,18 @@ dependencies {
 
 ## Local Verification
 
+Make sure Java 11 or later is installed and configured first.
+
 Run the regular test suite:
 
-```powershell
-$env:JAVA_HOME='D:\Jdk\dragonwell-11.0.21.18+9-GA'
-.\gradlew.bat test
+```shell
+./gradlew test
 ```
 
 Generate only the README Hello World example image:
 
-```powershell
-$env:JAVA_HOME='D:\Jdk\dragonwell-11.0.21.18+9-GA'
-.\gradlew.bat :graphics:manualTest --tests "*ComposeHelloWorldManualTest"
+```shell
+./gradlew :graphics:manualTest --tests "*ComposeHelloWorldManualTest"
 ```
 
 Manual test outputs are written to `run/out`.
