@@ -11,19 +11,17 @@ import top.e404.tavolo.handler.list.*
 import java.io.File
 import kotlin.test.Test
 
-class TestHandler {
+abstract class HandlerManualTestSupport {
 
     init {
         TavoloFonts.fontDir = "font"
     }
 
     private val inDir = File("in")
-    private val outDir = File("out")
-    private val emptyArgs = mutableMapOf<String, String>()
+    protected val emptyArgs = mutableMapOf<String, String>()
 
-    private fun testHandler(handler: FramesHandler, args: MutableMap<String, String>) {
+    protected fun testHandler(handler: FramesHandler, args: MutableMap<String, String>) {
         runBlocking(Dispatchers.IO) {
-            outDir.listFiles()?.forEach { it.delete() }
             inDir.listFiles()?.forEach {
                 launch {
                     val fr1 = it.readBytes().decodeToFrames()
@@ -33,8 +31,11 @@ class TestHandler {
                         result.throwable?.printStackTrace()
                     } else {
                         result.let { handleResult ->
-                            val suffix = if (handleResult.result!!.size == 1) ".png" else ".gif"
-                            outDir.resolve("${it.name}$suffix")
+                            val suffix = if (handleResult.result!!.size == 1) "png" else "gif"
+                            val handlerName = handler::class.simpleName ?: "handler"
+                            val inputName = listOfNotNull(it.nameWithoutExtension, it.extension.ifBlank { null })
+                                .joinToString("-")
+                            ManualTestSupport.coreOutputFile("handler", "$handlerName-$inputName", suffix)
                                 .writeBytes(handleResult.getOrThrow().encodeToBytes())
                         }
                         println("${it.name} - done")
@@ -43,6 +44,9 @@ class TestHandler {
             }
         }
     }
+}
+
+class BasicImageHandlerManualTest : HandlerManualTestSupport() {
 
     @Test
     fun testBlur() {
@@ -134,6 +138,9 @@ class TestHandler {
             )
         )
     }
+}
+
+class FaceHandlerManualTest : HandlerManualTestSupport() {
 
     @Test
     fun testDemandHandler() {
@@ -407,6 +414,9 @@ class TestHandler {
             )
         )
     }
+}
+
+class SpecialHandlerManualTest : HandlerManualTestSupport() {
 
     @Test
     fun testBwHandler() {

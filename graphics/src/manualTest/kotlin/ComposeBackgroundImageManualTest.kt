@@ -34,7 +34,7 @@ import top.e404.tavolo.draw.compose.table
 import top.e404.tavolo.draw.compose.tableRow
 import top.e404.tavolo.draw.compose.text
 
-class TestComposeBackgroundImage {
+class ComposeBackgroundImageManualTest {
     private val uiFont = ManualTestSupport.uiFont
     private val titleText = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont)
     private val bodyText = TextModifier.font(fontSize = 17f, textColor = ink, fontFamily = uiFont)

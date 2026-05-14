@@ -4,23 +4,22 @@ import kotlinx.coroutines.runBlocking
 import top.e404.tavolo.frame.encodeToBytes
 import top.e404.tavolo.generator.FramesGenerator
 import top.e404.tavolo.generator.list.*
-import java.io.File
 import kotlin.test.Test
 
-class TestGenerator {
+class GeneratorImageManualTest {
 
     init {
         TavoloFonts.fontDir = "font"
         BdfType.dir = "bdf"
     }
 
-    private val outPng = File("out/out.png")
-    private val outGif = File("out/out.gif")
     private fun testGenerator(generator: FramesGenerator, args: MutableMap<String, String>) {
         runBlocking {
             val frames = generator.generate(args)
-            val f = if (frames.size == 1) outPng else outGif
-            f.writeBytes(frames.encodeToBytes())
+            val extension = if (frames.size == 1) "png" else "gif"
+            val generatorName = generator::class.simpleName ?: "generator"
+            ManualTestSupport.coreOutputFile("generator", generatorName, extension)
+                .writeBytes(frames.encodeToBytes())
         }
     }
 

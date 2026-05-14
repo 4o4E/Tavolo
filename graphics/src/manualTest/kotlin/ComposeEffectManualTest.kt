@@ -35,7 +35,7 @@ import top.e404.tavolo.draw.compose.textUnderline
 import top.e404.tavolo.draw.compose.width
 import top.e404.tavolo.util.Colors
 
-class TestComposeEffects {
+class ComposeEffectManualTest {
     private val uiFont = ManualTestSupport.uiFont
 
     @UiDsl

@@ -165,5 +165,11 @@ tasks.register<Test>("manualTest") {
     }
     systemProperty("tavolo.assets.dir", rootProject.projectDir.resolve("assets").absolutePath)
     shouldRunAfter(tasks.test)
+    if (providers.gradleProperty("manualTest.parallel").map { it.toBoolean() }.getOrElse(false)) {
+        maxParallelForks = providers.gradleProperty("manualTest.maxParallelForks")
+            .map { it.toInt() }
+            .getOrElse((Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1))
+            .coerceAtLeast(1)
+    }
     useJUnitPlatform()
 }

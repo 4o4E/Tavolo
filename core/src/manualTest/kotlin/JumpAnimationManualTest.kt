@@ -11,7 +11,7 @@ import top.e404.tavolo.util.withCanvas
 import java.io.File
 import kotlin.test.Test
 
-class TestJump {
+class JumpAnimationManualTest {
     @Test
     fun jump() = runBlocking(Dispatchers.IO) {
         // 16*16
@@ -19,7 +19,7 @@ class TestJump {
         val side = File("MACHINE_WHITE_SIDE.png").readBytes().let { Image.makeFromEncoded(it) }
 
         gen(center, side).let {
-            File("out.gif").writeBytes(it)
+            ManualTestSupport.coreOutputFile("animation", "jump", "gif").writeBytes(it)
         }
     }
 

@@ -29,7 +29,7 @@ import top.e404.tavolo.draw.compose.sizeIn
 import top.e404.tavolo.draw.compose.text
 import top.e404.tavolo.draw.compose.TextModifier
 
-class TestRender {
+class ComposeComponentManualTest {
     private val uiFont = ManualTestSupport.uiFont
     private val avatars = ManualTestSupport.drawnAvatars(8, 72, 72)
     private val titleText = TextModifier.font(fontSize = 30f, textColor = Color.WHITE, fontFamily = uiFont).bold()

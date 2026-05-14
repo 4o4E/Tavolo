@@ -17,9 +17,8 @@ import kotlin.random.Random
 
 typealias ColorProvider = (value: Int, week: Int, day: Int) -> Int
 
-class TestRender3d {
+abstract class Render3dManualTestSupport {
 
-    @Test
     fun heatmap() {
         // 生成随机的热力图数据
         fun generateBarData(numWeeks: Int, numDaysPerWeek: Int, maxValue: Int): List<List<Int>> {
@@ -320,7 +319,6 @@ class TestRender3d {
         abstract fun getOverlayUVs(isSlim: Boolean): Map<FaceDirection, Rect>?
     }
 
-    @Test
     fun minecraftRightLimbUvsUseGeometricFaceDirections() {
         assertRectLeft(48f, BodyPart.RIGHT_ARM.getBaseUVs(isSlim = false).getValue(FaceDirection.RIGHT))
         assertRectLeft(40f, BodyPart.RIGHT_ARM.getBaseUVs(isSlim = false).getValue(FaceDirection.LEFT))
@@ -764,7 +762,6 @@ class TestRender3d {
         ManualTestSupport.saveImage("render3d/3D-阴影-正交透视开关对比.png", image)
     }
 
-    @Test
     fun specialCases() {
         val frontCamera = OrbitCamera(target = Vec3(0f, 0f, 0f), yaw = 0f, pitch = 0f, distance = 8f)
 
@@ -809,7 +806,6 @@ class TestRender3d {
 
     }
 
-    @Test
     fun shadowCases() {
         val basicScene = Scene(
             listOf(
@@ -835,13 +831,37 @@ class TestRender3d {
         saveShadowComparison(basicScene)
     }
 
-    @Test
     fun skin() {
         runMinecraftSkinGallery("Alex纤细皮肤", "alex_skin.png", isSlim = true)
     }
 
-    @Test
     fun skinWireframe() {
         saveSkinWireframeComparison()
     }
+}
+
+class Render3dHeatmapManualTest : Render3dManualTestSupport() {
+    @Test
+    fun heatmapManual() = heatmap()
+}
+
+class Render3dSkinManualTest : Render3dManualTestSupport() {
+    @Test
+    fun minecraftRightLimbUvsUseGeometricFaceDirectionsManual() = minecraftRightLimbUvsUseGeometricFaceDirections()
+
+    @Test
+    fun skinManual() = skin()
+
+    @Test
+    fun skinWireframeManual() = skinWireframe()
+}
+
+class Render3dShadowManualTest : Render3dManualTestSupport() {
+    @Test
+    fun shadowCasesManual() = shadowCases()
+}
+
+class Render3dSpecialCaseManualTest : Render3dManualTestSupport() {
+    @Test
+    fun specialCasesManual() = specialCases()
 }

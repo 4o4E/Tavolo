@@ -53,7 +53,7 @@ import top.e404.tavolo.draw.compose.charts.bar
 import top.e404.tavolo.draw.compose.charts.radar
 import top.e404.tavolo.util.FontManager
 
-class TestComposeThemes {
+class ComposeThemeManualTest {
     private val uiFont = ManualTestSupport.uiFont
     private val titleText = TextModifier.font(fontSize = 32f, textColor = Color.WHITE, fontFamily = uiFont).bold()
     private val bodyText = TextModifier.font(fontSize = 18f, textColor = ink, fontFamily = uiFont)
