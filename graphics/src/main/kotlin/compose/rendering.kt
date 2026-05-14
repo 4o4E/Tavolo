@@ -2,6 +2,7 @@ package top.e404.tavolo.draw.compose
 
 import org.jetbrains.skia.*
 import org.jetbrains.skia.svg.SVGDOM
+import org.jetbrains.skia.svg.SVGLength
 
 class MeasureContext(
     val textMeasurer: TextMeasurer = SkiaTextMeasurer
@@ -100,6 +101,11 @@ class SkiaDrawCanvas(private val canvas: Canvas) : DrawCanvas {
         try {
             canvas.translate(dst.left, dst.top)
             svg.setContainerSize(dst.width, dst.height)
+            // Skia 的容器尺寸不会覆盖根节点固定 width/height，需要同步根 SVG 视口。
+            svg.root?.use { root ->
+                root.width = SVGLength(dst.width)
+                root.height = SVGLength(dst.height)
+            }
             svg.render(canvas)
         } finally {
             canvas.restore()

@@ -32,6 +32,22 @@ class ComposeSvgUnitTest {
     }
 
     @Test
+    fun svgModifierSizeRespectsContentBoundsAfterPadding() {
+        val commands = renderCommands {
+            svg(
+                """<svg viewBox="0 0 20 20"><rect width="20" height="20" style="fill:#ff0000"/></svg>""",
+                Modifier
+                    .size(20f)
+                    .padding(5f)
+            )
+        }
+
+        val command = commands.filterIsInstance<DrawCommand.Svg>().single()
+        assertFloatEquals(10f, command.dst.width)
+        assertFloatEquals(10f, command.dst.height)
+    }
+
+    @Test
     fun svgSizeInKeepsAspectRatio() {
         val commands = renderCommands {
             svg(
@@ -125,7 +141,7 @@ class ComposeSvgUnitTest {
     }
 
     @Test
-    fun svgSizeInMinimumExpandsLayoutWithoutStretchingSvg() {
+    fun svgSizeInMinimumScalesSvgSizeByAspectRatio() {
         val root = Column()
         root.apply {
             svg(
@@ -137,12 +153,26 @@ class ComposeSvgUnitTest {
         root.layout(0f, 0f)
 
         assertFloatEquals(40f, root.width)
-        assertFloatEquals(10f, root.height)
+        assertFloatEquals(40f, root.height)
 
         val commands = renderCommands(root = root) {}
         val command = commands.filterIsInstance<DrawCommand.Svg>().single()
-        assertFloatEquals(10f, command.dst.width)
-        assertFloatEquals(10f, command.dst.height)
+        assertFloatEquals(40f, command.dst.width)
+        assertFloatEquals(40f, command.dst.height)
+    }
+
+    @Test
+    fun svgSizeInConflictingAspectRatioConstraintsFailClearly() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            renderCommands {
+                svg(
+                    """<svg viewBox="0 0 10 10"><rect width="10" height="10" style="fill:#ff0000"/></svg>""",
+                    Modifier.sizeIn(minWidth = 40f, maxHeight = 20f)
+                )
+            }
+        }
+
+        assertTrue(error.message.orEmpty().contains("SVG sizeIn 约束冲突"))
     }
 
     @Test

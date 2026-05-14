@@ -122,6 +122,26 @@ class ComposeSkiaPixelTest {
     }
 
     @Test
+    fun skiaRenderResizesSvgRootWithFixedWidthAndHeight() {
+        val image = render(
+            backgroundColor = Color.TRANSPARENT,
+            root = Box().apply { modifier = Modifier.size(20f, 20f) }
+        ) {
+            svg(
+                """
+                <svg width="10" height="10" viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="10" height="10" style="fill:#ff0000"/>
+                </svg>
+                """.trimIndent(),
+                Modifier.size(20f)
+            )
+        }
+        val bitmap = image.toBitmap()
+
+        assertColorNear(Color.RED, bitmap.getColor(15, 15))
+    }
+
+    @Test
     fun skiaRenderDrawsSvgDefsClipPathPixels() {
         val image = render(
             backgroundColor = Color.TRANSPARENT,
