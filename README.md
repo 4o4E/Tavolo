@@ -1,21 +1,36 @@
 # Tavolo
 
-`Tavolo` 读作 `TAH-vo-lo`，来自 Esperanto，含义为“图层”。这里取“承载图像处理、绘制、编码和渲染能力的工作台”这一层含义。
+[English](README_EN.md) | 简体中文
 
-基于[skiko](https://github.com/JetBrains/skiko)的绘图工具库, 包括
+`Tavolo` 读作 `TAH-vo-lo`，来自 Esperanto，含义为“图层”。
 
-- [gif编码](gif-codec/src/main/kotlin/gif)(参考[cssxsh/mirai-skia-plugin](https://github.com/cssxsh/mirai-skia-plugin))
-- [图片逐帧处理框架](gif-codec/src/main/kotlin/frame)
-- [compose语法生成图片](graphics/src/main/kotlin)
-- [图片滤镜/特效](core/src/main/kotlin/handler/list)
-- [基于输入图片生成表情](core/src/main/kotlin/handler/face)
-- [基于输入生成图片](core/src/main/kotlin/generator/list)
-- [bdf点阵字体解析](bdf-parser/src/main/kotlin)
-- [HTTP 指令服务](http-server)
+## 项目目标
 
-## 渲染示例
+Tavolo 的目标是在没有显示输出的服务器环境中完成图片处理和离线渲染。
+它不依赖桌面窗口或交互式画布，而是把输入数据、字体、图片资源和绘图 DSL 渲染成图片。
+核心渲染能力基于 [Skiko](https://github.com/JetBrains/skiko)。
 
-这些示例图片由 `graphics` 模块的 Compose DSL 人工测试生成。README 只保留一个最小示例，复杂示例直接链接到对应人工测试源码，避免图片和简化代码不一致。
+适合的场景包括：
+
+- 在 headless server 中生成静态图片、卡片、图表和 SVG 混排内容。
+- 对图片或 GIF 做离线逐帧处理，生成表情、滤镜和动态图效果。
+- 通过 HTTP 服务暴露图片处理指令，供机器人或业务系统调用。
+- 解析 BDF 点阵字体，服务于点阵文字和像素风图片生成。
+
+## 模块概览
+
+| 模块 | 作用 |
+| --- | --- |
+| [`graphics`](graphics/src/main/kotlin) | Compose 风格绘图 DSL，支持布局、文本、图片、SVG、图表、Modifier 效果和 3D 渲染。 |
+| [`gif-codec`](gif-codec/src/main/kotlin) | GIF 编解码和逐帧处理框架，部分实现参考 [`cssxsh/mirai-skia-plugin`](https://github.com/cssxsh/mirai-skia-plugin)。 |
+| [`core`](core/src/main/kotlin) | 图片处理指令、表情生成器和输入驱动的图片生成能力。 |
+| [`bdf-parser`](bdf-parser/src/main/kotlin) | BDF 点阵字体解析。 |
+| [`http-server`](http-server) | HTTP 指令服务，封装命令查询和图片执行接口。 |
+| [`http-client`](http-client) | HTTP 指令服务客户端。 |
+
+## 渲染预览
+
+示例图片由 `graphics` 模块的人工测试生成。README 只保留一个最小可读示例；复杂示例直接链接到对应人工测试源码，避免图片和简化代码不一致。
 
 ### Hello World
 
@@ -23,7 +38,8 @@
 
 对应人工测试：[`ComposeHelloWorldManualTest.kt`](graphics/src/manualTest/kotlin/ComposeHelloWorldManualTest.kt)
 
-对应 Compose 语法：
+<details>
+<summary>查看对应 Compose 代码</summary>
 
 ```kotlin
 val uiFont = ManualTestSupport.uiFont
@@ -58,35 +74,31 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 }
 ```
 
-### 标准 SVG 组件
+</details>
+
+### 更多示例
+
+#### 标准 SVG 组件
 
 ![SVG Compose 组件](docs/assets/readme/compose-svg.png)
 
-对应人工测试：[`ComposeSvgManualTest.kt`](graphics/src/manualTest/kotlin/ComposeSvgManualTest.kt)
+源码：[`ComposeSvgManualTest.kt`](graphics/src/manualTest/kotlin/ComposeSvgManualTest.kt)
 
-### Modifier 视觉效果
+#### Modifier 视觉效果
 
 ![Compose Modifier 效果](docs/assets/readme/compose-effects.png)
 
-对应人工测试：[`ComposeEffectManualTest.kt`](graphics/src/manualTest/kotlin/ComposeEffectManualTest.kt)
+源码：[`ComposeEffectManualTest.kt`](graphics/src/manualTest/kotlin/ComposeEffectManualTest.kt)
 
-### 图表组件
+#### 图表组件
 
 ![Compose 图表组件](docs/assets/readme/compose-charts.png)
 
-对应人工测试：[`ComposeThemeManualTest.kt`](graphics/src/manualTest/kotlin/ComposeThemeManualTest.kt)
-
-## 设计文档
-
-- [快速开始](docs/快速开始.md)
-- [指令资源与能力注册设计](docs/指令资源与能力注册设计.md)
-- [HTTP 指令服务设计](docs/HTTP指令服务设计.md)
-- [Compose 绘图 DSL 与渲染抽象设计](docs/Compose绘图DSL与渲染抽象设计.md)
-- [TODO](docs/TODO.md)
+源码：[`ComposeThemeManualTest.kt`](graphics/src/manualTest/kotlin/ComposeThemeManualTest.kt)
 
 ## 引入依赖
 
-版本请在[release](https://github.com/4o4E/Tavolo/releases)中查看
+版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。Snapshot 版本发布在项目 Maven 仓库中：
 
 ```kotlin
 val version = "2.0.0-SNAPSHOT"
@@ -102,3 +114,31 @@ dependencies {
     implementation("top.e404.tavolo:tavolo-common:${version}")
 }
 ```
+
+## 本地验证
+
+常规测试：
+
+```powershell
+$env:JAVA_HOME='D:\Jdk\dragonwell-11.0.21.18+9-GA'
+.\gradlew.bat test
+```
+
+只生成 README 的 Hello World 示例图：
+
+```powershell
+$env:JAVA_HOME='D:\Jdk\dragonwell-11.0.21.18+9-GA'
+.\gradlew.bat :graphics:manualTest --tests "*ComposeHelloWorldManualTest"
+```
+
+人工测试输出位于 `run/out`。
+
+## 文档入口
+
+- [快速开始](docs/快速开始.md)
+- [人工测试说明](docs/人工测试说明.md)
+- [Compose 绘图 DSL 与渲染抽象设计](docs/Compose绘图DSL与渲染抽象设计.md)
+- [3D 渲染实现设计](docs/3D渲染实现设计.md)
+- [指令资源与能力注册设计](docs/指令资源与能力注册设计.md)
+- [HTTP 指令服务设计](docs/HTTP指令服务设计.md)
+- [TODO](docs/TODO.md)
