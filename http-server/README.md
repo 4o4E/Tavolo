@@ -4,7 +4,7 @@ HTTP 服务用于暴露项目中的 handler / generator 指令能力，默认监
 
 ## 运行前提
 
-- 资源目录需要指向项目根目录下的 `assets`，例如从项目根目录启动，或显式传入 `-Dtavolo.assets.dir=F:\Desktop\project\skiko-util\assets`。
+- 资源目录需要指向项目根目录下的 `assets`，例如从项目根目录启动，或显式传入 `-Dtavolo.assets.dir=F:\Desktop\project\Tavolo\assets`。
 - 以下示例分别提供标准 `curl` 和 PowerShell 写法，JSON 参数请按对应 shell 复制。
 - 示例输入图 URL 取自 `graphics/src/manualTest/kotlin/TestRender.kt` 中的测试引用图。
 
@@ -56,6 +56,6 @@ ASSETS_DIR=../assets
 也可以直接构建镜像：
 
 ```bash
-docker build -f http-server/Dockerfile -t skiko-util-http-server:latest .
-docker run --rm -p 8080:8080 -e TAVOLO_ASSETS_DIR=/app/assets -v "$(pwd)/assets:/app/assets:ro" skiko-util-http-server:latest
+docker build -f http-server/Dockerfile -t tavolo-http-server:latest .
+docker run --rm -p 8080:8080 -e TAVOLO_ASSETS_DIR=/app/assets -v "$(pwd)/assets:/app/assets:ro" tavolo-http-server:latest
 ```
