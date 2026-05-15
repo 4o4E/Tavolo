@@ -26,8 +26,8 @@ class TavoloCommandClientTest {
                 """
                 {
                   "assets": {
-                    "version": "2.0.0",
-                    "time": "2026-05-09 00:00:00"
+                    "version": "2.0.1",
+                    "time": "2026-05-15 15:04:15"
                   },
                   "commands": [
                     {
@@ -46,7 +46,7 @@ class TavoloCommandClientTest {
 
         client.use {
             val response = it.commands()
-            assertEquals("2.0.0", response.assets.version)
+            assertEquals("2.0.1", response.assets.version)
             assertEquals("rub", response.commands.single().id)
             assertEquals("handler", response.commands.single().category)
         }

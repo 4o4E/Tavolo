@@ -101,7 +101,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。Snapshot 版本发布在项目 Maven 仓库中：
 
 ```kotlin
-val version = "2.0.0-SNAPSHOT"
+val version = "2.0.1"
 
 repositories {
     maven("https://nexus.e404.top:3443/repository/maven-snapshots/")

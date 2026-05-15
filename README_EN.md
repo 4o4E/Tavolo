@@ -101,7 +101,7 @@ Source: [`ComposeThemeManualTest.kt`](graphics/src/manualTest/kotlin/ComposeThem
 Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions. Snapshot builds are published to the project Maven repository:
 
 ```kotlin
-val version = "2.0.0-SNAPSHOT"
+val version = "2.0.1"
 
 repositories {
     maven("https://nexus.e404.top:3443/repository/maven-snapshots/")

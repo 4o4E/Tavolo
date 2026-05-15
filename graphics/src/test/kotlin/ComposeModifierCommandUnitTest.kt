@@ -9,6 +9,29 @@ import kotlin.test.assertTrue
 
 class ComposeModifierCommandUnitTest {
     @Test
+    fun renderCommandsCanSnapRootSizeBeforeDrawingRootModifiers() {
+        fun bottomBorderTop(snapRootSizeToPixel: Boolean): Float {
+            val commands = renderCommands(
+                root = Box().apply {
+                    modifier = Modifier
+                        .size(10.5f, 12.5f)
+                        .border(.5f, Color.RED)
+                },
+                snapRootSizeToPixel = snapRootSizeToPixel
+            ) {}
+
+            return commands
+                .filterIsInstance<DrawCommand.Rect>()
+                .filter { it.paint.color == Color.RED }[1]
+                .rect
+                .top
+        }
+
+        assertFloatEquals(12.5f, bottomBorderTop(snapRootSizeToPixel = true))
+        assertFloatEquals(12f, bottomBorderTop(snapRootSizeToPixel = false))
+    }
+
+    @Test
     fun backgroundAndBorderRecordExpectedRects() {
         val root = Box()
         root.modifier = Modifier

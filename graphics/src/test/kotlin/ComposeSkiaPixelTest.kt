@@ -27,6 +27,40 @@ private const val COLOR_TOLERANCE = 2
 
 class ComposeSkiaPixelTest {
     @Test
+    fun renderSnapsFractionalRootSizeUpByDefault() {
+        val image = render(
+            backgroundColor = Color.TRANSPARENT,
+            root = Box().apply {
+                modifier = Modifier
+                    .size(10.5f, 12.5f)
+                    .border(.5f, Color.WHITE)
+            }
+        ) {}
+        val bitmap = image.toBitmap()
+
+        assertEquals(11, image.width)
+        assertEquals(13, image.height)
+        assertTrue(
+            Color.getA(bitmap.getColor(5, 12)) > 0,
+            "根容器小数高度向上取整后，底部边框不应被最终 Surface 裁掉"
+        )
+    }
+
+    @Test
+    fun renderCanKeepLegacyFractionalRootFlooring() {
+        val image = render(
+            backgroundColor = Color.TRANSPARENT,
+            root = Box().apply {
+                modifier = Modifier.size(10.5f, 12.5f)
+            },
+            snapRootSizeToPixel = false
+        ) {}
+
+        assertEquals(10, image.width)
+        assertEquals(12, image.height)
+    }
+
+    @Test
     fun skiaRenderKeepsBackgroundAndSolidModifierPixels() {
         val image = render(
             backgroundColor = Color.WHITE,
