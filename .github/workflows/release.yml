@@ -6,6 +6,10 @@ on:
       - "[0-9]*.[0-9]*.[0-9]*"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -42,7 +46,7 @@ jobs:
           echo "RELEASE_VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
 
       - name: 构建 server jar 和外置指令资源包
-        run: ./gradlew clean :http-server:packageServerJar :core:packageCommandAssets -PreleaseVersion="${RELEASE_VERSION}" --stacktrace --console=plain
+        run: ./gradlew :http-server:packageServerJar :core:packageCommandAssets -PreleaseVersion="${RELEASE_VERSION}" --parallel --build-cache --stacktrace --console=plain
 
       - name: 收集 Release 资源文件
         shell: bash
