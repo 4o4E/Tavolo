@@ -31,20 +31,26 @@ jobs:
       - name: 授权 Gradle Wrapper
         run: chmod +x ./gradlew
 
-      - name: 构建 jar 和外置指令资源包
-        run: ./gradlew clean assemble :core:packageCommandAssets --stacktrace --console=plain
+      - name: 确定 Release 版本
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "当前 workflow 只能用版本 tag 发布正式资源文件" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+
+      - name: 构建 server jar 和外置指令资源包
+        run: ./gradlew clean :http-server:packageServerJar :core:packageCommandAssets -PreleaseVersion="${RELEASE_VERSION}" --stacktrace --console=plain
 
       - name: 收集 Release 资源文件
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build/release-assets
-          cp core/build/distributions/tavolo-assets-*.zip build/release-assets/
-          find annotation bdf-parser common core gif-codec graphics http-client http-server ksp \
-            -path "*/build/libs/*.jar" \
-            ! -name "*-sources.jar" \
-            ! -name "*-javadoc.jar" \
-            -exec cp {} build/release-assets/ \;
+          cp "core/build/distributions/tavolo-assets-${RELEASE_VERSION}.zip" build/release-assets/
+          cp "http-server/build/distributions/tavolo-server-${RELEASE_VERSION}.jar" build/release-assets/
           ls -lh build/release-assets
 
       - name: 上传 CI 资源文件

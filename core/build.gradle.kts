@@ -47,6 +47,8 @@ tasks {
 }
 
 val commandAssetsDir = rootProject.projectDir.resolve("assets")
+val commandAssetsReleaseVersion = providers.gradleProperty("releaseVersion")
+    .orElse(project.version.toString())
 
 tasks.register("validateCommandAssets") {
     group = "verification"
@@ -139,7 +141,7 @@ tasks.register<Zip>("packageCommandAssets") {
     description = "打包外置指令资源 zip"
     dependsOn("validateCommandAssets")
     from(commandAssetsDir)
-    archiveFileName.set("tavolo-assets-${project.version}.zip")
+    archiveFileName.set(commandAssetsReleaseVersion.map { "tavolo-assets-$it.zip" })
     destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 }
 
