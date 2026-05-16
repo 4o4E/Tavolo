@@ -98,13 +98,34 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 
 ## 引入依赖
 
-版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。Snapshot 版本发布在项目 Maven 仓库中：
+版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。正式版本发布在 GitHub Packages 中。
+
+GitHub Packages 拉取 Maven 包需要认证，请在用户级 `~/.gradle/gradle.properties` 中配置：
+
+```properties
+gpr.user=你的 GitHub 用户名
+gpr.key=具备 read:packages 权限的 GitHub classic token
+```
+
+然后在项目中引入依赖：
 
 ```kotlin
 val version = "2.0.1"
 
 repositories {
-    maven("https://nexus.e404.top:3443/repository/maven-snapshots/")
+    mavenCentral()
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/4o4E/Tavolo")
+        credentials {
+            username = providers.gradleProperty("gpr.user")
+                .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                .orNull
+            password = providers.gradleProperty("gpr.key")
+                .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                .orNull
+        }
+    }
 }
 
 dependencies {

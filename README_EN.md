@@ -98,13 +98,34 @@ Source: [`ComposeThemeManualTest.kt`](graphics/src/manualTest/kotlin/ComposeThem
 
 ## Dependency
 
-Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions. Snapshot builds are published to the project Maven repository:
+Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions. Release builds are published to GitHub Packages.
+
+GitHub Packages requires authentication when resolving Maven packages. Configure your user-level `~/.gradle/gradle.properties` first:
+
+```properties
+gpr.user=your GitHub username
+gpr.key=a GitHub classic token with read:packages permission
+```
+
+Then add the repository and dependencies:
 
 ```kotlin
 val version = "2.0.1"
 
 repositories {
-    maven("https://nexus.e404.top:3443/repository/maven-snapshots/")
+    mavenCentral()
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/4o4E/Tavolo")
+        credentials {
+            username = providers.gradleProperty("gpr.user")
+                .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                .orNull
+            password = providers.gradleProperty("gpr.key")
+                .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                .orNull
+        }
+    }
 }
 
 dependencies {
