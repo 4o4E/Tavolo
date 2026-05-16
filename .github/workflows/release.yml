@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   release:
@@ -47,6 +48,12 @@ jobs:
 
       - name: 构建 server jar 和外置指令资源包
         run: ./gradlew :http-server:packageServerJar :core:packageCommandAssets -PreleaseVersion="${RELEASE_VERSION}" --parallel --build-cache --stacktrace --console=plain
+
+      - name: 发布 GitHub Packages Maven 包
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -PreleaseVersion="${RELEASE_VERSION}" --parallel --build-cache --stacktrace --console=plain
 
       - name: 收集 Release 资源文件
         shell: bash

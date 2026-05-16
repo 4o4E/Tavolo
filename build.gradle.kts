@@ -10,11 +10,15 @@ plugins {
     idea
 }
 
+val publishVersion = providers.gradleProperty("releaseVersion")
+    .orElse(Versions.VERSION)
+    .get()
+
 allprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
 
     group = Versions.GROUP
-    version = Versions.VERSION
+    version = publishVersion
 
     repositories {
         mavenCentral()
@@ -34,6 +38,15 @@ val local = Properties().apply {
 
 val nexusUsername get() = local.getProperty("nexus.username") ?: ""
 val nexusPassword get() = local.getProperty("nexus.password") ?: ""
+val githubPackagesRepository = providers.environmentVariable("GITHUB_REPOSITORY")
+    .orElse("4o4E/Tavolo")
+    .get()
+val githubPackagesUsername = providers.environmentVariable("GITHUB_ACTOR")
+    .orElse(local.getProperty("github.username") ?: "")
+    .get()
+val githubPackagesPassword = providers.environmentVariable("GITHUB_TOKEN")
+    .orElse(local.getProperty("github.token") ?: "")
+    .get()
 
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
@@ -57,12 +70,22 @@ subprojects {
             artifact(tasks.getByName("sourcesJar"))
             artifactId = "${rootProject.name.lowercase()}-${project.name}"
             groupId = Versions.GROUP
-            version = Versions.VERSION
+            version = project.version.toString()
         }
     }
 
     publishing {
         repositories {
+            // GitHub Packages 使用 GitHub Actions 自动注入的仓库名和令牌发布 Maven 包。
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/$githubPackagesRepository")
+                credentials {
+                    username = githubPackagesUsername
+                    password = githubPackagesPassword
+                }
+            }
+
             maven {
                 name = "snapshot"
                 url = uri("https://nexus.e404.top:3443/repository/maven-snapshots/")
