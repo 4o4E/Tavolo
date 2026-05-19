@@ -25,6 +25,7 @@ import kotlin.test.assertTrue
 import top.e404.tavolo.http.server.dto.CommandsResponse
 import top.e404.tavolo.http.server.dto.ErrorResponse
 import top.e404.tavolo.http.server.dto.HealthResponse
+import top.e404.tavolo.registry.CommandRegistry
 
 class CommandRoutesTest {
     private val json = Json {
@@ -55,7 +56,7 @@ class CommandRoutesTest {
         assertEquals(HttpStatusCode.OK, response.status)
 
         val body = json.decodeFromString<CommandsResponse>(response.bodyAsText())
-        assertEquals("2.0.1", body.assets.version)
+        assertEquals(CommandRegistry.load().assetsVersion.version, body.assets.version)
         assertTrue(body.commands.isNotEmpty())
         assertTrue(body.commands.any { it.category == "handler" })
         assertTrue(body.commands.any { it.category == "generator" })
