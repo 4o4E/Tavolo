@@ -24,6 +24,14 @@ val isCiTag = providers.environmentVariable("GITHUB_REF_TYPE")
     .orElse(providers.environmentVariable("GITHUB_REF").map { it.startsWith("refs/tags/") })
     .orElse(false)
 
+val isMavenCentralPublishTask = gradle.startParameter.taskNames
+    .map { it.substringAfterLast(":") }
+    .any {
+        it == "publishToMavenCentral" ||
+            it == "publishAndReleaseToMavenCentral" ||
+            it.endsWith("ToMavenCentralRepository")
+    }
+
 val localSnapshotVersion = Versions.VERSION
     .removeSuffix("-SNAPSHOT")
     .let { "$it-SNAPSHOT" }
@@ -98,7 +106,7 @@ subprojects {
                 )
             )
 
-            if (isCi.get() && isCiTag.get()) {
+            if (isCi.get() && isCiTag.get() && isMavenCentralPublishTask) {
                 publishToMavenCentral()
                 signAllPublications()
             }
