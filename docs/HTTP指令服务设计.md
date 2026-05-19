@@ -57,7 +57,7 @@ http-server/src/main/kotlin/top/e404/tavolo/http/server/
 ```json
 {
   "assets": {
-    "version": "2.0.1",
+    "version": "2.1.0",
     "time": "2026-05-15 15:04:15"
   },
   "commands": [

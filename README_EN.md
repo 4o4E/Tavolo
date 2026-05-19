@@ -103,7 +103,7 @@ Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions
 Then add the repository and dependencies:
 
 ```kotlin
-val version = "2.0.1"
+val version = "2.1.0"
 
 repositories {
     mavenCentral()
