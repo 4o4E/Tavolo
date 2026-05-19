@@ -31,11 +31,11 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 JDK 11
+      - name: 设置 JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "11"
+          java-version: "17"
 
       - name: 安装图形测试运行依赖
         run: |

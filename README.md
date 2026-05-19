@@ -98,14 +98,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 
 ## 引入依赖
 
-版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。正式版本发布在 GitHub Packages 中。
-
-GitHub Packages 拉取 Maven 包需要认证，请在用户级 `~/.gradle/gradle.properties` 中配置：
-
-```properties
-gpr.user=你的 GitHub 用户名
-gpr.key=具备 read:packages 权限的 GitHub classic token
-```
+版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。正式版本发布到 Maven Central，`-SNAPSHOT` 预览版本发布到 Sonatype snapshot 仓库。
 
 然后在项目中引入依赖：
 
@@ -114,18 +107,8 @@ val version = "2.0.1"
 
 repositories {
     mavenCentral()
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/4o4E/Tavolo")
-        credentials {
-            username = providers.gradleProperty("gpr.user")
-                .orElse(providers.environmentVariable("GITHUB_ACTOR"))
-                .orNull
-            password = providers.gradleProperty("gpr.key")
-                .orElse(providers.environmentVariable("GITHUB_TOKEN"))
-                .orNull
-        }
-    }
+    // 仅在使用 -SNAPSHOT 版本时需要。
+    maven("https://central.sonatype.com/repository/maven-snapshots/")
 }
 
 dependencies {
@@ -138,7 +121,7 @@ dependencies {
 
 ## 本地验证
 
-请先确保本机已安装并配置 Java 11 或更高版本。
+请先确保本机已安装并配置 Java 17 或更高版本。Tavolo 发布产物仍保持 Java 11 运行兼容。
 
 常规测试：
 
