@@ -4,7 +4,6 @@ build
 /*/build/
 run
 jar
-local.properties
 .kotlin
 http-server/.env
 AGENTS.local.md

@@ -6,6 +6,5 @@ build
 */build
 run
 jar
-local.properties
 assets
 http-server/.env
