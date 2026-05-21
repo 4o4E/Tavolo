@@ -103,7 +103,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 然后在项目中引入依赖：
 
 ```kotlin
-val version = "2.1.0"
+val version = "2.5.0"
 
 repositories {
     mavenCentral()
@@ -146,3 +146,4 @@ dependencies {
 - [指令资源与能力注册设计](docs/指令资源与能力注册设计.md)
 - [HTTP 指令服务设计](docs/HTTP指令服务设计.md)
 - [TODO](docs/TODO.md)
+- [下游升级到 2.5.0：emoji 字体回退](docs/下游升级到2.5.0-emoji回退.md)
