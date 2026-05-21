@@ -47,10 +47,16 @@ import top.e404.tavolo.draw.compose.tableRow
 import top.e404.tavolo.draw.compose.text
 import top.e404.tavolo.draw.compose.textUnderline
 import top.e404.tavolo.draw.compose.charts.BarTheme
+import top.e404.tavolo.draw.compose.charts.ChartTextStyle
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
 import top.e404.tavolo.draw.compose.charts.RadarTheme
+import top.e404.tavolo.draw.compose.charts.RelationEdge
+import top.e404.tavolo.draw.compose.charts.RelationGraphLayout
+import top.e404.tavolo.draw.compose.charts.RelationGraphTheme
+import top.e404.tavolo.draw.compose.charts.RelationNode
 import top.e404.tavolo.draw.compose.charts.bar
 import top.e404.tavolo.draw.compose.charts.radar
+import top.e404.tavolo.draw.compose.charts.relationGraph
 import top.e404.tavolo.util.FontManager
 
 class ComposeThemeManualTest {
@@ -365,6 +371,105 @@ class ComposeThemeManualTest {
             }
         }
     }
+    }
+
+    @Test
+    fun test_compose_theme_relation_graph() {
+        ManualTestSupport.saveCompose("主题-图表-RelationGraph关系图") {
+            themePage("关系图主题", "静态关系图支持分层、环形、固定坐标、自环和复杂依赖", width = 1540f, height = 1420f) {
+                row {
+                    themeCard("分层依赖关系", 535f, 500f) {
+                        relationGraph(
+                            RelationGraphTheme(
+                                width = 485f,
+                                height = 370f,
+                                layout = RelationGraphLayout.Layered(roots = listOf("input")),
+                                padding = 42f,
+                                nodeRadius = 34f,
+                                nodeFillColor = blue,
+                                nodeStrokeColor = Color.makeRGB(229, 234, 244),
+                                nodeTextStyle = ChartTextStyle(16f, Color.WHITE, uiFont),
+                                edgeColor = Color.makeRGB(132, 145, 166),
+                                edgeWidth = 2.5f,
+                                edgeTextStyle = ChartTextStyle(13f, muted, uiFont),
+                                arrowSize = 13f
+                            ),
+                            relationNodes,
+                            relationEdges
+                        )
+                        text("适合依赖图、调用链和流程关系", modifier = Modifier.padding(top = 18f), textModifier = captionText)
+                    }
+                    gap(26f)
+                    themeCard("环形关联网络", 535f, 500f) {
+                        relationGraph(
+                            RelationGraphTheme(
+                                width = 485f,
+                                height = 370f,
+                                layout = RelationGraphLayout.Circular,
+                                padding = 44f,
+                                nodeRadius = 32f,
+                                nodeFillColor = green,
+                                nodeStrokeColor = Color.makeRGB(229, 234, 244),
+                                nodeTextStyle = ChartTextStyle(16f, Color.WHITE, uiFont),
+                                edgeColor = Color.makeRGB(132, 145, 166),
+                                edgeWidth = 2.2f,
+                                edgeLineStyle = StrokeStyle.Dashed(listOf(8f, 7f)),
+                                edgeTextStyle = ChartTextStyle(13f, muted, uiFont),
+                                arrowSize = 12f
+                            ),
+                            relationNetworkNodes,
+                            relationNetworkEdges
+                        )
+                        text("适合人物关系、模块关联和小规模网络", modifier = Modifier.padding(top = 18f), textModifier = captionText)
+                    }
+                }
+                row(modifier = Modifier.padding(top = 26f)) {
+                    themeCard("复杂分层与回流边", 720f, 720f) {
+                        relationGraph(
+                            RelationGraphTheme(
+                                width = 670f,
+                                height = 590f,
+                                layout = RelationGraphLayout.Layered(roots = listOf("start")),
+                                padding = 58f,
+                                nodeRadius = 30f,
+                                nodeFillColor = blue,
+                                nodeStrokeColor = Color.makeRGB(229, 234, 244),
+                                nodeTextStyle = ChartTextStyle(14f, Color.WHITE, uiFont),
+                                edgeColor = Color.makeRGB(132, 145, 166),
+                                edgeWidth = 2.1f,
+                                edgeTextStyle = ChartTextStyle(12f, muted, uiFont),
+                                arrowSize = 12f
+                            ),
+                            relationComplexNodes,
+                            relationComplexEdges
+                        )
+                        text("覆盖多路径最长分层、环回边和孤立兜底节点", modifier = Modifier.padding(top = 18f), textModifier = captionText)
+                    }
+                    gap(26f)
+                    themeCard("固定坐标与自环", 720f, 720f) {
+                        relationGraph(
+                            RelationGraphTheme(
+                                width = 670f,
+                                height = 590f,
+                                layout = RelationGraphLayout.Fixed(relationFixedPositions),
+                                padding = 58f,
+                                nodeRadius = 32f,
+                                nodeFillColor = red,
+                                nodeStrokeColor = Color.makeRGB(229, 234, 244),
+                                nodeTextStyle = ChartTextStyle(15f, Color.WHITE, uiFont),
+                                edgeColor = Color.makeRGB(132, 145, 166),
+                                edgeWidth = 2.4f,
+                                edgeTextStyle = ChartTextStyle(12f, muted, uiFont),
+                                arrowSize = 12f
+                            ),
+                            relationFixedNodes,
+                            relationFixedEdges
+                        )
+                        text("覆盖手工排版、虚线、无向边、自环标签和缺省坐标兜底", modifier = Modifier.padding(top = 18f), textModifier = captionText)
+                    }
+                }
+            }
+        }
     }
 
     @UiDsl
@@ -753,6 +858,79 @@ class ComposeThemeManualTest {
             "覆盖" to 0.64f,
             "成本" to 0.56f,
             "体验" to 0.78f
+        )
+        val relationNodes = listOf(
+            RelationNode("input", "输入", blue),
+            RelationNode("parser", "解析", red),
+            RelationNode("layout", "布局", green),
+            RelationNode("theme", "主题", yellow),
+            RelationNode("skia", "渲染", blue),
+            RelationNode("image", "图片", green)
+        )
+        val relationEdges = listOf(
+            RelationEdge("input", "parser", "文本"),
+            RelationEdge("parser", "layout", "结构"),
+            RelationEdge("parser", "theme", "样式"),
+            RelationEdge("layout", "skia", "坐标"),
+            RelationEdge("theme", "skia", "画笔"),
+            RelationEdge("skia", "image", "输出")
+        )
+        val relationNetworkNodes = listOf(
+            RelationNode("api", "API", blue),
+            RelationNode("core", "Core", red),
+            RelationNode("graphics", "绘图", green),
+            RelationNode("assets", "资源", yellow),
+            RelationNode("server", "服务", blue)
+        )
+        val relationNetworkEdges = listOf(
+            RelationEdge("api", "server", "请求"),
+            RelationEdge("server", "core", "执行"),
+            RelationEdge("core", "graphics", "生成"),
+            RelationEdge("graphics", "assets", "加载"),
+            RelationEdge("assets", "core", "缓存"),
+            RelationEdge("graphics", "api", "返回")
+        )
+        val relationComplexNodes = listOf(
+            RelationNode("start", "入口", blue),
+            RelationNode("parse", "解析", red),
+            RelationNode("rules", "规则", yellow),
+            RelationNode("layout2", "布局", green),
+            RelationNode("render", "渲染", blue),
+            RelationNode("audit", "审计", red),
+            RelationNode("done", "完成", green),
+            RelationNode("orphan", "孤立", yellow)
+        )
+        val relationComplexEdges = listOf(
+            RelationEdge("start", "parse", "输入"),
+            RelationEdge("start", "rules", "配置"),
+            RelationEdge("parse", "layout2", "结构"),
+            RelationEdge("rules", "layout2", "约束"),
+            RelationEdge("parse", "render", "预览"),
+            RelationEdge("layout2", "render", "坐标"),
+            RelationEdge("render", "audit", "记录"),
+            RelationEdge("audit", "rules", "回流", color = red, width = 2.5f, style = StrokeStyle.Dashed(listOf(7f, 6f))),
+            RelationEdge("render", "done", "产物")
+        )
+        val relationFixedNodes = listOf(
+            RelationNode("center", "中心", blue, 36f),
+            RelationNode("cache", "缓存", green, 28f),
+            RelationNode("retry", "重试", red, 28f),
+            RelationNode("manual", "人工", yellow, 30f),
+            RelationNode("fallback", "兜底", blue, 26f)
+        )
+        val relationFixedPositions = mapOf(
+            "center" to (335f to 295f),
+            "cache" to (170f to 185f),
+            "retry" to (510f to 165f),
+            "manual" to (335f to 470f)
+        )
+        val relationFixedEdges = listOf(
+            RelationEdge("center", "cache", "读写"),
+            RelationEdge("cache", "center", "命中", color = green, width = 2.2f),
+            RelationEdge("center", "retry", "失败", color = red, width = 2.6f),
+            RelationEdge("retry", "retry", "自环", color = red, width = 2.2f, style = StrokeStyle.Dotted(3f, 4f)),
+            RelationEdge("manual", "center", "复核", directed = false, color = yellow, width = 3f),
+            RelationEdge("fallback", "center", "缺省坐标")
         )
     }
 }

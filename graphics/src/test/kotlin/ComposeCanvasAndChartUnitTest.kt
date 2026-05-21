@@ -5,6 +5,7 @@ import org.junit.Test
 import top.e404.tavolo.draw.compose.*
 import top.e404.tavolo.draw.compose.charts.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -437,6 +438,419 @@ class ComposeCanvasAndChartUnitTest {
             assertTrue(x.isFinite(), "$policy x 应为有限值")
             assertTrue(y.isFinite(), "$policy y 应为有限值")
         }
+    }
+
+    @Test
+    fun relationGraphFixedLayoutRecordsEdgesNodesAndLabels() {
+        val recorder = RecordingDrawCanvas()
+        val theme = RelationGraphTheme(
+            width = 100f,
+            height = 80f,
+            layout = RelationGraphLayout.Fixed(
+                mapOf(
+                    "a" to (20f to 30f),
+                    "b" to (80f to 30f)
+                )
+            ),
+            nodeRadius = 10f,
+            nodeStrokeWidth = 1f,
+            edgeWidth = 2f,
+            nodeTextStyle = ChartTextStyle(10f, Color.WHITE),
+            edgeTextStyle = ChartTextStyle(8f, Color.BLUE)
+        )
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 5f,
+            parentY = 7f,
+            nodes = listOf(RelationNode("a", "A"), RelationNode("b", "B")),
+            edges = listOf(RelationEdge("a", "b", label = "rel", directed = false)),
+            theme = theme,
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 5f))
+        )
+
+        val line = recorder.commands.filterIsInstance<DrawCommand.Line>().single()
+        assertFloatEquals(35f, line.x0)
+        assertFloatEquals(37f, line.y0)
+        assertFloatEquals(75f, line.x1)
+        assertFloatEquals(37f, line.y1)
+        assertEquals(PaintMode.STROKE, line.paint.mode)
+
+        val circles = recorder.commands.filterIsInstance<DrawCommand.Circle>()
+        assertEquals(4, circles.size)
+        assertFloatEquals(25f, circles[0].x)
+        assertFloatEquals(37f, circles[0].y)
+        assertFloatEquals(10f, circles[0].radius)
+        assertEquals(PaintMode.FILL, circles[0].paint.mode)
+        assertEquals(PaintMode.STROKE, circles[1].paint.mode)
+
+        val textLines = recorder.commands.filterIsInstance<DrawCommand.TextLine>()
+        assertEquals(3, textLines.size)
+        assertEquals(Color.BLUE, textLines[0].paint.color)
+        assertEquals(Color.WHITE, textLines[1].paint.color)
+    }
+
+    @Test
+    fun relationGraphLayeredLayoutHandlesCyclesAndUnknownEdges() {
+        val recorder = RecordingDrawCanvas()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(
+                RelationNode("a", "A"),
+                RelationNode("b", "B"),
+                RelationNode("c", "C")
+            ),
+            edges = listOf(
+                RelationEdge("a", "b"),
+                RelationEdge("b", "a"),
+                RelationEdge("a", "missing")
+            ),
+            theme = RelationGraphTheme(
+                width = 220f,
+                height = 140f,
+                layout = RelationGraphLayout.Layered(roots = listOf("a")),
+                nodeRadius = 12f
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
+        recorder.commands.filterIsInstance<DrawCommand.Line>().forEach {
+            assertTrue(it.x0.isFinite())
+            assertTrue(it.y0.isFinite())
+            assertTrue(it.x1.isFinite())
+            assertTrue(it.y1.isFinite())
+        }
+    }
+
+    @Test
+    fun relationGraphHandlesEmptyAndSingleCircularNode() {
+        val emptyRecorder = RecordingDrawCanvas()
+        drawRelationGraph(
+            canvas = emptyRecorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = emptyList(),
+            edges = listOf(RelationEdge("a", "b")),
+            theme = RelationGraphTheme(width = 80f, height = 60f)
+        )
+        assertEquals(0, emptyRecorder.commands.size)
+
+        val singleRecorder = RecordingDrawCanvas()
+        drawRelationGraph(
+            canvas = singleRecorder,
+            parentX = 2f,
+            parentY = 3f,
+            nodes = listOf(RelationNode("only")),
+            edges = emptyList(),
+            theme = RelationGraphTheme(
+                width = 80f,
+                height = 60f,
+                layout = RelationGraphLayout.Circular,
+                nodeRadius = 9f,
+                nodeStrokeWidth = 0f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 4f))
+        )
+
+        val circle = singleRecorder.commands.filterIsInstance<DrawCommand.Circle>().single()
+        assertFloatEquals(42f, circle.x)
+        assertFloatEquals(33f, circle.y)
+        assertFloatEquals(9f, circle.radius)
+        assertEquals(1, singleRecorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun relationGraphFixedLayoutFallsBackAndDslDrawsCanvasElement() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            relationGraph(
+                RelationGraphTheme(
+                    width = 120f,
+                    height = 90f,
+                    layout = RelationGraphLayout.Fixed(mapOf("a" to (20f to 25f))),
+                    padding = 20f,
+                    nodeRadius = 8f,
+                    nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+                ),
+                nodes = listOf(RelationNode("a"), RelationNode("b")),
+                edges = emptyList()
+            )
+        }
+
+        val circles = commands.filterIsInstance<DrawCommand.Circle>()
+        assertEquals(4, circles.size)
+        assertFloatEquals(20f, circles[0].x)
+        assertFloatEquals(25f, circles[0].y)
+        circles.forEach {
+            assertTrue(it.x.isFinite())
+            assertTrue(it.y.isFinite())
+        }
+    }
+
+    @Test
+    fun relationGraphSelfLoopRecordsArcAndOptionalArrow() {
+        val recorder = RecordingDrawCanvas()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(RelationNode("a", "A", radius = 14f)),
+            edges = listOf(
+                RelationEdge(
+                    from = "a",
+                    to = "a",
+                    label = "loop",
+                    directed = true,
+                    color = Color.RED,
+                    width = 3f,
+                    style = StrokeStyle.Dotted(2f, 3f)
+                ),
+                RelationEdge("a", "a", directed = false)
+            ),
+            theme = RelationGraphTheme(
+                width = 100f,
+                height = 80f,
+                nodeRadius = 10f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val arcs = recorder.commands.filterIsInstance<DrawCommand.Arc>()
+        assertEquals(2, arcs.size)
+        assertEquals(Color.RED, arcs[0].paint.color)
+        assertFloatEquals(3f, arcs[0].paint.strokeWidth)
+        assertTrue(arcs[0].paint.hasPathEffect)
+        assertEquals(1, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun relationGraphSkipsZeroLengthAndBlankLabelEdges() {
+        val recorder = RecordingDrawCanvas()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(RelationNode("a", "A"), RelationNode("b", "B")),
+            edges = listOf(
+                RelationEdge("a", "b", label = "   ", directed = true),
+                RelationEdge("a", "b", label = null, directed = true)
+            ),
+            theme = RelationGraphTheme(
+                width = 100f,
+                height = 80f,
+                layout = RelationGraphLayout.Fixed(
+                    mapOf(
+                        "a" to (40f to 40f),
+                        "b" to (40f to 40f)
+                    )
+                ),
+                nodeRadius = 10f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun relationGraphCoversNormalEdgeStyleFallbacksAndArrowSizeZero() {
+        val recorder = RecordingDrawCanvas()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(
+                RelationNode("a", "A", radius = 11f),
+                RelationNode("b", "B"),
+                RelationNode("c", "C", radius = 13f)
+            ),
+            edges = listOf(
+                RelationEdge("a", "b", label = "   ", directed = true),
+                RelationEdge("b", "c", label = null, directed = true, color = Color.RED, width = 4f, style = StrokeStyle.Dashed(listOf(4f, 2f))),
+                RelationEdge("missing", "a", directed = true)
+            ),
+            theme = RelationGraphTheme(
+                width = 180f,
+                height = 150f,
+                layout = RelationGraphLayout.Circular,
+                padding = 24f,
+                nodeRadius = 10f,
+                arrowSize = 0f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val lines = recorder.commands.filterIsInstance<DrawCommand.Line>()
+        assertEquals(2, lines.size)
+        assertEquals(Color.RED, lines[1].paint.color)
+        assertFloatEquals(4f, lines[1].paint.strokeWidth)
+        assertTrue(lines[1].paint.hasPathEffect)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.Path>().size)
+        assertEquals(3, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun relationGraphLayeredLayoutInfersRootsAndFallsBackForCycle() {
+        val inferredRootRecorder = RecordingDrawCanvas()
+        drawRelationGraph(
+            canvas = inferredRootRecorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(RelationNode("a"), RelationNode("b"), RelationNode("c")),
+            edges = listOf(RelationEdge("a", "b"), RelationEdge("a", "c")),
+            theme = RelationGraphTheme(
+                width = 180f,
+                height = 120f,
+                layout = RelationGraphLayout.Layered(),
+                nodeRadius = 8f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+        assertEquals(2, inferredRootRecorder.commands.filterIsInstance<DrawCommand.Line>().size)
+
+        val cycleRecorder = RecordingDrawCanvas()
+        drawRelationGraph(
+            canvas = cycleRecorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(RelationNode("a"), RelationNode("b")),
+            edges = listOf(RelationEdge("a", "b"), RelationEdge("b", "a")),
+            theme = RelationGraphTheme(
+                width = 160f,
+                height = 100f,
+                layout = RelationGraphLayout.Layered(),
+                nodeRadius = 8f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+        assertEquals(2, cycleRecorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        cycleRecorder.commands.filterIsInstance<DrawCommand.Line>().forEach {
+            assertTrue(it.x0.isFinite())
+            assertTrue(it.y0.isFinite())
+        }
+
+        val singleLayerRecorder = RecordingDrawCanvas()
+        drawRelationGraph(
+            canvas = singleLayerRecorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(RelationNode("a")),
+            edges = emptyList(),
+            theme = RelationGraphTheme(
+                width = 100f,
+                height = 80f,
+                layout = RelationGraphLayout.Layered(),
+                nodeRadius = 8f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+        val circle = singleLayerRecorder.commands.filterIsInstance<DrawCommand.Circle>().first()
+        assertFloatEquals(50f, circle.x)
+        assertFloatEquals(40f, circle.y)
+    }
+
+    @Test
+    fun relationGraphLayeredLayoutUsesLongestPathForDag() {
+        val recorder = RecordingDrawCanvas()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(RelationNode("a"), RelationNode("b"), RelationNode("c")),
+            edges = listOf(
+                RelationEdge("a", "b", directed = false),
+                RelationEdge("a", "c", directed = false),
+                RelationEdge("b", "c", directed = false)
+            ),
+            theme = RelationGraphTheme(
+                width = 300f,
+                height = 160f,
+                layout = RelationGraphLayout.Layered(roots = listOf("a")),
+                padding = 30f,
+                nodeRadius = 8f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val circles = recorder.commands.filterIsInstance<DrawCommand.Circle>()
+        assertFloatEquals(30f, circles[0].x)
+        assertFloatEquals(150f, circles[2].x)
+        assertFloatEquals(270f, circles[4].x)
+    }
+
+    @Test
+    fun relationGraphRejectsDuplicateNodeIds() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            drawRelationGraph(
+                canvas = RecordingDrawCanvas(),
+                parentX = 0f,
+                parentY = 0f,
+                nodes = listOf(RelationNode("dup", "A"), RelationNode("dup", "B")),
+                edges = emptyList(),
+                theme = RelationGraphTheme(width = 100f, height = 80f)
+            )
+        }
+
+        assertTrue(error.message!!.contains("重复 id: dup"))
+    }
+
+    @Test
+    fun relationGraphThemeConveniencePaintsExposeThemeStyles() {
+        val theme = RelationGraphTheme(
+            width = 100f,
+            height = 80f,
+            nodeFillColor = Color.RED,
+            nodeStrokeColor = Color.GREEN,
+            nodeStrokeWidth = 4f,
+            edgeColor = Color.BLUE,
+            edgeWidth = 5f,
+            edgeLineStyle = StrokeStyle.Dashed(listOf(3f, 2f))
+        )
+
+        assertEquals(Color.RED, theme.nodeFill.color)
+        assertEquals(Color.GREEN, theme.nodeStroke.color)
+        assertFloatEquals(4f, theme.nodeStroke.width)
+        assertEquals(Color.BLUE, theme.edgeStroke.color)
+        assertFloatEquals(5f, theme.edgeStroke.width)
+        assertTrue(theme.edgeStroke.style is StrokeStyle.Dashed)
+    }
+
+    @Test
+    fun relationGraphDslAddsCanvasElementWithThemeSize() {
+        val root = Column()
+
+        root.apply {
+            relationGraph(
+                RelationGraphTheme(width = 120f, height = 90f),
+                nodes = listOf(RelationNode("a"), RelationNode("b")),
+                edges = listOf(RelationEdge("a", "b"))
+            )
+        }
+        root.measure(MeasureContext())
+
+        assertFloatEquals(120f, root.width)
+        assertFloatEquals(90f, root.height)
     }
 
     @Test

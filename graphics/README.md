@@ -15,7 +15,7 @@ dependencies {
 模块名是 `graphics`，当前公开包名仍保留 `top.e404.tavolo.draw.*`，避免无关包名迁移影响已有调用方。
 
 - `top.e404.tavolo.draw.compose`: 推荐使用的 2D 绘图 DSL。
-- `top.e404.tavolo.draw.compose.charts`: 内置图表组件，目前包含环形图和雷达图。
+- `top.e404.tavolo.draw.compose.charts`: 内置图表组件，目前包含环形图、雷达图和关系图。
 - `top.e404.tavolo.draw.render3d`: CPU 3D 渲染相关类型和渲染函数。
 - `top.e404.tavolo.draw.element`: 旧版绘图元素，已废弃，不建议新增使用。
 
