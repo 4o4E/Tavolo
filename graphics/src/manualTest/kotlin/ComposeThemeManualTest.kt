@@ -379,7 +379,7 @@ class ComposeThemeManualTest {
     @Test
     fun test_compose_theme_relation_graph() {
         ManualTestSupport.saveCompose("主题-图表-RelationGraph关系图") {
-            themePage("关系图主题", "静态关系图支持分层、环形、固定坐标、自环和复杂依赖", width = 1540f, height = 1420f) {
+            themePage("关系图主题", "静态关系图支持分层、环形、固定坐标、自环、力导向和复杂依赖", width = 1540f, height = 2120f) {
                 row {
                     themeCard("分层依赖关系", 535f, 500f) {
                         relationGraph(
@@ -499,6 +499,36 @@ class ComposeThemeManualTest {
                             relationFixedEdges
                         )
                         text("覆盖手工排版、绘制器扩展、虚线、无向边、自环标签和缺省坐标兜底", modifier = Modifier.padding(top = 18f), textModifier = captionText)
+                    }
+                }
+                row(modifier = Modifier.padding(top = 26f)) {
+                    themeCard("力导向复杂网络", 1466f, 660f) {
+                        relationGraph(
+                            RelationGraphTheme(
+                                width = 1416f,
+                                height = 530f,
+                                layout = RelationGraphLayout.Force(
+                                    iterations = 520,
+                                    linkDistance = 270f,
+                                    repulsion = 17000f,
+                                    centerStrength = 0.0025f,
+                                    collisionPadding = 94f,
+                                    initialRadiusRatio = 0.22f
+                                ),
+                                padding = 64f,
+                                nodeRadius = 28f,
+                                nodeFillColor = blue,
+                                nodeStrokeColor = Color.makeRGB(229, 234, 244),
+                                nodeTextStyle = ChartTextStyle(14f, Color.WHITE, uiFont),
+                                edgeColor = Color.makeRGB(132, 145, 166),
+                                edgeWidth = 2.1f,
+                                edgeTextStyle = ChartTextStyle(12f, muted, uiFont),
+                                arrowSize = 11f
+                            ),
+                            relationForceNodes,
+                            relationForceEdges
+                        )
+                        text("覆盖有环、多中心、跨簇连接和节点碰撞分离", modifier = Modifier.padding(top = 18f), textModifier = captionText)
                     }
                 }
             }
@@ -987,6 +1017,37 @@ class ComposeThemeManualTest {
             RelationEdge("retry", "retry", "自环", color = red, width = 2.2f, style = StrokeStyle.Dotted(3f, 4f)),
             RelationEdge("manual", "center", "复核", directed = false, color = yellow, width = 3f),
             RelationEdge("fallback", "center", "缺省坐标")
+        )
+        val relationForceNodes = listOf(
+            RelationNode("u1", "用户", blue),
+            RelationNode("u2", "成员", blue),
+            RelationNode("u3", "访客", blue),
+            RelationNode("svc", "服务", red, 32f),
+            RelationNode("auth", "认证", red),
+            RelationNode("cache2", "缓存", green),
+            RelationNode("db", "数据", green, 32f),
+            RelationNode("mq", "队列", yellow),
+            RelationNode("log", "日志", yellow),
+            RelationNode("job", "任务", green),
+            RelationNode("bot", "机器人", blue),
+            RelationNode("ops", "运维", red)
+        )
+        val relationForceEdges = listOf(
+            RelationEdge("u1", "svc", "请求"),
+            RelationEdge("u2", "svc", "请求"),
+            RelationEdge("u3", "auth", "登录"),
+            RelationEdge("auth", "svc", "授权"),
+            RelationEdge("svc", "cache2", "读写"),
+            RelationEdge("cache2", "db", "回源"),
+            RelationEdge("svc", "db", "事务"),
+            RelationEdge("svc", "mq", "投递"),
+            RelationEdge("mq", "job", "消费"),
+            RelationEdge("job", "db", "落库"),
+            RelationEdge("svc", "log", "记录"),
+            RelationEdge("ops", "log", "巡检"),
+            RelationEdge("bot", "mq", "触发"),
+            RelationEdge("job", "bot", "通知"),
+            RelationEdge("db", "cache2", "刷新", color = green, style = StrokeStyle.Dashed(listOf(8f, 6f)))
         )
     }
 }

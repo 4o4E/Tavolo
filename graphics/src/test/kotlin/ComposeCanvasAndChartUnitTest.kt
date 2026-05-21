@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.math.sqrt
 
 class ComposeCanvasAndChartUnitTest {
     @Test
@@ -800,6 +801,113 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun relationGraphForceLayoutKeepsComplexGraphBoundedAndSeparated() {
+        val recorder = RecordingDrawCanvas()
+        val nodes = (1..10).map { RelationNode("n$it") }
+        val edges = listOf(
+            RelationEdge("n1", "n2"),
+            RelationEdge("n1", "n3"),
+            RelationEdge("n2", "n4"),
+            RelationEdge("n3", "n4"),
+            RelationEdge("n4", "n5"),
+            RelationEdge("n5", "n6"),
+            RelationEdge("n6", "n7"),
+            RelationEdge("n7", "n3"),
+            RelationEdge("n5", "n8"),
+            RelationEdge("n8", "n9"),
+            RelationEdge("n9", "n10"),
+            RelationEdge("n10", "n5"),
+            RelationEdge("missing", "n1")
+        )
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = nodes,
+            edges = edges,
+            theme = RelationGraphTheme(
+                width = 960f,
+                height = 720f,
+                layout = RelationGraphLayout.Force(
+                    iterations = 380,
+                    linkDistance = 230f,
+                    repulsion = 16000f,
+                    collisionPadding = 86f
+                ),
+                padding = 90f,
+                nodeRadius = 18f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val circles = recorder.commands.filterIsInstance<DrawCommand.Circle>()
+            .filter { it.paint.mode == PaintMode.FILL }
+        assertEquals(nodes.size, circles.size)
+        circles.forEach {
+            assertTrue(it.x in 90f..870f)
+            assertTrue(it.y in 90f..630f)
+        }
+
+        val minCenterDistance = circles.flatMapIndexed { index, a ->
+            circles.drop(index + 1).map { b -> distance(a.x, a.y, b.x, b.y) }
+        }.minOrNull() ?: Float.MAX_VALUE
+        assertTrue(minCenterDistance >= 95f, "力导向布局应避免节点贴得过近")
+
+        val xSpread = circles.maxOf { it.x } - circles.minOf { it.x }
+        val ySpread = circles.maxOf { it.y } - circles.minOf { it.y }
+        assertTrue(ySpread > 260f, "复杂关系不应被压成横向长条")
+        assertTrue(xSpread < ySpread * 2.2f, "复杂关系不应被拉得过长")
+
+        val relationLines = recorder.commands.filterIsInstance<DrawCommand.Line>()
+        assertEquals(edges.size - 1, relationLines.size)
+        assertTrue(relationLines.all { distance(it.x0, it.y0, it.x1, it.y1) > 60f })
+    }
+
+    @Test
+    fun relationGraphForceLayoutSeparatesOverlappedInitialNodes() {
+        val recorder = RecordingDrawCanvas()
+        val nodes = (1..5).map { RelationNode("n$it") }
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = nodes,
+            edges = listOf(
+                RelationEdge("n1", "n2"),
+                RelationEdge("n2", "n3"),
+                RelationEdge("n3", "n4"),
+                RelationEdge("n4", "n5")
+            ),
+            theme = RelationGraphTheme(
+                width = 360f,
+                height = 300f,
+                layout = RelationGraphLayout.Force(
+                    iterations = 40,
+                    linkDistance = 95f,
+                    repulsion = 6000f,
+                    collisionPadding = 36f,
+                    initialRadiusRatio = 0f
+                ),
+                padding = 48f,
+                nodeRadius = 18f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val circles = recorder.commands.filterIsInstance<DrawCommand.Circle>()
+            .filter { it.paint.mode == PaintMode.FILL }
+        assertEquals(nodes.size, circles.size)
+        val minCenterDistance = circles.flatMapIndexed { index, a ->
+            circles.drop(index + 1).map { b -> distance(a.x, a.y, b.x, b.y) }
+        }.minOrNull() ?: Float.MAX_VALUE
+        assertTrue(minCenterDistance > 40f, "初始重叠节点应被稳定拆开")
+    }
+
+    @Test
     fun relationGraphRejectsDuplicateNodeIds() {
         val error = assertFailsWith<IllegalArgumentException> {
             drawRelationGraph(
@@ -1051,6 +1159,12 @@ class ComposeCanvasAndChartUnitTest {
 
         assertFloatEquals(80f, root.width)
         assertFloatEquals(60f, root.height)
+    }
+
+    private fun distance(x0: Float, y0: Float, x1: Float, y1: Float): Float {
+        val dx = x1 - x0
+        val dy = y1 - y0
+        return sqrt(dx * dx + dy * dy)
     }
 }
 

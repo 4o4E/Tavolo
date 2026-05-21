@@ -12,6 +12,7 @@ import top.e404.tavolo.util.FontManager
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -88,6 +89,8 @@ data class RelationEdge(
 
 /**
  * 关系图布局策略。
+ *
+ * 调用方处理布局类型时建议保留 else 分支，以便后续新增布局策略时源码仍可平滑升级。
  */
 sealed interface RelationGraphLayout {
     /**
@@ -104,6 +107,25 @@ sealed interface RelationGraphLayout {
      * 分层布局，适合依赖关系、调用链和流程关系。
      */
     data class Layered(val roots: List<String> = emptyList()) : RelationGraphLayout
+
+    /**
+     * 力导向布局，适合社交关系、人物关系等有环、多中心的复杂网络。
+     *
+     * @param iterations 迭代次数，越大越稳定但耗时越高。
+     * @param linkDistance 关系边倾向保持的节点中心距离。
+     * @param repulsion 节点之间的排斥强度。
+     * @param centerStrength 节点向画布中心收拢的强度，过大会让图过密。
+     * @param collisionPadding 节点半径之外额外保留的碰撞间距。
+     * @param initialRadiusRatio 初始环形半径占画布短边的比例。
+     */
+    data class Force(
+        val iterations: Int = 520,
+        val linkDistance: Float = 260f,
+        val repulsion: Float = 18000f,
+        val centerStrength: Float = 0.0024f,
+        val collisionPadding: Float = 80f,
+        val initialRadiusRatio: Float = 0.28f
+    ) : RelationGraphLayout
 }
 
 /**
@@ -233,6 +255,7 @@ private fun layoutRelationGraph(
         is RelationGraphLayout.Fixed -> fixedLayout(nodes, layout, theme)
         RelationGraphLayout.Circular -> circularLayout(nodes, theme)
         is RelationGraphLayout.Layered -> layeredLayout(nodes, edges, idSet, theme, layout)
+        is RelationGraphLayout.Force -> forceLayout(nodes, edges, idSet, theme, layout)
     }
 }
 
@@ -332,6 +355,163 @@ private fun layeredLayout(
             node.id to RelationPoint(x, y)
         }
     }.toMap()
+}
+
+private data class ForceNodeState(
+    val order: Int,
+    val id: String,
+    val radius: Float,
+    var x: Float,
+    var y: Float,
+    var vx: Float = 0f,
+    var vy: Float = 0f
+)
+
+private fun forceLayout(
+    nodes: List<RelationNode>,
+    edges: List<RelationEdge>,
+    idSet: Set<String>,
+    theme: RelationGraphTheme,
+    layout: RelationGraphLayout.Force
+): Map<String, RelationPoint> {
+    if (nodes.size == 1) {
+        return mapOf(nodes.single().id to RelationPoint(theme.width / 2f, theme.height / 2f))
+    }
+
+    val maxRadius = nodes.maxOf { nodeRadius(it, theme) }
+    val padding = max(theme.padding, maxRadius + 8f)
+    val minX = padding
+    val maxX = (theme.width - padding).coerceAtLeast(minX)
+    val minY = padding
+    val maxY = (theme.height - padding).coerceAtLeast(minY)
+    val centerX = theme.width / 2f
+    val centerY = theme.height / 2f
+    val initialRadius = min(theme.width, theme.height) * layout.initialRadiusRatio.coerceAtLeast(0f)
+
+    val states = nodes.mapIndexed { index, node ->
+        val angle = 2.0 * PI * index / nodes.size - PI / 2.0
+        ForceNodeState(
+            order = index,
+            id = node.id,
+            radius = nodeRadius(node, theme),
+            x = (centerX + cos(angle).toFloat() * initialRadius).coerceIn(minX, maxX),
+            y = (centerY + sin(angle).toFloat() * initialRadius).coerceIn(minY, maxY)
+        )
+    }
+    val stateById = states.associateBy { it.id }
+    val forceEdges = edges.mapNotNull { edge ->
+        val from = stateById[edge.from]
+        val to = stateById[edge.to]
+        if (from == null || to == null || edge.from !in idSet || edge.to !in idSet || edge.from == edge.to) {
+            null
+        } else {
+            from to to
+        }
+    }
+
+    val iterations = layout.iterations.coerceAtLeast(0)
+    repeat(iterations) { iteration ->
+        states.forEach {
+            it.vx = 0f
+            it.vy = 0f
+        }
+
+        for (i in states.indices) {
+            for (j in i + 1 until states.size) {
+                val a = states[i]
+                val b = states[j]
+                val dx = b.x - a.x
+                val dy = b.y - a.y
+                val distance = sqrt(dx * dx + dy * dy)
+                val (ux, uy) = forceDirection(a, b, distance, dx, dy)
+                val safeDistance = distance.coerceAtLeast(1f)
+                val force = layout.repulsion.coerceAtLeast(0f) / (safeDistance * safeDistance)
+                val fx = ux * force
+                val fy = uy * force
+                a.vx -= fx
+                a.vy -= fy
+                b.vx += fx
+                b.vy += fy
+            }
+        }
+
+        for ((from, to) in forceEdges) {
+            val dx = to.x - from.x
+            val dy = to.y - from.y
+            val distance = sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+            val target = layout.linkDistance.coerceAtLeast(from.radius + to.radius + layout.collisionPadding)
+            val force = (distance - target) * 0.035f
+            val fx = dx / distance * force
+            val fy = dy / distance * force
+            from.vx += fx
+            from.vy += fy
+            to.vx -= fx
+            to.vy -= fy
+        }
+
+        val centerStrength = layout.centerStrength.coerceAtLeast(0f)
+        for (node in states) {
+            node.vx += (centerX - node.x) * centerStrength
+            node.vy += (centerY - node.y) * centerStrength
+        }
+
+        val temperature = if (iterations == 0) 0f else (1f - iteration.toFloat() / iterations).coerceAtLeast(0.08f)
+        for (node in states) {
+            node.x = (node.x + node.vx * temperature).coerceIn(minX, maxX)
+            node.y = (node.y + node.vy * temperature).coerceIn(minY, maxY)
+        }
+
+        separateForceNodes(states, layout.collisionPadding.coerceAtLeast(0f), minX, maxX, minY, maxY)
+    }
+
+    if (iterations == 0) {
+        separateForceNodes(states, layout.collisionPadding.coerceAtLeast(0f), minX, maxX, minY, maxY)
+    }
+
+    return states.associate { it.id to RelationPoint(it.x, it.y) }
+}
+
+private fun separateForceNodes(
+    nodes: List<ForceNodeState>,
+    collisionPadding: Float,
+    minX: Float,
+    maxX: Float,
+    minY: Float,
+    maxY: Float
+) {
+    for (i in nodes.indices) {
+        for (j in i + 1 until nodes.size) {
+            val a = nodes[i]
+            val b = nodes[j]
+            val dx = b.x - a.x
+            val dy = b.y - a.y
+            val distance = sqrt(dx * dx + dy * dy)
+            val minDistance = a.radius + b.radius + collisionPadding
+            if (distance >= minDistance) continue
+            val offset = (minDistance - distance) / 2f
+            val (ux, uy) = forceDirection(a, b, distance, dx, dy)
+            val ox = ux * offset
+            val oy = uy * offset
+            a.x = (a.x - ox).coerceIn(minX, maxX)
+            a.y = (a.y - oy).coerceIn(minY, maxY)
+            b.x = (b.x + ox).coerceIn(minX, maxX)
+            b.y = (b.y + oy).coerceIn(minY, maxY)
+        }
+    }
+}
+
+private fun forceDirection(
+    a: ForceNodeState,
+    b: ForceNodeState,
+    distance: Float,
+    dx: Float,
+    dy: Float
+): Pair<Float, Float> {
+    if (distance > 0.0001f) return dx / distance to dy / distance
+
+    // 节点完全重合时使用稳定方向拆开，避免零向量导致力和碰撞分离失效。
+    val angle = 2.399963229728653 * (a.order + b.order + 1)
+    return cos(angle).toFloat() to sin(angle).toFloat()
 }
 
 private fun nodeRadius(node: RelationNode, theme: RelationGraphTheme): Float =
