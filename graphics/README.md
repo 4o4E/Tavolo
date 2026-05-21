@@ -257,6 +257,8 @@ fun main() {
 
 ## 图表
 
+关系图支持通过 `RelationNodeDrawer` 和 `RelationEdgeDrawer` 扩展节点、普通边和自环边绘制。绘制器可配置在 `RelationGraphTheme` 上作为全局默认，也可配置到单个 `RelationNode` 或 `RelationEdge` 上做局部覆盖；绘制上下文会暴露画布、测量上下文、节点坐标、边端点和 `drawDefault()`，便于在默认图形前后追加高亮、徽标、状态标记等自定义内容。
+
 ```kotlin
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.EncodedImageFormat

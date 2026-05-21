@@ -5,6 +5,7 @@ import org.jetbrains.skia.Font
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.PaintMode
+import org.jetbrains.skia.Path
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import org.junit.Test
@@ -51,9 +52,11 @@ import top.e404.tavolo.draw.compose.charts.ChartTextStyle
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.RelationEdge
+import top.e404.tavolo.draw.compose.charts.RelationEdgeDrawer
 import top.e404.tavolo.draw.compose.charts.RelationGraphLayout
 import top.e404.tavolo.draw.compose.charts.RelationGraphTheme
 import top.e404.tavolo.draw.compose.charts.RelationNode
+import top.e404.tavolo.draw.compose.charts.RelationNodeDrawer
 import top.e404.tavolo.draw.compose.charts.bar
 import top.e404.tavolo.draw.compose.charts.radar
 import top.e404.tavolo.draw.compose.charts.relationGraph
@@ -460,12 +463,42 @@ class ComposeThemeManualTest {
                                 edgeColor = Color.makeRGB(132, 145, 166),
                                 edgeWidth = 2.4f,
                                 edgeTextStyle = ChartTextStyle(12f, muted, uiFont),
-                                arrowSize = 12f
+                                arrowSize = 12f,
+                                nodeDrawer = RelationNodeDrawer { scope ->
+                                    if (scope.node.id == "center") {
+                                        scope.canvas.drawCircle(
+                                            scope.centerX,
+                                            scope.centerY,
+                                            scope.radius + 10f,
+                                            Paint().apply { color = Color.makeARGB(42, 44, 101, 255) }
+                                        )
+                                    }
+                                    if (scope.node.id == "fallback") {
+                                        scope.canvas.drawCircle(
+                                            scope.centerX,
+                                            scope.centerY,
+                                            scope.radius + 7f,
+                                            Paint().apply { color = Color.makeARGB(48, 255, 204, 77) }
+                                        )
+                                    }
+                                    scope.drawDefault()
+                                },
+                                edgeDrawer = RelationEdgeDrawer { scope ->
+                                    scope.drawDefault()
+                                    if (scope.edge.label == "失败") {
+                                        scope.canvas.drawCircle(
+                                            (scope.startX + scope.endX) / 2f,
+                                            (scope.startY + scope.endY) / 2f,
+                                            5f,
+                                            Paint().apply { color = red }
+                                        )
+                                    }
+                                }
                             ),
                             relationFixedNodes,
                             relationFixedEdges
                         )
-                        text("覆盖手工排版、虚线、无向边、自环标签和缺省坐标兜底", modifier = Modifier.padding(top = 18f), textModifier = captionText)
+                        text("覆盖手工排版、绘制器扩展、虚线、无向边、自环标签和缺省坐标兜底", modifier = Modifier.padding(top = 18f), textModifier = captionText)
                     }
                 }
             }
@@ -915,7 +948,30 @@ class ComposeThemeManualTest {
             RelationNode("center", "中心", blue, 36f),
             RelationNode("cache", "缓存", green, 28f),
             RelationNode("retry", "重试", red, 28f),
-            RelationNode("manual", "人工", yellow, 30f),
+            RelationNode(
+                id = "manual",
+                label = "人工",
+                color = yellow,
+                radius = 30f,
+                drawer = RelationNodeDrawer { scope ->
+                    val marker = Path().apply {
+                        moveTo(scope.centerX, scope.centerY - scope.radius - 18f)
+                        lineTo(scope.centerX + 14f, scope.centerY - scope.radius - 2f)
+                        lineTo(scope.centerX, scope.centerY - scope.radius + 14f)
+                        lineTo(scope.centerX - 14f, scope.centerY - scope.radius - 2f)
+                        closePath()
+                    }
+                    scope.canvas.drawPath(
+                        marker,
+                        Paint().apply {
+                            color = yellow
+                            mode = PaintMode.FILL
+                            isAntiAlias = true
+                        }
+                    )
+                    scope.drawDefault()
+                }
+            ),
             RelationNode("fallback", "兜底", blue, 26f)
         )
         val relationFixedPositions = mapOf(

@@ -816,6 +816,190 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun relationGraphUsesThemeAndElementDrawersWithDefaultDrawing() {
+        val recorder = RecordingDrawCanvas()
+        val nodeCalls = mutableListOf<String>()
+        val edgeCalls = mutableListOf<String>()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(
+                RelationNode("a", "A"),
+                RelationNode(
+                    id = "b",
+                    label = "B",
+                    drawer = RelationNodeDrawer { scope ->
+                        nodeCalls += "node:${scope.node.id}"
+                        scope.canvas.drawCircle(
+                            scope.centerX,
+                            scope.centerY,
+                            scope.radius + 3f,
+                            Paint().apply { color = Color.YELLOW }
+                        )
+                        scope.drawDefault()
+                    }
+                )
+            ),
+            edges = listOf(
+                RelationEdge("a", "b", label = "theme"),
+                RelationEdge(
+                    from = "b",
+                    to = "b",
+                    label = "custom",
+                    drawer = RelationEdgeDrawer { scope ->
+                        edgeCalls += "edge:${scope.edge.from}->${scope.edge.to}:${scope.isSelfLoop}"
+                        scope.drawDefault()
+                    }
+                )
+            ),
+            theme = RelationGraphTheme(
+                width = 140f,
+                height = 100f,
+                layout = RelationGraphLayout.Fixed(
+                    mapOf(
+                        "a" to (30f to 50f),
+                        "b" to (110f to 50f)
+                    )
+                ),
+                nodeRadius = 10f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE),
+                edgeTextStyle = ChartTextStyle(8f, Color.BLUE),
+                nodeDrawer = RelationNodeDrawer { scope ->
+                    nodeCalls += "theme:${scope.node.id}"
+                    scope.drawDefault()
+                },
+                edgeDrawer = RelationEdgeDrawer { scope ->
+                    edgeCalls += "theme:${scope.edge.from}->${scope.edge.to}:${scope.isSelfLoop}"
+                    scope.drawDefault()
+                }
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        assertEquals(listOf("theme:a", "node:b"), nodeCalls)
+        assertEquals(listOf("theme:a->b:false", "edge:b->b:true"), edgeCalls)
+        assertEquals(5, recorder.commands.filterIsInstance<DrawCommand.Circle>().size)
+        assertEquals(1, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        assertEquals(1, recorder.commands.filterIsInstance<DrawCommand.Arc>().size)
+    }
+
+    @Test
+    fun relationGraphCustomDrawersCanReplaceDefaultDrawingAndUseScopeGeometry() {
+        val recorder = RecordingDrawCanvas()
+        val edgeGeometry = mutableListOf<Pair<Pair<Float, Float>, Pair<Float, Float>>>()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 3f,
+            parentY = 4f,
+            nodes = listOf(RelationNode("a", "A"), RelationNode("b", "B")),
+            edges = listOf(RelationEdge("a", "b")),
+            theme = RelationGraphTheme(
+                width = 120f,
+                height = 80f,
+                layout = RelationGraphLayout.Fixed(
+                    mapOf(
+                        "a" to (20f to 30f),
+                        "b" to (100f to 30f)
+                    )
+                ),
+                nodeRadius = 10f,
+                nodeDrawer = RelationNodeDrawer { scope ->
+                    scope.canvas.drawRect(
+                        Rect.makeXYWH(
+                            scope.centerX - scope.radius,
+                            scope.centerY - scope.radius,
+                            scope.radius * 2f,
+                            scope.radius * 2f
+                        ),
+                        Paint().apply {
+                            color = Color.YELLOW
+                            mode = PaintMode.FILL
+                        }
+                    )
+                },
+                edgeDrawer = RelationEdgeDrawer { scope ->
+                    edgeGeometry += (scope.startX to scope.startY) to (scope.endX to scope.endY)
+                    scope.canvas.drawLine(
+                        scope.startX,
+                        scope.startY,
+                        scope.endX,
+                        scope.endY,
+                        Paint().apply {
+                            color = Color.RED
+                            mode = PaintMode.STROKE
+                            strokeWidth = 4f
+                        }
+                    )
+                }
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.Rect>().size)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.Circle>().size)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+        val line = recorder.commands.filterIsInstance<DrawCommand.Line>().single()
+        assertEquals(Color.RED, line.paint.color)
+        assertFloatEquals(4f, line.paint.strokeWidth)
+        assertEquals(listOf((33f to 34f) to (93f to 34f)), edgeGeometry)
+    }
+
+    @Test
+    fun relationGraphElementDrawerCanReplaceThemeDrawerWithoutCallingDefault() {
+        val recorder = RecordingDrawCanvas()
+        val nodeCalls = mutableListOf<String>()
+
+        drawRelationGraph(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            nodes = listOf(
+                RelationNode("theme"),
+                RelationNode(
+                    id = "custom",
+                    drawer = RelationNodeDrawer { scope ->
+                        nodeCalls += "custom:${scope.node.id}"
+                        scope.canvas.drawCircle(
+                            scope.centerX,
+                            scope.centerY,
+                            scope.radius + 6f,
+                            Paint().apply { color = Color.RED }
+                        )
+                    }
+                )
+            ),
+            edges = emptyList(),
+            theme = RelationGraphTheme(
+                width = 120f,
+                height = 80f,
+                layout = RelationGraphLayout.Fixed(
+                    mapOf(
+                        "theme" to (30f to 40f),
+                        "custom" to (90f to 40f)
+                    )
+                ),
+                nodeRadius = 10f,
+                nodeTextStyle = ChartTextStyle(10f, Color.WHITE),
+                nodeDrawer = RelationNodeDrawer { scope ->
+                    nodeCalls += "theme:${scope.node.id}"
+                    scope.drawDefault()
+                }
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        assertEquals(listOf("theme:theme", "custom:custom"), nodeCalls)
+        val circles = recorder.commands.filterIsInstance<DrawCommand.Circle>()
+        assertEquals(3, circles.size)
+        assertEquals(Color.RED, circles.last().paint.color)
+        assertFloatEquals(16f, circles.last().radius)
+        assertEquals(1, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
     fun relationGraphThemeConveniencePaintsExposeThemeStyles() {
         val theme = RelationGraphTheme(
             width = 100f,

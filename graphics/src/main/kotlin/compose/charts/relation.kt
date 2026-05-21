@@ -32,18 +32,38 @@ fun UiElement.relationGraph(
 )
 
 /**
+ * 关系图节点绘制器。
+ *
+ * 调用方可以通过主题设置全局节点绘制器，也可以在单个节点上覆盖。
+ */
+fun interface RelationNodeDrawer {
+    fun draw(scope: RelationNodeDrawScope)
+}
+
+/**
+ * 关系图边绘制器。
+ *
+ * 普通边和自环边都通过同一个绘制器扩展，scope 中的 isSelfLoop 用于区分场景。
+ */
+fun interface RelationEdgeDrawer {
+    fun draw(scope: RelationEdgeDrawScope)
+}
+
+/**
  * 关系图节点。
  *
  * @param id 节点唯一标识，边会通过它引用节点。
  * @param label 节点展示文本。
  * @param color 节点填充色，不传时使用主题默认色。
  * @param radius 节点半径，不传时使用主题默认半径。
+ * @param drawer 节点专属绘制器，不传时使用主题节点绘制器。
  */
 data class RelationNode(
     val id: String,
     val label: String = id,
     val color: Int? = null,
-    val radius: Float? = null
+    val radius: Float? = null,
+    val drawer: RelationNodeDrawer? = null
 )
 
 /**
@@ -53,6 +73,7 @@ data class RelationNode(
  * @param to 终点节点 id。
  * @param label 边标签，空值表示不绘制标签。
  * @param directed 是否绘制箭头。
+ * @param drawer 边专属绘制器，不传时使用主题边绘制器。
  */
 data class RelationEdge(
     val from: String,
@@ -61,7 +82,8 @@ data class RelationEdge(
     val directed: Boolean = true,
     val color: Int? = null,
     val width: Float? = null,
-    val style: StrokeStyle? = null
+    val style: StrokeStyle? = null,
+    val drawer: RelationEdgeDrawer? = null
 )
 
 /**
@@ -111,11 +133,61 @@ data class RelationGraphTheme(
         color = Color.makeRGB(96, 108, 128),
         fontFamily = FontManager.defaultFamily
     ),
-    val arrowSize: Float = 12f
+    val arrowSize: Float = 12f,
+    val nodeDrawer: RelationNodeDrawer = RelationNodeDrawer { it.drawDefault() },
+    val edgeDrawer: RelationEdgeDrawer = RelationEdgeDrawer { it.drawDefault() }
 ) {
     val nodeFill: ChartFill get() = ChartFill(nodeFillColor)
     val nodeStroke: ChartStroke get() = ChartStroke(nodeStrokeColor, nodeStrokeWidth)
     val edgeStroke: ChartStroke get() = ChartStroke(edgeColor, edgeWidth, edgeLineStyle)
+}
+
+/**
+ * 节点绘制上下文。
+ *
+ * 坐标为最终画布坐标，调用方可以先绘制背景效果，再调用 drawDefault() 复用默认节点。
+ */
+class RelationNodeDrawScope(
+    val canvas: DrawCanvas,
+    val measureContext: MeasureContext,
+    val node: RelationNode,
+    val theme: RelationGraphTheme,
+    val centerX: Float,
+    val centerY: Float,
+    val radius: Float
+) {
+    fun drawDefault() {
+        drawDefaultRelationNode(this)
+    }
+}
+
+/**
+ * 边绘制上下文。
+ *
+ * 普通边的 start/end 是扣除节点半径后的线段端点；自环边的 start/end 等于节点中心。
+ */
+class RelationEdgeDrawScope(
+    val canvas: DrawCanvas,
+    val measureContext: MeasureContext,
+    val edge: RelationEdge,
+    val fromNode: RelationNode,
+    val toNode: RelationNode,
+    val theme: RelationGraphTheme,
+    val fromCenterX: Float,
+    val fromCenterY: Float,
+    val toCenterX: Float,
+    val toCenterY: Float,
+    val startX: Float,
+    val startY: Float,
+    val endX: Float,
+    val endY: Float,
+    val fromRadius: Float,
+    val toRadius: Float,
+    val isSelfLoop: Boolean
+) {
+    fun drawDefault() {
+        drawDefaultRelationEdge(this)
+    }
 }
 
 private data class RelationPoint(val x: Float, val y: Float)
@@ -330,6 +402,75 @@ private fun drawRelationSelfLoop(
     }
 }
 
+private fun drawRelationEdgeLabel(
+    canvas: DrawCanvas,
+    measureContext: MeasureContext,
+    edge: RelationEdge,
+    theme: RelationGraphTheme,
+    textX: Float,
+    textY: Float
+) {
+    edge.label?.takeIf { it.isNotBlank() }?.let { label ->
+        val measured = measureRelationText(label, theme.edgeTextStyle, measureContext)
+        canvas.drawTextLine(measured.line, textX, textY, theme.edgeTextStyle.toPaint())
+    }
+}
+
+private fun drawDefaultRelationEdge(scope: RelationEdgeDrawScope) {
+    val edgeColor = scope.edge.color ?: scope.theme.edgeColor
+    if (scope.isSelfLoop) {
+        val point = RelationPoint(scope.fromCenterX, scope.fromCenterY)
+        drawRelationSelfLoop(scope.canvas, point, scope.fromRadius, scope.edge, scope.theme)
+        drawRelationEdgeLabel(
+            canvas = scope.canvas,
+            measureContext = scope.measureContext,
+            edge = scope.edge,
+            theme = scope.theme,
+            textX = scope.fromCenterX + scope.fromRadius * 1.25f,
+            textY = scope.fromCenterY - scope.fromRadius * 1.65f
+        )
+        return
+    }
+
+    val edgePaint = ChartStroke(
+        color = edgeColor,
+        width = scope.edge.width ?: scope.theme.edgeWidth,
+        style = scope.edge.style ?: scope.theme.edgeLineStyle
+    ).toPaint()
+    scope.canvas.drawLine(scope.startX, scope.startY, scope.endX, scope.endY, edgePaint)
+
+    val unit = RelationVector(scope.endX - scope.startX, scope.endY - scope.startY).normalized()
+    if (scope.edge.directed) {
+        drawRelationArrow(scope.canvas, RelationPoint(scope.endX, scope.endY), unit, edgeColor, scope.theme.arrowSize)
+    }
+
+    scope.edge.label?.takeIf { it.isNotBlank() }?.let { label ->
+        val measured = measureRelationText(label, scope.theme.edgeTextStyle, scope.measureContext)
+        val angle = atan2(unit.y, unit.x)
+        val normalX = -sin(angle) * 8f
+        val normalY = cos(angle) * 8f
+        val centerX = (scope.startX + scope.endX) / 2f + normalX
+        val centerY = (scope.startY + scope.endY) / 2f + normalY
+        val textX = centerX - measured.box.width / 2f
+        val textY = centerY - (measured.box.ascent + measured.box.descent) / 2f
+        scope.canvas.drawTextLine(measured.line, textX, textY, scope.theme.edgeTextStyle.toPaint())
+    }
+}
+
+private fun drawDefaultRelationNode(scope: RelationNodeDrawScope) {
+    val fillPaint = ChartFill(scope.node.color ?: scope.theme.nodeFillColor).toPaint()
+    val strokePaint = scope.theme.nodeStroke.toPaint()
+    scope.canvas.drawCircle(scope.centerX, scope.centerY, scope.radius, fillPaint)
+    if (scope.theme.nodeStrokeWidth > 0f) {
+        scope.canvas.drawCircle(scope.centerX, scope.centerY, scope.radius, strokePaint)
+    }
+
+    val measured = measureRelationText(scope.node.label, scope.theme.nodeTextStyle, scope.measureContext)
+    val textX = scope.centerX - measured.box.width / 2f
+    val textY = scope.centerY - (measured.box.ascent + measured.box.descent) / 2f
+    scope.canvas.drawTextLine(measured.line, textX, textY, scope.theme.nodeTextStyle.toPaint())
+}
+
 private fun requireUniqueRelationNodeIds(nodes: List<RelationNode>) {
     val duplicateId = nodes.groupingBy { it.id }
         .eachCount()
@@ -360,25 +501,39 @@ fun drawRelationGraph(
         RelationPoint(parentX + point.x, parentY + point.y)
     }
     val nodeById = nodes.associateBy { it.id }
-    val edgeTextPaint = theme.edgeTextStyle.toPaint()
-    val nodeTextPaint = theme.nodeTextStyle.toPaint()
 
     edges.forEach { edge ->
         val from = positions[edge.from]
         val to = positions[edge.to]
         if (from == null || to == null || edge.from !in idSet || edge.to !in idSet) return@forEach
 
-        val fromRadius = nodeRadius(nodeById.getValue(edge.from), theme)
-        val toRadius = nodeRadius(nodeById.getValue(edge.to), theme)
+        val fromNode = nodeById.getValue(edge.from)
+        val toNode = nodeById.getValue(edge.to)
+        val fromRadius = nodeRadius(fromNode, theme)
+        val toRadius = nodeRadius(toNode, theme)
 
         if (edge.from == edge.to) {
-            drawRelationSelfLoop(canvas, from, fromRadius, edge, theme)
-            edge.label?.takeIf { it.isNotBlank() }?.let { label ->
-                val measured = measureRelationText(label, theme.edgeTextStyle, measureContext)
-                val textX = from.x + fromRadius * 1.25f
-                val textY = from.y - fromRadius * 1.65f
-                canvas.drawTextLine(measured.line, textX, textY, edgeTextPaint)
-            }
+            (edge.drawer ?: theme.edgeDrawer).draw(
+                RelationEdgeDrawScope(
+                    canvas = canvas,
+                    measureContext = measureContext,
+                    edge = edge,
+                    fromNode = fromNode,
+                    toNode = toNode,
+                    theme = theme,
+                    fromCenterX = from.x,
+                    fromCenterY = from.y,
+                    toCenterX = to.x,
+                    toCenterY = to.y,
+                    startX = from.x,
+                    startY = from.y,
+                    endX = to.x,
+                    endY = to.y,
+                    fromRadius = fromRadius,
+                    toRadius = toRadius,
+                    isSelfLoop = true
+                )
+            )
             return@forEach
         }
 
@@ -388,44 +543,42 @@ fun drawRelationGraph(
 
         val start = RelationPoint(from.x + unit.x * fromRadius, from.y + unit.y * fromRadius)
         val end = RelationPoint(to.x - unit.x * toRadius, to.y - unit.y * toRadius)
-        val edgeColor = edge.color ?: theme.edgeColor
-        val edgePaint = ChartStroke(
-            color = edgeColor,
-            width = edge.width ?: theme.edgeWidth,
-            style = edge.style ?: theme.edgeLineStyle
-        ).toPaint()
-        canvas.drawLine(start.x, start.y, end.x, end.y, edgePaint)
-
-        if (edge.directed) {
-            drawRelationArrow(canvas, end, unit, edgeColor, theme.arrowSize)
-        }
-
-        edge.label?.takeIf { it.isNotBlank() }?.let { label ->
-            val measured = measureRelationText(label, theme.edgeTextStyle, measureContext)
-            val angle = atan2(unit.y, unit.x)
-            val normalX = -sin(angle) * 8f
-            val normalY = cos(angle) * 8f
-            val centerX = (start.x + end.x) / 2f + normalX
-            val centerY = (start.y + end.y) / 2f + normalY
-            val textX = centerX - measured.box.width / 2f
-            val textY = centerY - (measured.box.ascent + measured.box.descent) / 2f
-            canvas.drawTextLine(measured.line, textX, textY, edgeTextPaint)
-        }
+        (edge.drawer ?: theme.edgeDrawer).draw(
+            RelationEdgeDrawScope(
+                canvas = canvas,
+                measureContext = measureContext,
+                edge = edge,
+                fromNode = fromNode,
+                toNode = toNode,
+                theme = theme,
+                fromCenterX = from.x,
+                fromCenterY = from.y,
+                toCenterX = to.x,
+                toCenterY = to.y,
+                startX = start.x,
+                startY = start.y,
+                endX = end.x,
+                endY = end.y,
+                fromRadius = fromRadius,
+                toRadius = toRadius,
+                isSelfLoop = false
+            )
+        )
     }
 
     nodes.forEach { node ->
         val point = positions.getValue(node.id)
         val radius = nodeRadius(node, theme)
-        val fillPaint = ChartFill(node.color ?: theme.nodeFillColor).toPaint()
-        val strokePaint = theme.nodeStroke.toPaint()
-        canvas.drawCircle(point.x, point.y, radius, fillPaint)
-        if (theme.nodeStrokeWidth > 0f) {
-            canvas.drawCircle(point.x, point.y, radius, strokePaint)
-        }
-
-        val measured = measureRelationText(node.label, theme.nodeTextStyle, measureContext)
-        val textX = point.x - measured.box.width / 2f
-        val textY = point.y - (measured.box.ascent + measured.box.descent) / 2f
-        canvas.drawTextLine(measured.line, textX, textY, nodeTextPaint)
+        (node.drawer ?: theme.nodeDrawer).draw(
+            RelationNodeDrawScope(
+                canvas = canvas,
+                measureContext = measureContext,
+                node = node,
+                theme = theme,
+                centerX = point.x,
+                centerY = point.y,
+                radius = radius
+            )
+        )
     }
 }
