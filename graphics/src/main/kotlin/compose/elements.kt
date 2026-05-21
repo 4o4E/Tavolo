@@ -1,7 +1,14 @@
 package top.e404.tavolo.draw.compose
 
 import org.jetbrains.skia.*
+import org.jetbrains.skia.paragraph.LineMetrics
+import org.jetbrains.skia.paragraph.Paragraph
+import org.jetbrains.skia.paragraph.ParagraphBuilder
+import org.jetbrains.skia.paragraph.ParagraphStyle
+import org.jetbrains.skia.paragraph.TextStyle as ParagraphTextStyle
 import top.e404.tavolo.util.FontManager
+import java.text.BreakIterator
+import java.util.Locale
 
 private fun Paint.applyStrokeStyle(style: StrokeStyle) {
     val dashIntervals = when (style) {
@@ -24,6 +31,21 @@ private fun Paint.applyStrokeStyle(style: StrokeStyle) {
         }
         PathEffect.makeDash(it, phase)
     }
+}
+
+private fun textClusters(text: String): List<String> {
+    if (text.isEmpty()) return emptyList()
+    val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
+    iterator.setText(text)
+    val result = mutableListOf<String>()
+    var start = iterator.first()
+    var end = iterator.next()
+    while (end != BreakIterator.DONE) {
+        result += text.substring(start, end)
+        start = end
+        end = iterator.next()
+    }
+    return result
 }
 
 /**
@@ -620,12 +642,23 @@ class Text(
     private var textMetrics: TextMetrics = TextMetrics(0f, 0f)
     private var lines: List<String> = listOf()
     private var lineWidths: List<Float> = listOf()
-    private var charOffsets: List<List<Float>> = listOf()
+    private var clusterOffsets: List<List<Float>> = listOf()
+    private var paragraphLayout: ParagraphTextLayout? = null
     private var overflow = TextOverflow.Wrap
     private var overflowPlaceholder = TextDefaults.OVERFLOW_PLACEHOLDER
     private var underlineStyle: TextUnderline? = null
     private var effectiveLineHeight: Float = 0f
     private var effectiveLetterSpacing: Float = 0f
+    private var effectiveScaleX: Float = 1f
+    private var effectiveFontFamily: String = FontManager.defaultFamily
+    private var effectiveFontSize: Float = 24f
+    private var effectiveFontWeight: Int? = null
+    private var effectiveItalic: Boolean = false
+
+    private data class ParagraphTextLayout(
+        val paragraph: Paragraph,
+        val lines: List<LineMetrics>
+    )
 
     private fun applyModifiers() {
         val modifierStyle = textModifier.fold(null as TextStyle?) { acc, m ->
@@ -642,37 +675,44 @@ class Text(
         val finalFamily = fontFamily ?: finalStyle?.fontFamily ?: FontManager.defaultFamily
         val finalFontWeight = finalStyle?.fontWeight
         val finalItalic = finalStyle?.italic ?: false
+        val finalScaleX = finalStyle?.scaleX?.coerceAtLeast(0.01f) ?: 1f
         overflow = textOverflow ?: TextOverflow.Wrap
         overflowPlaceholder = textOverflowPlaceholder ?: TextDefaults.OVERFLOW_PLACEHOLDER
         underlineStyle = underline ?: finalStyle?.underline
         effectiveLineHeight = finalStyle?.lineHeight?.coerceAtLeast(0f) ?: 0f
         effectiveLetterSpacing = finalStyle?.letterSpacing ?: 0f
+        effectiveScaleX = finalScaleX
+        effectiveFontFamily = finalFamily
+        effectiveFontSize = finalSize
+        effectiveFontWeight = finalFontWeight
+        effectiveItalic = finalItalic
         val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
         font = Font(FontManager.resolve(finalFamily), finalSize).apply {
             if (finalFontWeight != null) isEmboldened = finalFontWeight >= 600
             if (finalItalic) skewX = -0.25f
-            finalStyle?.scaleX?.let { scaleX = it.coerceAtLeast(0.01f) }
+            scaleX = finalScaleX
         }
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
     }
 
     private fun measureLineWidth(text: String, measurer: TextMeasurer): Float {
         if (text.isEmpty()) return 0f
-        val spacing = effectiveLetterSpacing * (text.length - 1).coerceAtLeast(0)
+        val spacing = effectiveLetterSpacing * (textClusters(text).size - 1).coerceAtLeast(0)
         return measurer.measureTextWidth(text, font, paint) + spacing
     }
 
-    private fun charOffsets(text: String, measurer: TextMeasurer): List<Float> {
+    private fun clusterOffsets(text: String, measurer: TextMeasurer): List<Float> {
         var cursor = 0f
-        return text.map { ch ->
+        return textClusters(text).map { cluster ->
             val offset = cursor
-            cursor += measurer.measureTextWidth(ch.toString(), font, paint) + effectiveLetterSpacing
+            cursor += measurer.measureTextWidth(cluster, font, paint) + effectiveLetterSpacing
             offset
         }
     }
 
     override fun measureContent(context: MeasureContext) {
         applyModifiers()
+        paragraphLayout = null
 
         val sizeIn = sizeIn()
         val measurer = context.textMeasurer
@@ -680,6 +720,11 @@ class Text(
         textMetrics = metrics
         val lineHeight = effectiveLineHeight.takeIf { it > 0f } ?: metrics.lineHeight
         effectiveLineHeight = lineHeight
+
+        if (context.textMeasurer === SkiaTextMeasurer) {
+            measureParagraphContent(sizeIn, lineHeight)
+            return
+        }
 
         if (overflow == TextOverflow.Wrap && sizeIn.maxWidth.isFinite()) {
             val words = text.split(Regex("\\s+"))
@@ -702,13 +747,13 @@ class Text(
                 } else {
                     if (current.isEmpty()) {
                         var acc = ""
-                        for (ch in w) {
-                            val tryAcc = acc + ch
+                        for (cluster in textClusters(w)) {
+                            val tryAcc = acc + cluster
                             if (measureLineWidth(tryAcc, measurer) <= sizeIn.maxWidth) {
                                 acc = tryAcc
                             } else {
                                 if (acc.isNotEmpty()) builtLines.add(acc)
-                                acc = ch.toString()
+                                acc = cluster
                             }
                         }
                         if (acc.isNotEmpty()) current.append(acc)
@@ -758,11 +803,12 @@ class Text(
             if (overflow == TextOverflow.Ellipsis && sizeIn.maxWidth.isFinite() && measuredWidth > sizeIn.maxWidth) {
                 // 需要截断为能放下省略号的最长子串
                 var lo = 0
-                var hi = text.length
+                val clusters = textClusters(text)
+                var hi = clusters.size
                 var best = ""
                 while (lo <= hi) {
                     val mid = (lo + hi) / 2
-                    val candidate = text.substring(0, mid)
+                    val candidate = clusters.take(mid).joinToString("")
                     if (measureLineWidth("$candidate$overflowPlaceholder", measurer) <= sizeIn.maxWidth) {
                         best = candidate; lo = mid + 1
                     } else {
@@ -786,8 +832,67 @@ class Text(
             }
         }
         lineWidths = lines.map { measureLineWidth(it, measurer) }
-        charOffsets = lines.map { charOffsets(it, measurer) }
+        clusterOffsets = lines.map { clusterOffsets(it, measurer) }
     }
+
+    private fun measureParagraphContent(sizeIn: SizeIn, lineHeight: Float) {
+        val layoutWidth = when {
+            sizeIn.maxWidth.isFinite() -> (sizeIn.maxWidth / effectiveScaleX).coerceAtLeast(1f)
+            else -> 1_000_000f
+        }
+        val paragraph = buildParagraph(sizeIn, lineHeight).layout(layoutWidth)
+        val metrics = paragraph.lineMetrics.toList()
+        paragraphLayout = ParagraphTextLayout(paragraph, metrics)
+        lines = emptyList()
+        lineWidths = metrics.map { it.width.toFloat() * effectiveScaleX }
+        val paragraphWidth = when {
+            metrics.isNotEmpty() -> metrics.maxOf { it.width.toFloat() } * effectiveScaleX
+            else -> paragraph.maxIntrinsicWidth * effectiveScaleX
+        }
+        contentWidth = if (sizeIn.maxWidth.isFinite()) paragraphWidth.coerceAtMost(sizeIn.maxWidth) else paragraphWidth
+        contentHeight = paragraph.height
+        if (sizeIn.maxHeight.isFinite()) {
+            contentHeight = contentHeight.coerceAtMost(sizeIn.maxHeight)
+        }
+    }
+
+    private fun buildParagraph(sizeIn: SizeIn, lineHeight: Float): Paragraph {
+        val maxLines = when {
+            overflow == TextOverflow.Ellipsis -> 1
+            overflow == TextOverflow.Wrap && sizeIn.maxHeight.isFinite() ->
+                (sizeIn.maxHeight / lineHeight).toInt().coerceAtLeast(1)
+            else -> 0
+        }
+        val paragraphStyle = ParagraphStyle().apply {
+            if (maxLines > 0) {
+                maxLinesCount = maxLines
+                ellipsis = overflowPlaceholder
+            }
+            textStyle = paragraphTextStyle(lineHeight)
+        }
+        return ParagraphBuilder(paragraphStyle, FontManager.fonts)
+            .addText(text)
+            .build()
+    }
+
+    private fun paragraphTextStyle(lineHeight: Float): ParagraphTextStyle =
+        ParagraphTextStyle()
+            .setColor(paint.color)
+            .setFontSize(effectiveFontSize)
+            .setFontFamilies(arrayOf(effectiveFontFamily))
+            .setFontStyle(
+                FontStyle(
+                    effectiveFontWeight ?: FontWeight.NORMAL,
+                    FontWidth.NORMAL,
+                    if (effectiveItalic) FontSlant.OBLIQUE else FontSlant.UPRIGHT
+                )
+            )
+            .setLetterSpacing(effectiveLetterSpacing)
+            .apply {
+                if (effectiveLineHeight > 0f) {
+                    height = (lineHeight / effectiveFontSize).coerceAtLeast(0.01f)
+                }
+            }
 
     override fun layoutChildren(content: Bounds) {}
 
@@ -795,6 +900,11 @@ class Text(
         val content = contentBounds()
         val drawX = content.x
         val drawY = content.y
+
+        paragraphLayout?.let { layout ->
+            drawParagraphContent(context, layout, drawX, drawY)
+            return
+        }
 
         val lineHeight = effectiveLineHeight
         var yCursor = drawY - textMetrics.ascent // 第一行基线
@@ -808,15 +918,51 @@ class Text(
             if (effectiveLetterSpacing == 0f) {
                 context.canvas.drawString(line, drawX, yCursor, font, paint)
             } else {
-                val offsets = charOffsets.getOrElse(index) { emptyList() }
-                line.forEachIndexed { charIndex, ch ->
-                    context.canvas.drawString(ch.toString(), drawX + offsets.getOrElse(charIndex) { 0f }, yCursor, font, paint)
+                val offsets = clusterOffsets.getOrElse(index) { emptyList() }
+                textClusters(line).forEachIndexed { clusterIndex, cluster ->
+                    context.canvas.drawString(cluster, drawX + offsets.getOrElse(clusterIndex) { 0f }, yCursor, font, paint)
                 }
             }
             if (underline != null && underline.mode == TextUnderlineMode.Line) {
                 drawUnderline(context, underline, drawX, yCursor, lineWidth)
             }
             yCursor += lineHeight
+        }
+    }
+
+    private fun drawParagraphContent(
+        context: DrawContext,
+        layout: ParagraphTextLayout,
+        drawX: Float,
+        drawY: Float
+    ) {
+        if (effectiveScaleX == 1f) {
+            drawParagraphUnderlines(context, layout, drawX, drawY)
+            context.canvas.drawParagraph(layout.paragraph, drawX, drawY)
+            return
+        }
+        context.canvas.save()
+        try {
+            context.canvas.translate(drawX, drawY)
+            context.canvas.scale(effectiveScaleX, 1f)
+            drawParagraphUnderlines(context, layout, 0f, 0f)
+            context.canvas.drawParagraph(layout.paragraph, 0f, 0f)
+        } finally {
+            context.canvas.restore()
+        }
+    }
+
+    private fun drawParagraphUnderlines(
+        context: DrawContext,
+        layout: ParagraphTextLayout,
+        drawX: Float,
+        drawY: Float
+    ) {
+        val underline = underlineStyle ?: return
+        for (line in layout.lines) {
+            val baselineY = drawY + line.baseline.toFloat()
+            val lineX = drawX + line.left.toFloat()
+            drawUnderline(context, underline, lineX, baselineY, line.width.toFloat())
         }
     }
 

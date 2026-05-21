@@ -1,6 +1,7 @@
 package top.e404.tavolo.draw.compose
 
 import org.jetbrains.skia.*
+import org.jetbrains.skia.paragraph.Paragraph
 import org.jetbrains.skia.svg.SVGDOM
 import org.jetbrains.skia.svg.SVGLength
 
@@ -44,6 +45,7 @@ interface DrawCanvas {
     fun drawRect(rect: Rect, paint: Paint)
     fun drawString(text: String, x: Float, y: Float, font: Font, paint: Paint)
     fun drawTextLine(line: TextLine, x: Float, y: Float, paint: Paint)
+    fun drawParagraph(paragraph: Paragraph, x: Float, y: Float)
     fun drawImageRect(image: Image, src: Rect, dst: Rect, paint: Paint)
     fun drawSvg(svg: SVGDOM, dst: Rect)
     fun drawPath(path: Path, paint: Paint)
@@ -91,6 +93,9 @@ class SkiaDrawCanvas(private val canvas: Canvas) : DrawCanvas {
     }
     override fun drawTextLine(line: TextLine, x: Float, y: Float, paint: Paint) {
         canvas.drawTextLine(line, x, y, paint)
+    }
+    override fun drawParagraph(paragraph: Paragraph, x: Float, y: Float) {
+        paragraph.paint(canvas, x, y)
     }
     override fun drawImageRect(image: Image, src: Rect, dst: Rect, paint: Paint) {
         canvas.drawImageRect(image, src, dst, paint)
@@ -213,6 +218,13 @@ sealed interface DrawCommand {
         val y: Float,
         val paint: PaintSnapshot
     ) : DrawCommand
+    data class ParagraphText(
+        val text: String,
+        val x: Float,
+        val y: Float,
+        val width: Float,
+        val height: Float
+    ) : DrawCommand
     data class ImageRect(
         val imageWidth: Int,
         val imageHeight: Int,
@@ -271,6 +283,9 @@ class RecordingDrawCanvas : DrawCanvas {
     }
     override fun drawTextLine(line: TextLine, x: Float, y: Float, paint: Paint) {
         commands += DrawCommand.TextLine(line.width, line.height, x, y, PaintSnapshot.from(paint))
+    }
+    override fun drawParagraph(paragraph: Paragraph, x: Float, y: Float) {
+        commands += DrawCommand.ParagraphText(paragraph.getText(), x, y, paragraph.longestLine, paragraph.height)
     }
     override fun drawImageRect(image: Image, src: Rect, dst: Rect, paint: Paint) {
         commands += DrawCommand.ImageRect(

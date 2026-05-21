@@ -197,6 +197,17 @@ class ComposeTextUnitTest {
     }
 
     @Test
+    fun defaultTextRenderingUsesParagraphCommand() {
+        val commands = renderCommands {
+            text("emoji \uD83D\uDE00", fontSize = 20f)
+        }
+
+        val paragraph = commands.filterIsInstance<DrawCommand.ParagraphText>().single()
+        assertEquals("emoji \uD83D\uDE00", paragraph.text)
+        assertTrue(paragraph.width > 0f)
+    }
+
+    @Test
     fun textModifierSupportsBoldItalicScaleAndLetterSpacing() {
         val commands = renderCommands(
             measureContext = MeasureContext(FixedTextMeasurer())
@@ -216,6 +227,24 @@ class ComposeTextUnitTest {
         assertEquals(true, texts[0].font.emboldened)
         assertFloatEquals(-0.25f, texts[0].font.skewX)
         assertFloatEquals(1.2f, texts[0].font.scaleX)
+    }
+
+    @Test
+    fun letterSpacingKeepsEmojiSurrogatePairTogether() {
+        val emoji = "\uD83D\uDE00"
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "${emoji}a",
+                textModifier = TextModifier.letterSpacing(3f)
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf(emoji, "a"), texts.map { it.text })
+        assertFloatEquals(0f, texts[0].x)
+        assertFloatEquals(23f, texts[1].x)
     }
 
     @Test

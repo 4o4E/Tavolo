@@ -230,6 +230,16 @@ class ComposeThemeManualTest {
                         modifier = Modifier.padding(top = 18f).sizeIn(maxWidth = 280f),
                         textModifier = TextModifier.font(21f, ink, uiFont).lineHeight(36f)
                     )
+                    text(
+                        "emoji fallback: 😀 😂 🥰 ❤️ ☀️",
+                        modifier = Modifier.padding(top = 22f).sizeIn(maxWidth = 320f),
+                        textModifier = TextModifier.font(24f, ink, uiFont).letterSpacing(1f)
+                    )
+                    text(
+                        "中文、English 和 emoji 混排换行：😀a 不应被拆成无效字符。",
+                        modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 320f),
+                        textModifier = TextModifier.font(18f, muted, uiFont).lineHeight(26f)
+                    )
                 }
                 gap()
                 themeCard("下划线与色块高度", 420f, 540f) {

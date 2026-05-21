@@ -3,6 +3,8 @@
 package top.e404.tavolo.util
 
 import org.jetbrains.skia.*
+import java.text.BreakIterator
+import java.util.Locale
 import kotlin.math.ceil
 
 @Suppress("UNUSED")
@@ -25,6 +27,21 @@ private data class TextImageLine(
     val text: String,
     val width: Float
 )
+
+private fun textClusters(text: String): List<String> {
+    if (text.isEmpty()) return emptyList()
+    val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
+    iterator.setText(text)
+    val result = mutableListOf<String>()
+    var start = iterator.first()
+    var end = iterator.next()
+    while (end != BreakIterator.DONE) {
+        result += text.substring(start, end)
+        start = end
+        end = iterator.next()
+    }
+    return result
+}
 
 private fun renderTextImage(
     text: String,
@@ -73,12 +90,12 @@ private fun String.wrapText(maxWidth: Float, font: Font, paint: Paint): List<Tex
             continue
         }
         var current = ""
-        for (char in paragraph) {
-            val next = current + char
+        for (cluster in textClusters(paragraph)) {
+            val next = current + cluster
             val nextWidth = font.measureTextWidth(next, paint)
             if (current.isNotEmpty() && nextWidth > maxWidth) {
                 result += TextImageLine(current, font.measureTextWidth(current, paint))
-                current = char.toString()
+                current = cluster
             } else {
                 current = next
             }

@@ -76,6 +76,7 @@ object FontManager {
     fun registerSystem(name: String, familyName: String = name, style: FontStyle = FontStyle.NORMAL): String {
         requireValidName(name)
         systemFontAliases[name] = SystemFontRef(familyName, style)
+        fontMgr.matchFamilyStyle(familyName, style)?.let { fontProvider.registerTypeface(it, name) }
         return name
     }
 
