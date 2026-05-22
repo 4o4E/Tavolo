@@ -19,4 +19,5 @@ include(
     ":http-client",
     ":http-server",
     ":ksp",
+    ":word-cloud",
 )

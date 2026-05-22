@@ -192,8 +192,8 @@ tasks.assemble {
 
 tasks.register("manualTest") {
     group = "verification"
-    description = "运行 core 和 graphics 模块的人工测试"
-    dependsOn(":core:manualTest", ":graphics:manualTest")
+    description = "运行 core、graphics 和 word-cloud 模块的人工测试"
+    dependsOn(":core:manualTest", ":graphics:manualTest", ":word-cloud:manualTest")
 }
 
 idea {
