@@ -13,7 +13,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class TavoloWordCloudTest {
-    private val fontFamily = FontManager.registerSystem("word-cloud-test-ui", "Microsoft YaHei")
+    private val fontFamily = FontManager.registerSystem("word-cloud-test-ui", testSystemFontFamily())
 
     @AfterTest
     fun resetFonts() {
@@ -177,4 +177,12 @@ class TavoloWordCloudTest {
             canvas.drawOval(Rect.makeXYWH(30f, 20f, 120f, 90f), paint)
             surface.makeImageSnapshot()
         }
+
+    private fun testSystemFontFamily(): String {
+        val families = FontManager.systemFamilies().toSet()
+        return listOf("Microsoft YaHei", "DejaVu Sans", "Liberation Sans", "Arial")
+            .firstOrNull { it in families }
+            ?: families.firstOrNull()
+            ?: "sans"
+    }
 }
