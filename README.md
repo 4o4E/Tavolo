@@ -123,23 +123,76 @@ dependencies {
 
 文本渲染前需要先注册字体，`fontFamily` 接收的是 `FontManager` 中的字体名，不是字体文件路径。`graphics` 模块已经通过 `api` 暴露 `common` 模块，使用 `tavolo-graphics` 时可以直接引入 `FontManager`。
 
+### 方案一：使用系统字体
+
+适合桌面程序、Windows 服务，或已经明确安装目标字体的机器。系统字体名需要以运行机器实际可见的 family 名称为准。
+
+```kotlin
+import top.e404.tavolo.util.FontManager
+
+val uiFont = FontManager.registerSystem("ui", "Microsoft YaHei")
+FontManager.registerSystem("emoji", "Segoe UI Emoji")
+FontManager.defaultFamily = uiFont
+```
+
+### 方案二：Docker 容器直接映射系统字体
+
+Docker 容器不会自动继承宿主机字体；如果要复用宿主机字体，需要把宿主机字体目录只读挂载到容器内，再按容器内路径注册字体。
+
+```powershell
+docker run --rm `
+  -v C:\Windows\Fonts:/host-fonts:ro `
+  your-image
+```
+
 ```kotlin
 import top.e404.tavolo.util.FontManager
 import java.io.File
 
-val uiFont = FontManager.registerSystem("ui", "Microsoft YaHei")
-// 服务端或容器环境建议随应用分发字体文件，避免依赖系统预装字体。
-FontManager.registerFile("brand-title", File("font/BrandTitle.ttf"))
+val uiFont = FontManager.registerFile("ui", File("/host-fonts/msyh.ttc"))
+FontManager.registerFile("emoji", File("/host-fonts/seguiemj.ttf"))
 FontManager.defaultFamily = uiFont
 ```
 
-使用 common 模块里的预置字体名时，需要把对应字体文件放到 `TavoloFonts.fontDir` 指向的目录，默认目录为 `data/font`。
+Linux 宿主机可以把 `/usr/share/fonts` 或业务字体目录挂载到容器内，容器里的注册代码保持同样模式。
+
+### 方案三：使用 data 目录
+
+适合随应用包分发一组固定字体，并使用 common 模块里的预置字体名。把字体文件放到 `TavoloFonts.fontDir` 指向的目录，默认目录为 `data/font`。
+
+例如使用 `TavoloFonts.LW` 时，需要准备 `data/font/LXGWWenKai-Regular.ttf`：
 
 ```kotlin
 import top.e404.tavolo.TavoloFonts
+import top.e404.tavolo.util.FontManager
 
-TavoloFonts.fontDir = "font"
-TavoloFonts.register(TavoloFonts.LW)
+TavoloFonts.fontDir = "data/font"
+val uiFont = TavoloFonts.register(TavoloFonts.LW)
+FontManager.defaultFamily = uiFont
+```
+
+### 方案四：手动注册字体
+
+适合业务自带品牌字体、租户级字体，或运行时从文件、字节流加载字体。手动注册后，业务代码仍然只通过返回的字体名引用。
+
+```kotlin
+import top.e404.tavolo.util.FontManager
+import java.io.File
+
+val titleFont = FontManager.registerFile("brand-title", File("font/BrandTitle.ttf"))
+val fontBytes = File("font/TenantBody.ttf").readBytes()
+val bodyFont = FontManager.registerBytes("tenant-body", fontBytes)
+
+text(
+    "Tavolo",
+    fontSize = 36f,
+    fontFamily = titleFont
+)
+text(
+    "业务字体",
+    fontSize = 20f,
+    fontFamily = bodyFont
+)
 ```
 
 ## 本地验证
