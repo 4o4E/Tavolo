@@ -84,6 +84,12 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 
 Source: [`ComposeSvgManualTest.kt`](graphics/src/manualTest/kotlin/ComposeSvgManualTest.kt)
 
+#### Waterfall Layout
+
+![Compose waterfall layout](docs/assets/readme/compose-waterfall.png)
+
+Source: [`ComposeWaterfallManualTest.kt`](graphics/src/manualTest/kotlin/ComposeWaterfallManualTest.kt)
+
 #### Modifier Visual Effects
 
 ![Compose Modifier effects](docs/assets/readme/compose-effects.png)
@@ -103,7 +109,7 @@ Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions
 Then add the repository and dependencies:
 
 ```kotlin
-val version = "2.1.0"
+val version = "2.6.1"
 
 repositories {
     mavenCentral()

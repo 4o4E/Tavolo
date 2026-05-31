@@ -27,7 +27,7 @@ dependencies {
 
 ## 2D Compose DSL
 
-`render` 会先测量根节点尺寸，再创建 Skia `Image` 并绘制内容。布局元素包括 `column`、`row`、`box`、`table`、`text`、`image` 等。
+`render` 会先测量根节点尺寸，再创建 Skia `Image` 并绘制内容。布局元素包括 `column`、`row`、`box`、`table`、`waterfall`、`text`、`image` 等。
 
 ### 设计目标
 
@@ -36,7 +36,7 @@ dependencies {
 和直接操作 Skia `Canvas`、固定画布尺寸的绘图库或只提供低层绘制命令的方案相比，这套 DSL 更关注组件组合和自适应测量：
 
 - 文本、图片、图表和容器组件可以先测量再布局，减少手写坐标和宽高计算。
-- `column`、`row`、`box`、`table` 会按子元素尺寸自动推导自身尺寸，适合生成宽度随内容变化的卡片、统计图和 README 图片。
+- `column`、`row`、`box`、`table`、`waterfall` 会按子元素尺寸自动推导自身尺寸，适合生成宽度随内容变化的卡片、统计图和 README 图片。
 - 仍保留底层 `canvas` 能力，用于需要自定义绘制的局部区域。
 
 常用 `Modifier`:
@@ -204,6 +204,63 @@ Modifier
 Modifier
     .clip(Shape.RoundedRect(8f))
     .background(color)
+```
+
+### 瀑布流布局
+
+`waterfall` 适合高度不一致的卡片列表。它使用固定列数和总宽度计算 `columnWidth`，先用 `columnWidth` 作为子元素最大宽度测量每个子项，再把子项放入当前累计高度最短的列。
+
+核心参数：
+
+- `columns`: 列数，传入小于 `1` 的值时会按 `1` 列处理。
+- `width`: 瀑布流内容宽度，不包含瀑布流自身 `modifier` 产生的 padding 或 border。
+- `columnSpacing`: 列间距。
+- `rowSpacing`: 同一列内相邻子项的纵向间距。
+- `columnWidth`: 在 `block` 中可读取的单列宽度，常用于设置卡片外层宽度。
+
+如果卡片需要视觉上整列对齐，推荐把卡片外层宽度显式设为 `columnWidth`。卡片内部仍然可以继续使用 `box`、`row`、`column`、`text`、`image` 等普通组件。
+
+```kotlin
+data class NoteCard(
+    val title: String,
+    val description: String
+)
+
+val cards = listOf(
+    NoteCard("发布检查", "运行测试并同步 README 示例图。"),
+    NoteCard("布局迁移", "描述文本越长，换行越多，卡片自然高度越高。"),
+    NoteCard("文档示例", "人工测试源码和 README 图片保持一致，重跑人工测试即可更新示例图。")
+)
+
+render(backgroundColor = Color.WHITE) {
+    waterfall(
+        columns = 3,
+        width = 960f,
+        columnSpacing = 16f,
+        rowSpacing = 16f
+    ) {
+        cards.forEach { card ->
+            column(
+                modifier = Modifier
+                    .width(columnWidth)
+                    .clip(Shape.RoundedRect(12f))
+                    .background(Color.makeRGB(250, 251, 252))
+                    .border(1f, Color.makeRGB(220, 226, 232), shape = Shape.RoundedRect(12f))
+                    .padding(16f)
+            ) {
+                text(card.title, fontSize = 22f, textColor = Color.BLACK)
+                text(
+                    card.description,
+                    modifier = Modifier
+                        .padding(top = 8f)
+                        .sizeIn(maxWidth = columnWidth - 32f),
+                    fontSize = 16f,
+                    textColor = Color.makeRGB(80, 92, 108)
+                )
+            }
+        }
+    }
+}
 ```
 
 ```kotlin

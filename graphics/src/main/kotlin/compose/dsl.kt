@@ -45,6 +45,21 @@ fun UiElement.table(
 }
 
 @UiDsl
+fun UiElement.waterfall(
+    columns: Int,
+    width: Float,
+    modifier: Modifier = Modifier,
+    columnSpacing: Float = 0f,
+    rowSpacing: Float = 0f,
+    block: WaterfallLayout.() -> Unit
+) {
+    add(WaterfallLayout(columns, width, columnSpacing, rowSpacing).apply {
+        this.modifier = modifier
+        block()
+    })
+}
+
+@UiDsl
 fun Table.tableRow(block: TableRow.() -> Unit) {
     add(TableRow().apply(block))
 }

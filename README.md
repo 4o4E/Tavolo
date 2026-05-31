@@ -84,6 +84,12 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 
 源码：[`ComposeSvgManualTest.kt`](graphics/src/manualTest/kotlin/ComposeSvgManualTest.kt)
 
+#### 瀑布流布局
+
+![Compose 瀑布流布局](docs/assets/readme/compose-waterfall.png)
+
+源码：[`ComposeWaterfallManualTest.kt`](graphics/src/manualTest/kotlin/ComposeWaterfallManualTest.kt)
+
 #### Modifier 视觉效果
 
 ![Compose Modifier 效果](docs/assets/readme/compose-effects.png)
@@ -103,7 +109,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 然后在项目中引入依赖：
 
 ```kotlin
-val version = "2.5.0"
+val version = "2.6.1"
 
 repositories {
     mavenCentral()
