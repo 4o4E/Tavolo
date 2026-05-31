@@ -117,8 +117,8 @@ subprojects {
                 url.set(projectUrl)
                 licenses {
                     license {
-                        name.set("GNU General Public License v3.0")
-                        url.set("https://www.gnu.org/licenses/gpl-3.0.txt")
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
                     }
                 }
                 developers {

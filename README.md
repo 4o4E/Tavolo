@@ -119,6 +119,29 @@ dependencies {
 }
 ```
 
+## 字体引入
+
+文本渲染前需要先注册字体，`fontFamily` 接收的是 `FontManager` 中的字体名，不是字体文件路径。`graphics` 模块已经通过 `api` 暴露 `common` 模块，使用 `tavolo-graphics` 时可以直接引入 `FontManager`。
+
+```kotlin
+import top.e404.tavolo.util.FontManager
+import java.io.File
+
+val uiFont = FontManager.registerSystem("ui", "Microsoft YaHei")
+// 服务端或容器环境建议随应用分发字体文件，避免依赖系统预装字体。
+FontManager.registerFile("brand-title", File("font/BrandTitle.ttf"))
+FontManager.defaultFamily = uiFont
+```
+
+使用 common 模块里的预置字体名时，需要把对应字体文件放到 `TavoloFonts.fontDir` 指向的目录，默认目录为 `data/font`。
+
+```kotlin
+import top.e404.tavolo.TavoloFonts
+
+TavoloFonts.fontDir = "font"
+TavoloFonts.register(TavoloFonts.LW)
+```
+
 ## 本地验证
 
 请先确保本机已安装并配置 Java 17 或更高版本。Tavolo 发布产物仍保持 Java 11 运行兼容。
@@ -147,3 +170,7 @@ dependencies {
 - [HTTP 指令服务设计](docs/HTTP指令服务设计.md)
 - [TODO](docs/TODO.md)
 - [下游升级到 2.5.0：emoji 字体回退](docs/下游升级到2.5.0-emoji回退.md)
+
+## 许可证
+
+Tavolo 使用 [Apache License 2.0](LICENSE) 开源，出处声明见 [NOTICE](NOTICE)。
