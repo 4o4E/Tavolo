@@ -8,6 +8,7 @@ import top.e404.tavolo.draw.compose.Shape
 import top.e404.tavolo.draw.compose.StrokeStyle
 import top.e404.tavolo.draw.compose.TextStyle
 import top.e404.tavolo.draw.compose.TextModifier
+import top.e404.tavolo.draw.compose.TextSpanStyle
 import top.e404.tavolo.draw.compose.TextUnderline
 import top.e404.tavolo.draw.compose.TextUnderlineMode
 import top.e404.tavolo.draw.compose.UiDsl
@@ -17,6 +18,7 @@ import top.e404.tavolo.draw.compose.background
 import top.e404.tavolo.draw.compose.border
 import top.e404.tavolo.draw.compose.box
 import top.e404.tavolo.draw.compose.bold
+import top.e404.tavolo.draw.compose.buildAnnotatedText
 import top.e404.tavolo.draw.compose.clip
 import top.e404.tavolo.draw.compose.column
 import top.e404.tavolo.draw.compose.font
@@ -37,6 +39,7 @@ import top.e404.tavolo.util.Colors
 
 class ComposeEffectManualTest {
     private val uiFont = ManualTestSupport.uiFont
+    private val monoFont = ManualTestSupport.monoFont
 
     @UiDsl
     private fun UiElement.sectionTitle(title: String, subtitle: String? = null) {
@@ -394,6 +397,106 @@ class ComposeEffectManualTest {
                     modifier = Modifier.sizeIn(maxWidth = 92f),
                     textModifier = TextModifier.font(fontSize = 24f, textColor = Color.WHITE, fontFamily = uiFont).lineHeight(34f)
                 )
+            }
+
+            text(
+                "行内富文本 API",
+                modifier = Modifier.padding(top = 26f, bottom = 12f),
+                fontSize = 20f,
+                textColor = Color.makeRGB(198, 207, 220),
+                fontFamily = uiFont
+            )
+            column(
+                modifier = Modifier
+                    .clip(Shape.RoundedRect(14f))
+                    .background(Color.makeRGB(39, 45, 59))
+                    .border(2f, Color.makeRGB(82, 96, 122), shape = Shape.RoundedRect(14f))
+                    .padding(horizontal = 18f, vertical = 16f)
+            ) {
+                val inlineCodeStyle = TextSpanStyle(
+                    textColor = Color.makeRGB(230, 237, 243),
+                    fontFamily = monoFont,
+                    backgroundColor = Color.makeRGB(38, 44, 52),
+                    backgroundBorderColor = Color.makeRGB(86, 96, 106),
+                    backgroundBorderWidth = 1.2f,
+                    backgroundRadius = 6f,
+                    backgroundPaddingHorizontal = 6f,
+                    backgroundPaddingVertical = 2f,
+                    letterSpacing = 0f
+                )
+                text(
+                    buildAnnotatedText {
+                        append("正文中的内联代码块: 运行 ")
+                        inlineCode("./gradlew :graphics:test", inlineCodeStyle)
+                        append(" 完成校验")
+                    },
+                    fontSize = 26f,
+                    textColor = Color.WHITE,
+                    fontFamily = uiFont
+                )
+                text(
+                    buildAnnotatedText {
+                        append("换行场景: ")
+                        inlineCode(
+                            "./gradlew :graphics:manualTest --tests \"*ComposeEffectManualTest.test_compose_effects_underlines\"",
+                            inlineCodeStyle
+                        )
+                    },
+                    modifier = Modifier
+                        .padding(top = 12f)
+                        .sizeIn(maxWidth = 620f),
+                    fontSize = 24f,
+                    textColor = Color.makeRGB(218, 226, 238),
+                    fontFamily = uiFont
+                )
+                text(
+                    buildAnnotatedText {
+                        append("嵌套样式: ")
+                        withStyle(TextSpanStyle(textColor = Color.makeRGB(120, 210, 255), fontWeight = 700)) {
+                            append("外层蓝色")
+                            withStyle(TextSpanStyle(textColor = Color.makeRGB(255, 204, 77), italic = true)) {
+                                append(" / 内层黄色斜体")
+                            }
+                            append(" / 回到蓝色")
+                        }
+                    },
+                    modifier = Modifier.padding(top = 12f),
+                    fontSize = 25f,
+                    textColor = Color.makeRGB(218, 226, 238),
+                    fontFamily = uiFont
+                )
+                row(modifier = Modifier.padding(top = 14f), verticalAlignment = VerticalAlignment.Center) {
+                    text(
+                        "普通下划线",
+                        modifier = Modifier.padding(right = 34f),
+                        style = TextStyle(
+                            fontSize = 25f,
+                            textColor = Color.WHITE,
+                            fontFamily = uiFont,
+                            underline = TextUnderline(
+                                color = Color.makeRGB(120, 210, 255),
+                                thickness = 3f,
+                                offset = 5f
+                            )
+                        )
+                    )
+                    text(
+                        "色块下划线",
+                        style = TextStyle(
+                            fontSize = 25f,
+                            textColor = Color.WHITE,
+                            fontFamily = uiFont,
+                            underline = TextUnderline(
+                                color = Color.makeRGB(255, 204, 77),
+                                thickness = 10f,
+                                offset = 2f,
+                                mode = TextUnderlineMode.Block,
+                                startPadding = 4f,
+                                endPadding = 4f
+                            )
+                        )
+                    )
+                }
             }
         }
     }

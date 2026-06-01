@@ -141,6 +141,33 @@ text(
 
 `text(...)` 显式传入的 `fontSize`、`textColor`、`fontFamily`、`underline` 参数优先于 `TextModifier`。
 
+## AnnotatedText
+
+行内不同样式使用 `AnnotatedText`，普通 `text(String)` 保持整段统一样式：
+
+```kotlin
+text(
+    buildAnnotatedText {
+        append("运行 ")
+        inlineCode(
+            "./gradlew check",
+            TextSpanStyle(
+                fontFamily = "mono",
+                textColor = Color.makeRGB(230, 237, 243),
+                backgroundColor = Color.makeRGB(38, 44, 52),
+                backgroundBorderColor = Color.makeRGB(86, 96, 106),
+                backgroundBorderWidth = 1f,
+                backgroundRadius = 6f,
+                backgroundPaddingHorizontal = 6f,
+                backgroundPaddingVertical = 2f
+            )
+        )
+    }
+)
+```
+
+`TextSpanStyle` 当前支持字符级的 `fontSize`、`textColor`、`fontFamily`、`backgroundColor`、`backgroundBorderColor`、`backgroundBorderWidth`、`backgroundRadius`、`backgroundPaddingHorizontal`、`backgroundPaddingVertical`、`fontWeight`、`italic` 和 `letterSpacing`。`lineHeight`、`overflow`、`underline` 仍属于整体 `Text` 语义，不进入行内 span。
+
 ## 文本布局
 
 `Text` 支持：

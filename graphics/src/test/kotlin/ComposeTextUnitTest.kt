@@ -264,5 +264,169 @@ class ComposeTextUnitTest {
         assertFloatEquals(8f, texts[0].baselineY)
         assertFloatEquals(24f, texts[1].baselineY)
     }
+
+    @Test
+    fun annotatedTextDrawsInlineRunsWithDifferentStyles() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                buildAnnotatedText {
+                    append("use ")
+                    inlineCode(
+                        "code",
+                        TextSpanStyle(
+                            fontSize = 18f,
+                            textColor = Color.RED,
+                            backgroundColor = Color.YELLOW,
+                            fontWeight = 700,
+                            italic = true
+                        )
+                    )
+                    append(" now")
+                },
+                fontSize = 20f,
+                textColor = Color.WHITE
+            )
+        }
+
+        val background = commands.filterIsInstance<DrawCommand.Rect>().single()
+        assertEquals(Color.YELLOW, background.paint.color)
+        assertFloatEquals(40f, background.rect.left)
+        assertFloatEquals(0f, background.rect.top)
+        assertFloatEquals(40f, background.rect.width)
+        assertFloatEquals(10f, background.rect.height)
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("use ", "code", " now"), texts.map { it.text })
+        assertEquals(Color.WHITE, texts[0].paint.color)
+        assertEquals(Color.RED, texts[1].paint.color)
+        assertEquals(Color.WHITE, texts[2].paint.color)
+        assertFloatEquals(40f, texts[1].x)
+        assertFloatEquals(18f, texts[1].font.size)
+        assertEquals(true, texts[1].font.emboldened)
+        assertFloatEquals(-0.25f, texts[1].font.skewX)
+    }
+
+    @Test
+    fun annotatedTextDrawsRoundedInlineBackgroundAndBorder() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                buildAnnotatedText {
+                    append("run ")
+                    inlineCode(
+                        "check",
+                        TextSpanStyle(
+                            textColor = Color.WHITE,
+                            backgroundColor = Color.makeRGB(45, 51, 59),
+                            backgroundBorderColor = Color.makeRGB(139, 148, 158),
+                            backgroundBorderWidth = 1.5f,
+                            backgroundRadius = 5f,
+                            backgroundPaddingHorizontal = 4f,
+                            backgroundPaddingVertical = 2f
+                        )
+                    )
+                },
+                fontSize = 20f
+            )
+        }
+
+        val backgrounds = commands.filterIsInstance<DrawCommand.Path>()
+        assertEquals(2, backgrounds.size)
+        assertEquals(Color.makeRGB(45, 51, 59), backgrounds[0].paint.color)
+        assertEquals(PaintMode.FILL, backgrounds[0].paint.mode)
+        assertEquals(Color.makeRGB(139, 148, 158), backgrounds[1].paint.color)
+        assertEquals(PaintMode.STROKE, backgrounds[1].paint.mode)
+        assertFloatEquals(1.5f, backgrounds[1].paint.strokeWidth)
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("run ", "check"), texts.map { it.text })
+        assertTrue(commands.indexOf(backgrounds[0]) < commands.indexOf(texts[0]))
+    }
+
+    @Test
+    fun annotatedTextDrawsBackgroundForEachWrappedInlineRunLine() {
+        val backgroundColor = Color.makeRGB(45, 51, 59)
+        val borderColor = Color.makeRGB(139, 148, 158)
+        val commands = renderCommands {
+            text(
+                buildAnnotatedText {
+                    append("run ")
+                    inlineCode(
+                        "alpha beta gamma delta epsilon",
+                        TextSpanStyle(
+                            fontSize = 20f,
+                            textColor = Color.WHITE,
+                            backgroundColor = backgroundColor,
+                            backgroundBorderColor = borderColor,
+                            backgroundBorderWidth = 1f,
+                            backgroundRadius = 4f,
+                            backgroundPaddingHorizontal = 4f,
+                            backgroundPaddingVertical = 2f
+                        )
+                    )
+                },
+                modifier = Modifier.sizeIn(maxWidth = 120f),
+                fontSize = 20f
+            )
+        }
+
+        val fills = commands.filterIsInstance<DrawCommand.Path>()
+            .filter { it.paint.color == backgroundColor && it.paint.mode == PaintMode.FILL }
+        val strokes = commands.filterIsInstance<DrawCommand.Path>()
+            .filter { it.paint.color == borderColor && it.paint.mode == PaintMode.STROKE }
+        assertTrue(fills.size >= 2, "行内代码块换行后每一行都应绘制独立背景")
+        assertEquals(fills.size, strokes.size)
+
+        val paragraph = commands.filterIsInstance<DrawCommand.ParagraphText>().single()
+        assertTrue(paragraph.height > 20f, "测试文本应在宽度约束下换行")
+        assertTrue(commands.indexOf(fills.first()) < commands.indexOf(paragraph))
+    }
+
+    @Test
+    fun annotatedTextNestedStylesOverrideOuterStyle() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                buildAnnotatedText {
+                    withStyle(TextSpanStyle(textColor = Color.RED)) {
+                        append("a")
+                        withStyle(TextSpanStyle(textColor = Color.BLUE)) {
+                            append("b")
+                        }
+                        append("c")
+                    }
+                }
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("a", "b", "c"), texts.map { it.text })
+        assertEquals(Color.RED, texts[0].paint.color)
+        assertEquals(Color.BLUE, texts[1].paint.color)
+        assertEquals(Color.RED, texts[2].paint.color)
+    }
+
+    @Test
+    fun defaultAnnotatedTextRenderingUsesParagraphCommand() {
+        val commands = renderCommands {
+            text(
+                buildAnnotatedText {
+                    append("run ")
+                    withStyle(TextSpanStyle(textColor = Color.CYAN)) {
+                        append("code")
+                    }
+                },
+                fontSize = 20f
+            )
+        }
+
+        val paragraph = commands.filterIsInstance<DrawCommand.ParagraphText>().single()
+        assertEquals("run code", paragraph.text)
+        assertTrue(paragraph.width > 0f)
+    }
 }
 

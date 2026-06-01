@@ -5,6 +5,8 @@ import org.jetbrains.skia.paragraph.LineMetrics
 import org.jetbrains.skia.paragraph.Paragraph
 import org.jetbrains.skia.paragraph.ParagraphBuilder
 import org.jetbrains.skia.paragraph.ParagraphStyle
+import org.jetbrains.skia.paragraph.RectHeightMode
+import org.jetbrains.skia.paragraph.RectWidthMode
 import org.jetbrains.skia.paragraph.TextStyle as ParagraphTextStyle
 import top.e404.tavolo.util.FontManager
 import java.text.BreakIterator
@@ -637,12 +639,38 @@ class Text(
     private val style: TextStyle? = null,
     private val underline: TextUnderline? = null
 ) : BaseElement() {
+    constructor(
+        text: AnnotatedText,
+        textModifier: TextModifier = TextModifier,
+        fontSize: Float? = null,
+        textColor: Int? = null,
+        fontFamily: String? = null,
+        textOverflow: TextOverflow? = null,
+        textOverflowPlaceholder: String? = null,
+        style: TextStyle? = null,
+        underline: TextUnderline? = null
+    ) : this(
+        text = text.text,
+        textModifier = textModifier,
+        fontSize = fontSize,
+        textColor = textColor,
+        fontFamily = fontFamily,
+        textOverflow = textOverflow,
+        textOverflowPlaceholder = textOverflowPlaceholder,
+        style = style,
+        underline = underline
+    ) {
+        annotatedText = text
+    }
+
+    private var annotatedText: AnnotatedText = AnnotatedText(text)
     private lateinit var font: Font
     private lateinit var paint: Paint
     private var textMetrics: TextMetrics = TextMetrics(0f, 0f)
     private var lines: List<String> = listOf()
     private var lineWidths: List<Float> = listOf()
     private var clusterOffsets: List<List<Float>> = listOf()
+    private var styledLines: List<StyledLine> = listOf()
     private var paragraphLayout: ParagraphTextLayout? = null
     private var overflow = TextOverflow.Wrap
     private var overflowPlaceholder = TextDefaults.OVERFLOW_PLACEHOLDER
@@ -658,6 +686,62 @@ class Text(
     private data class ParagraphTextLayout(
         val paragraph: Paragraph,
         val lines: List<LineMetrics>
+    )
+
+    private data class IndexedTextCluster(
+        val text: String,
+        val start: Int
+    )
+
+    private data class ResolvedTextSpanStyle(
+        val fontSize: Float,
+        val textColor: Int,
+        val fontFamily: String,
+        val backgroundColor: Int?,
+        val backgroundBorderColor: Int?,
+        val backgroundBorderWidth: Float,
+        val backgroundRadius: Float,
+        val backgroundPaddingHorizontal: Float,
+        val backgroundPaddingVertical: Float,
+        val fontWeight: Int?,
+        val italic: Boolean,
+        val letterSpacing: Float
+    ) {
+        val hasBackground: Boolean
+            get() = backgroundColor != null || (backgroundBorderColor != null && backgroundBorderWidth > 0f)
+
+        val needsCustomBackground: Boolean
+            get() = hasBackground && (
+                backgroundBorderColor != null ||
+                    backgroundBorderWidth > 0f ||
+                    backgroundRadius > 0f ||
+                    backgroundPaddingHorizontal > 0f ||
+                    backgroundPaddingVertical > 0f
+                )
+    }
+
+    private data class StyledCluster(
+        val text: String,
+        val style: ResolvedTextSpanStyle,
+        val width: Float
+    )
+
+    private data class StyledLineFragment(
+        val text: String,
+        val style: ResolvedTextSpanStyle,
+        val xOffset: Float,
+        val width: Float
+    )
+
+    private data class StyledLine(
+        val fragments: List<StyledLineFragment>,
+        val width: Float
+    )
+
+    private data class StyledSpanRange(
+        val start: Int,
+        val end: Int,
+        val style: ResolvedTextSpanStyle
     )
 
     private fun applyModifiers() {
@@ -695,6 +779,180 @@ class Text(
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
     }
 
+    private fun indexedTextClusters(text: String): List<IndexedTextCluster> {
+        if (text.isEmpty()) return emptyList()
+        val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
+        iterator.setText(text)
+        val result = mutableListOf<IndexedTextCluster>()
+        var start = iterator.first()
+        var end = iterator.next()
+        while (end != BreakIterator.DONE) {
+            result += IndexedTextCluster(text.substring(start, end), start)
+            start = end
+            end = iterator.next()
+        }
+        return result
+    }
+
+    private fun resolveSpanStyle(style: TextSpanStyle): ResolvedTextSpanStyle = ResolvedTextSpanStyle(
+        fontSize = style.fontSize ?: effectiveFontSize,
+        textColor = style.textColor ?: paint.color,
+        fontFamily = style.fontFamily ?: effectiveFontFamily,
+        backgroundColor = style.backgroundColor,
+        backgroundBorderColor = style.backgroundBorderColor,
+        backgroundBorderWidth = style.backgroundBorderWidth?.coerceAtLeast(0f) ?: 0f,
+        backgroundRadius = style.backgroundRadius?.coerceAtLeast(0f) ?: 0f,
+        backgroundPaddingHorizontal = style.backgroundPaddingHorizontal?.coerceAtLeast(0f) ?: 0f,
+        backgroundPaddingVertical = style.backgroundPaddingVertical?.coerceAtLeast(0f) ?: 0f,
+        fontWeight = style.fontWeight ?: effectiveFontWeight,
+        italic = style.italic ?: effectiveItalic,
+        letterSpacing = style.letterSpacing ?: effectiveLetterSpacing
+    )
+
+    private fun mergedSpanStyleAt(index: Int): TextSpanStyle {
+        var result = TextSpanStyle()
+        for (range in annotatedText.spanStyles) {
+            if (index >= range.start && index < range.end) {
+                result = result.merge(range.item)
+            }
+        }
+        return result
+    }
+
+    private fun resolvedSpanStyleAt(index: Int): ResolvedTextSpanStyle =
+        resolveSpanStyle(mergedSpanStyleAt(index))
+
+    private fun annotatedStyleRuns(): List<StyledSpanRange> {
+        if (annotatedText.spanStyles.isEmpty()) return emptyList()
+        val source = annotatedText.text
+        val boundaries = mutableSetOf(0, source.length)
+        annotatedText.spanStyles.forEach { range ->
+            boundaries += range.start
+            boundaries += range.end
+        }
+        val sortedBoundaries = boundaries.sorted()
+        return (0 until sortedBoundaries.lastIndex).mapNotNull { index ->
+            val start = sortedBoundaries[index]
+            val end = sortedBoundaries[index + 1]
+            if (start >= end) null else StyledSpanRange(start, end, resolvedSpanStyleAt(start))
+        }
+    }
+
+    private fun styledFont(style: ResolvedTextSpanStyle): Font =
+        Font(FontManager.resolve(style.fontFamily), style.fontSize).apply {
+            if (style.fontWeight != null) isEmboldened = style.fontWeight >= 600
+            if (style.italic) skewX = -0.25f
+            scaleX = effectiveScaleX
+        }
+
+    private fun styledPaint(style: ResolvedTextSpanStyle): Paint =
+        Paint().apply { color = style.textColor; isAntiAlias = paint.isAntiAlias }
+
+    private fun drawSpanBackground(
+        context: DrawContext,
+        style: ResolvedTextSpanStyle,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float
+    ) {
+        if (!style.hasBackground || width <= 0f || height <= 0f) return
+        val backgroundX = x - style.backgroundPaddingHorizontal
+        val backgroundY = y - style.backgroundPaddingVertical
+        val backgroundWidth = width + style.backgroundPaddingHorizontal * 2f
+        val backgroundHeight = height + style.backgroundPaddingVertical * 2f
+        if (backgroundWidth <= 0f || backgroundHeight <= 0f) return
+        val radius = style.backgroundRadius.coerceAtMost(minOf(backgroundWidth, backgroundHeight) / 2f)
+        val rect = Rect.makeXYWH(backgroundX, backgroundY, backgroundWidth, backgroundHeight)
+        val path = if (radius > 0f) Shape.RoundedRect(radius).createPath(backgroundWidth, backgroundHeight)
+            .apply { transform(Matrix33.makeTranslate(backgroundX, backgroundY)) }
+        else null
+
+        fun drawWith(paint: Paint) {
+            if (path != null) context.canvas.drawPath(path, paint) else context.canvas.drawRect(rect, paint)
+        }
+
+        style.backgroundColor?.let { color ->
+            drawWith(Paint().apply {
+                this.color = color
+                mode = PaintMode.FILL
+                isAntiAlias = paint.isAntiAlias
+            })
+        }
+
+        if (style.backgroundBorderColor != null && style.backgroundBorderWidth > 0f) {
+            drawWith(Paint().apply {
+                color = style.backgroundBorderColor
+                mode = PaintMode.STROKE
+                strokeWidth = style.backgroundBorderWidth
+                isAntiAlias = paint.isAntiAlias
+            })
+        }
+    }
+
+    private fun measureStyledTextWidth(
+        text: String,
+        style: ResolvedTextSpanStyle,
+        measurer: TextMeasurer
+    ): Float =
+        if (text.isEmpty()) 0f else measurer.measureTextWidth(text, styledFont(style), styledPaint(style))
+
+    private fun styledCluster(cluster: IndexedTextCluster, measurer: TextMeasurer): StyledCluster {
+        val style = resolvedSpanStyleAt(cluster.start)
+        return StyledCluster(
+            text = cluster.text,
+            style = style,
+            width = measureStyledTextWidth(cluster.text, style, measurer)
+        )
+    }
+
+    private fun styledLine(clusters: List<StyledCluster>): StyledLine {
+        if (clusters.isEmpty()) return StyledLine(emptyList(), 0f)
+        val fragments = mutableListOf<StyledLineFragment>()
+        var xOffset = 0f
+        var fragmentText = StringBuilder()
+        var fragmentStyle = clusters.first().style
+        var fragmentX = 0f
+        var fragmentWidth = 0f
+        var previousStyle: ResolvedTextSpanStyle? = null
+
+        fun flushFragment() {
+            if (fragmentText.isNotEmpty()) {
+                fragments += StyledLineFragment(
+                    text = fragmentText.toString(),
+                    style = fragmentStyle,
+                    xOffset = fragmentX,
+                    width = fragmentWidth
+                )
+                fragmentText = StringBuilder()
+                fragmentWidth = 0f
+            }
+        }
+
+        for (cluster in clusters) {
+            previousStyle?.let { previous ->
+                if (previous.letterSpacing != 0f) {
+                    flushFragment()
+                    xOffset += previous.letterSpacing
+                }
+            }
+            if (fragmentText.isEmpty()) {
+                fragmentStyle = cluster.style
+                fragmentX = xOffset
+            } else if (fragmentStyle != cluster.style) {
+                flushFragment()
+                fragmentStyle = cluster.style
+                fragmentX = xOffset
+            }
+            fragmentText.append(cluster.text)
+            fragmentWidth += cluster.width
+            xOffset += cluster.width
+            previousStyle = cluster.style
+        }
+        flushFragment()
+        return StyledLine(fragments, xOffset)
+    }
+
     private fun measureLineWidth(text: String, measurer: TextMeasurer): Float {
         if (text.isEmpty()) return 0f
         val spacing = effectiveLetterSpacing * (textClusters(text).size - 1).coerceAtLeast(0)
@@ -710,9 +968,94 @@ class Text(
         }
     }
 
+    private fun overflowPlaceholderCluster(measurer: TextMeasurer): StyledCluster {
+        val style = resolveSpanStyle(TextSpanStyle())
+        return StyledCluster(
+            text = overflowPlaceholder,
+            style = style,
+            width = measureStyledTextWidth(overflowPlaceholder, style, measurer)
+        )
+    }
+
+    private fun appendOverflowPlaceholder(
+        clusters: List<StyledCluster>,
+        maxWidth: Float,
+        measurer: TextMeasurer
+    ): List<StyledCluster> {
+        val placeholder = overflowPlaceholderCluster(measurer)
+        if (!maxWidth.isFinite()) return clusters + placeholder
+        val visible = clusters.toMutableList()
+        while (visible.isNotEmpty() && styledLine(visible + placeholder).width > maxWidth) {
+            visible.removeAt(visible.lastIndex)
+        }
+        return visible + placeholder
+    }
+
+    private fun wrapStyledClusters(
+        clusters: List<StyledCluster>,
+        maxWidth: Float
+    ): List<List<StyledCluster>> {
+        if (clusters.isEmpty()) return listOf(emptyList())
+        val result = mutableListOf<List<StyledCluster>>()
+        var current = mutableListOf<StyledCluster>()
+        for (cluster in clusters) {
+            if (cluster.text == "\n") {
+                result += current
+                current = mutableListOf()
+                continue
+            }
+            val candidate = current + cluster
+            if (current.isNotEmpty() && styledLine(candidate).width > maxWidth) {
+                result += current
+                current = mutableListOf(cluster)
+            } else {
+                current += cluster
+            }
+        }
+        result += current
+        return result.ifEmpty { listOf(emptyList()) }
+    }
+
+    private fun measureAnnotatedContent(sizeIn: SizeIn, lineHeight: Float, measurer: TextMeasurer) {
+        val clusters = indexedTextClusters(annotatedText.text).map { styledCluster(it, measurer) }
+        val maxWidth = sizeIn.maxWidth
+        var rawLines = when {
+            overflow == TextOverflow.Wrap && maxWidth.isFinite() -> wrapStyledClusters(clusters, maxWidth)
+            overflow == TextOverflow.Ellipsis && maxWidth.isFinite() && styledLine(clusters).width > maxWidth ->
+                listOf(appendOverflowPlaceholder(clusters, maxWidth, measurer))
+            else -> listOf(clusters)
+        }
+
+        if (overflow == TextOverflow.Wrap && sizeIn.maxHeight.isFinite()) {
+            val maxLines = (sizeIn.maxHeight / lineHeight).toInt().coerceAtLeast(1)
+            if (rawLines.size > maxLines) {
+                val visible = rawLines.take(maxLines).toMutableList()
+                val lastIndex = visible.lastIndex
+                visible[lastIndex] = appendOverflowPlaceholder(
+                    clusters = visible[lastIndex],
+                    maxWidth = maxWidth,
+                    measurer = measurer
+                )
+                rawLines = visible
+            }
+        }
+
+        styledLines = rawLines.map { styledLine(it) }
+        lines = emptyList()
+        lineWidths = styledLines.map { it.width }
+        clusterOffsets = emptyList()
+        contentWidth = if (styledLines.isEmpty()) 0f else styledLines.maxOf { it.width }
+        if (maxWidth.isFinite()) contentWidth = contentWidth.coerceAtMost(maxWidth)
+        contentHeight = styledLines.size * lineHeight
+        if (sizeIn.maxHeight.isFinite()) {
+            contentHeight = contentHeight.coerceAtMost(sizeIn.maxHeight)
+        }
+    }
+
     override fun measureContent(context: MeasureContext) {
         applyModifiers()
         paragraphLayout = null
+        styledLines = emptyList()
 
         val sizeIn = sizeIn()
         val measurer = context.textMeasurer
@@ -723,6 +1066,11 @@ class Text(
 
         if (context.textMeasurer === SkiaTextMeasurer) {
             measureParagraphContent(sizeIn, lineHeight)
+            return
+        }
+
+        if (annotatedText.spanStyles.isNotEmpty()) {
+            measureAnnotatedContent(sizeIn, lineHeight, measurer)
             return
         }
 
@@ -871,26 +1219,46 @@ class Text(
             textStyle = paragraphTextStyle(lineHeight)
         }
         return ParagraphBuilder(paragraphStyle, FontManager.fonts)
-            .addText(text)
+            .also { builder ->
+                if (annotatedText.spanStyles.isEmpty()) {
+                    builder.addText(text)
+                } else {
+                    appendAnnotatedParagraph(builder, lineHeight)
+                }
+            }
             .build()
     }
 
+    private fun appendAnnotatedParagraph(builder: ParagraphBuilder, lineHeight: Float) {
+        for (run in annotatedStyleRuns()) {
+            builder.pushStyle(paragraphTextStyle(lineHeight, run.style))
+            builder.addText(annotatedText.text.substring(run.start, run.end))
+            builder.popStyle()
+        }
+    }
+
     private fun paragraphTextStyle(lineHeight: Float): ParagraphTextStyle =
+        paragraphTextStyle(lineHeight, resolveSpanStyle(TextSpanStyle()))
+
+    private fun paragraphTextStyle(lineHeight: Float, style: ResolvedTextSpanStyle): ParagraphTextStyle =
         ParagraphTextStyle()
-            .setColor(paint.color)
-            .setFontSize(effectiveFontSize)
-            .setFontFamilies(arrayOf(effectiveFontFamily))
+            .setColor(style.textColor)
+            .setFontSize(style.fontSize)
+            .setFontFamilies(arrayOf(style.fontFamily))
             .setFontStyle(
                 FontStyle(
-                    effectiveFontWeight ?: FontWeight.NORMAL,
+                    style.fontWeight ?: FontWeight.NORMAL,
                     FontWidth.NORMAL,
-                    if (effectiveItalic) FontSlant.OBLIQUE else FontSlant.UPRIGHT
+                    if (style.italic) FontSlant.OBLIQUE else FontSlant.UPRIGHT
                 )
             )
-            .setLetterSpacing(effectiveLetterSpacing)
+            .setLetterSpacing(style.letterSpacing)
             .apply {
+                if (!style.needsCustomBackground) style.backgroundColor?.let { color ->
+                    setBackground(Paint().apply { this.color = color })
+                }
                 if (effectiveLineHeight > 0f) {
-                    height = (lineHeight / effectiveFontSize).coerceAtLeast(0.01f)
+                    height = (lineHeight / style.fontSize).coerceAtLeast(0.01f)
                 }
             }
 
@@ -903,6 +1271,11 @@ class Text(
 
         paragraphLayout?.let { layout ->
             drawParagraphContent(context, layout, drawX, drawY)
+            return
+        }
+
+        if (styledLines.isNotEmpty()) {
+            drawStyledContent(context, drawX, drawY)
             return
         }
 
@@ -930,6 +1303,40 @@ class Text(
         }
     }
 
+    private fun drawStyledContent(context: DrawContext, drawX: Float, drawY: Float) {
+        val lineHeight = effectiveLineHeight
+        var yCursor = drawY - textMetrics.ascent // 第一行基线
+        for (line in styledLines) {
+            val underline = underlineStyle
+            if (underline != null && underline.mode == TextUnderlineMode.Block) {
+                drawUnderline(context, underline, drawX, yCursor, line.width)
+            }
+            for (fragment in line.fragments) {
+                drawSpanBackground(
+                    context = context,
+                    style = fragment.style,
+                    x = drawX + fragment.xOffset,
+                    y = yCursor + textMetrics.ascent,
+                    width = fragment.width,
+                    height = lineHeight
+                )
+            }
+            for (fragment in line.fragments) {
+                context.canvas.drawString(
+                    fragment.text,
+                    drawX + fragment.xOffset,
+                    yCursor,
+                    styledFont(fragment.style),
+                    styledPaint(fragment.style)
+                )
+            }
+            if (underline != null && underline.mode == TextUnderlineMode.Line) {
+                drawUnderline(context, underline, drawX, yCursor, line.width)
+            }
+            yCursor += lineHeight
+        }
+    }
+
     private fun drawParagraphContent(
         context: DrawContext,
         layout: ParagraphTextLayout,
@@ -937,6 +1344,7 @@ class Text(
         drawY: Float
     ) {
         if (effectiveScaleX == 1f) {
+            drawParagraphSpanBackgrounds(context, layout, drawX, drawY)
             drawParagraphUnderlines(context, layout, drawX, drawY)
             context.canvas.drawParagraph(layout.paragraph, drawX, drawY)
             return
@@ -945,10 +1353,39 @@ class Text(
         try {
             context.canvas.translate(drawX, drawY)
             context.canvas.scale(effectiveScaleX, 1f)
+            drawParagraphSpanBackgrounds(context, layout, 0f, 0f)
             drawParagraphUnderlines(context, layout, 0f, 0f)
             context.canvas.drawParagraph(layout.paragraph, 0f, 0f)
         } finally {
             context.canvas.restore()
+        }
+    }
+
+    private fun drawParagraphSpanBackgrounds(
+        context: DrawContext,
+        layout: ParagraphTextLayout,
+        drawX: Float,
+        drawY: Float
+    ) {
+        for (run in annotatedStyleRuns()) {
+            if (!run.style.needsCustomBackground) continue
+            val boxes = layout.paragraph.getRectsForRange(
+                run.start,
+                run.end,
+                RectHeightMode.TIGHT,
+                RectWidthMode.TIGHT
+            )
+            for (box in boxes) {
+                val rect = box.rect
+                drawSpanBackground(
+                    context = context,
+                    style = run.style,
+                    x = drawX + rect.left,
+                    y = drawY + rect.top,
+                    width = rect.width,
+                    height = rect.height
+                )
+            }
         }
     }
 

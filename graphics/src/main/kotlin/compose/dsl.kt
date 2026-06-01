@@ -103,6 +103,34 @@ fun UiElement.text(
 }
 
 @UiDsl
+fun UiElement.text(
+    text: AnnotatedText,
+    modifier: Modifier = Modifier,
+    textModifier: TextModifier = TextModifier,
+    fontSize: Float? = null,
+    textColor: Int? = null,
+    fontFamily: String? = null,
+    textOverflow: TextOverflow? = null,
+    textOverflowPlaceholder: String? = null,
+    style: TextStyle? = null,
+    underline: TextUnderline? = null
+) {
+    add(
+        Text(
+            text = text,
+            textModifier = textModifier,
+            fontSize = fontSize,
+            textColor = textColor,
+            fontFamily = fontFamily,
+            textOverflow = textOverflow,
+            textOverflowPlaceholder = textOverflowPlaceholder,
+            style = style,
+            underline = underline
+        ).apply { this.modifier = modifier }
+    )
+}
+
+@UiDsl
 fun UiElement.image(
     image: Image,
     modifier: Modifier = Modifier,

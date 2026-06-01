@@ -15,6 +15,7 @@ import java.io.File
 
 object ManualTestSupport {
     val uiFont: String = FontManager.registerSystem("manual-compose-ui", "Microsoft YaHei")
+    val monoFont: String = FontManager.registerSystem("manual-compose-mono", "Consolas")
 
     fun saveCompose(name: String, content: Composable): Column {
         val root = Column()

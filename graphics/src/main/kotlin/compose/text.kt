@@ -55,6 +55,111 @@ data class TextStyle(
     )
 }
 
+data class TextSpanStyle(
+    val fontSize: Float? = null,
+    val textColor: Int? = null,
+    val fontFamily: String? = null,
+    val backgroundColor: Int? = null,
+    val backgroundBorderColor: Int? = null,
+    val backgroundBorderWidth: Float? = null,
+    val backgroundRadius: Float? = null,
+    val backgroundPaddingHorizontal: Float? = null,
+    val backgroundPaddingVertical: Float? = null,
+    val fontWeight: Int? = null,
+    val italic: Boolean? = null,
+    val letterSpacing: Float? = null
+) {
+    fun merge(other: TextSpanStyle): TextSpanStyle = TextSpanStyle(
+        fontSize = other.fontSize ?: fontSize,
+        textColor = other.textColor ?: textColor,
+        fontFamily = other.fontFamily ?: fontFamily,
+        backgroundColor = other.backgroundColor ?: backgroundColor,
+        backgroundBorderColor = other.backgroundBorderColor ?: backgroundBorderColor,
+        backgroundBorderWidth = other.backgroundBorderWidth ?: backgroundBorderWidth,
+        backgroundRadius = other.backgroundRadius ?: backgroundRadius,
+        backgroundPaddingHorizontal = other.backgroundPaddingHorizontal ?: backgroundPaddingHorizontal,
+        backgroundPaddingVertical = other.backgroundPaddingVertical ?: backgroundPaddingVertical,
+        fontWeight = other.fontWeight ?: fontWeight,
+        italic = other.italic ?: italic,
+        letterSpacing = other.letterSpacing ?: letterSpacing
+    )
+}
+
+data class TextRange<T>(
+    val item: T,
+    val start: Int,
+    val end: Int
+) {
+    init {
+        require(start >= 0) { "文本样式范围 start 不能小于 0" }
+        require(end >= start) { "文本样式范围 end 不能小于 start" }
+    }
+}
+
+data class AnnotatedText(
+    val text: String,
+    val spanStyles: List<TextRange<TextSpanStyle>> = emptyList()
+) {
+    init {
+        spanStyles.forEach { range ->
+            require(range.end <= text.length) { "文本样式范围不能超过文本长度" }
+        }
+    }
+}
+
+class AnnotatedTextBuilder {
+    private data class MutableSpan(
+        val style: TextSpanStyle,
+        val start: Int,
+        var end: Int
+    )
+
+    private val content = StringBuilder()
+    private val spanStyles = mutableListOf<MutableSpan>()
+
+    val length: Int get() = content.length
+
+    fun append(text: String): AnnotatedTextBuilder = apply {
+        content.append(text)
+    }
+
+    fun append(char: Char): AnnotatedTextBuilder = apply {
+        content.append(char)
+    }
+
+    fun append(text: AnnotatedText): AnnotatedTextBuilder = apply {
+        val offset = content.length
+        content.append(text.text)
+        text.spanStyles.forEach { range ->
+            spanStyles += MutableSpan(
+                style = range.item,
+                start = offset + range.start,
+                end = offset + range.end
+            )
+        }
+    }
+
+    fun withStyle(style: TextSpanStyle, block: AnnotatedTextBuilder.() -> Unit): AnnotatedTextBuilder = apply {
+        val span = MutableSpan(style, content.length, content.length)
+        spanStyles += span
+        block()
+        span.end = content.length
+    }
+
+    fun inlineCode(text: String, style: TextSpanStyle): AnnotatedTextBuilder =
+        withStyle(style) { append(text) }
+
+    fun build(): AnnotatedText = AnnotatedText(
+        text = content.toString(),
+        spanStyles = spanStyles
+            .filter { it.start < it.end }
+            .map { TextRange(it.style, it.start, it.end) }
+    )
+}
+
+fun buildAnnotatedText(block: AnnotatedTextBuilder.() -> Unit): AnnotatedText =
+    AnnotatedTextBuilder().apply(block).build()
+
 data class TextStyleModifier(
     val style: TextStyle
 ) : TextElementModifier
