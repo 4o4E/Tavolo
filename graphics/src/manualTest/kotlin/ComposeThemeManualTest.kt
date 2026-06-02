@@ -47,8 +47,22 @@ import top.e404.tavolo.draw.compose.table
 import top.e404.tavolo.draw.compose.tableRow
 import top.e404.tavolo.draw.compose.text
 import top.e404.tavolo.draw.compose.textUnderline
+import top.e404.tavolo.draw.compose.charts.AxisTheme
 import top.e404.tavolo.draw.compose.charts.BarTheme
+import top.e404.tavolo.draw.compose.charts.BarChartMode
+import top.e404.tavolo.draw.compose.charts.BarSeries
+import top.e404.tavolo.draw.compose.charts.CategoryBarData
+import top.e404.tavolo.draw.compose.charts.CategoryBarTheme
+import top.e404.tavolo.draw.compose.charts.ChartInsets
+import top.e404.tavolo.draw.compose.charts.ChartLegendPosition
+import top.e404.tavolo.draw.compose.charts.ChartLegendTheme
+import top.e404.tavolo.draw.compose.charts.ChartPalette
 import top.e404.tavolo.draw.compose.charts.ChartTextStyle
+import top.e404.tavolo.draw.compose.charts.LineChartTheme
+import top.e404.tavolo.draw.compose.charts.LinePoint
+import top.e404.tavolo.draw.compose.charts.LineSeries
+import top.e404.tavolo.draw.compose.charts.PieChartTheme
+import top.e404.tavolo.draw.compose.charts.PieSlice
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.RelationEdge
@@ -58,6 +72,10 @@ import top.e404.tavolo.draw.compose.charts.RelationGraphTheme
 import top.e404.tavolo.draw.compose.charts.RelationNode
 import top.e404.tavolo.draw.compose.charts.RelationNodeDrawer
 import top.e404.tavolo.draw.compose.charts.bar
+import top.e404.tavolo.draw.compose.charts.categoryBarChart
+import top.e404.tavolo.draw.compose.charts.donutChart
+import top.e404.tavolo.draw.compose.charts.lineChart
+import top.e404.tavolo.draw.compose.charts.pieChart
 import top.e404.tavolo.draw.compose.charts.radar
 import top.e404.tavolo.draw.compose.charts.relationGraph
 import top.e404.tavolo.util.FontManager
@@ -350,40 +368,86 @@ class ComposeThemeManualTest {
 
     @Test
     fun test_compose_theme_charts() {
-        ManualTestSupport.saveCompose("主题-图表-Donut与Radar变体合集") {
-        themePage("图表主题", "一张图集中展示 donut 与 radar 的主要类型和关键变体", width = 1500f, height = 980f) {
-            row {
-                chartCard("Donut 均分", 260f, 310f) {
-                    bar(BarTheme(outerRadius = 82f, innerRadius = 48f, strokeWidth = 3f), equalSegments)
+        ManualTestSupport.saveCompose("主题-图表-统计图能力合集") {
+            themePage("图表主题", "折线图、饼图、donut、分组/堆叠柱状图、legacy donut 与 radar 变体", width = 1680f, height = 1840f) {
+                row {
+                    lineAbilityCard(
+                        title = "折线图：单系列趋势",
+                        description = "覆盖坐标轴、网格、点标记和底部图例",
+                        series = lineTrendSeries,
+                        fill = false,
+                        yMax = 90f
+                    )
+                    gap(26f)
+                    lineAbilityCard(
+                        title = "折线图：多系列 + 空值断线",
+                        description = "覆盖多系列、虚线、空值断线和面积填充",
+                        series = lineServerSeries,
+                        fill = true,
+                        yMax = 100f
+                    )
+                    gap(26f)
+                    pieAbilityCard(
+                        title = "饼图：分类占比",
+                        description = "覆盖实心饼图、扇区标签和右侧图例",
+                        donut = false,
+                        data = pieRuntimeSlices
+                    )
                 }
-                gap(18f)
-                chartCard("Donut 权重", 260f, 310f) {
-                    bar(BarTheme(outerRadius = 82f, innerRadius = 38f, strokeWidth = 3f), weightedSegments)
+                row(modifier = Modifier.padding(top = 26f)) {
+                    pieAbilityCard(
+                        title = "Donut：Top N + 其它",
+                        description = "覆盖命名切片上限、其它合并和环形内径",
+                        donut = true,
+                        data = piePluginSlices,
+                        maxNamedSlices = 4
+                    )
+                    gap(26f)
+                    categoryBarAbilityCard(
+                        title = "柱状图：分组 + 数值标签",
+                        description = "覆盖多系列并列、分类轴和数值标签",
+                        data = groupedBarData,
+                        mode = BarChartMode.GROUPED,
+                        yMax = 90f,
+                        showValueLabels = true
+                    )
+                    gap(26f)
+                    categoryBarAbilityCard(
+                        title = "柱状图：堆叠 + 图例",
+                        description = "覆盖堆叠累计、底部图例和自定义色板",
+                        data = stackedBarData,
+                        mode = BarChartMode.STACKED,
+                        yMax = 160f
+                    )
                 }
-                gap(18f)
-                chartCard("Donut 起始角 + 粗描边", 260f, 310f) {
-                    bar(BarTheme(outerRadius = 82f, innerRadius = 58f, strokeWidth = 7f, start = 35f), weightedSegments)
+                row(modifier = Modifier.padding(top = 26f)) {
+                    chartCard("Legacy Donut 均分", 260f, 310f) {
+                        bar(BarTheme(outerRadius = 82f, innerRadius = 48f, strokeWidth = 3f), equalSegments)
+                    }
+                    gap(18f)
+                    chartCard("Legacy Donut 权重", 260f, 310f) {
+                        bar(BarTheme(outerRadius = 82f, innerRadius = 38f, strokeWidth = 3f), weightedSegments)
+                    }
+                    gap(18f)
+                    chartCard("Legacy Donut 起始角", 260f, 310f) {
+                        bar(BarTheme(outerRadius = 82f, innerRadius = 58f, strokeWidth = 7f, start = 35f), weightedSegments)
+                    }
+                    gap(18f)
+                    chartCard("Legacy Donut 细环", 260f, 310f) {
+                        bar(BarTheme(outerRadius = 82f, innerRadius = 70f, strokeWidth = 2f, start = -130f), equalSegments)
+                    }
                 }
-                gap(18f)
-                chartCard("Donut 细环", 260f, 310f) {
-                    bar(BarTheme(outerRadius = 82f, innerRadius = 70f, strokeWidth = 2f, start = -130f), equalSegments)
+                row(modifier = Modifier.padding(top = 26f)) {
+                    radarCard("Radar 默认标签修正", RadarFixPolicy.RATED_FIX, gridCount = 5, showGridText = true, color = blue)
+                    gap(18f)
+                    radarCard("Radar 标签不修正", RadarFixPolicy.NONE, gridCount = 5, showGridText = true, color = red)
+                    gap(18f)
+                    radarCard("Radar 标签外移", RadarFixPolicy.MOVE_OUTSIDE, gridCount = 4, showGridText = true, color = green)
+                    gap(18f)
+                    radarCard("Radar 隐藏网格文字", RadarFixPolicy.TILT, gridCount = 3, showGridText = false, color = yellow)
                 }
-                gap(18f)
-                chartCard("Donut 无描边色块", 260f, 310f) {
-                    bar(BarTheme(outerRadius = 82f, innerRadius = 22f, strokeColor = Color.TRANSPARENT, strokeWidth = 0f), weightedSegments)
-                }
-            }
-            row(modifier = Modifier.padding(top = 22f)) {
-                radarCard("Radar 默认标签修正", RadarFixPolicy.RATED_FIX, gridCount = 5, showGridText = true, color = blue)
-                gap(18f)
-                radarCard("Radar 标签不修正", RadarFixPolicy.NONE, gridCount = 5, showGridText = true, color = red)
-                gap(18f)
-                radarCard("Radar 标签外移", RadarFixPolicy.MOVE_OUTSIDE, gridCount = 4, showGridText = true, color = green)
-                gap(18f)
-                radarCard("Radar 隐藏网格文字", RadarFixPolicy.TILT, gridCount = 3, showGridText = false, color = yellow)
             }
         }
-    }
     }
 
     @Test
@@ -593,6 +657,150 @@ class ComposeThemeManualTest {
             chartLegend()
         }
     }
+
+    @UiDsl
+    private fun UiElement.lineAbilityCard(
+        title: String,
+        description: String,
+        series: List<LineSeries>,
+        fill: Boolean,
+        yMax: Float
+    ) {
+        themeCard(title, 520f, 420f) {
+            val preparedSeries = if (fill) {
+                series.map { item -> item.copy(fillColor = item.fillColor ?: translucent(item.color ?: blue, 32)) }
+            } else {
+                series
+            }
+            lineChart(
+                LineChartTheme(
+                    width = 470f,
+                    height = 292f,
+                    insets = ChartInsets(left = 50f, top = 24f, right = 24f, bottom = 46f),
+                    palette = chartPalette(),
+                    axis = chartAxis(),
+                    legend = chartLegend(ChartLegendPosition.BOTTOM),
+                    plotBackgroundColor = Color.makeRGB(248, 250, 253),
+                    lineWidth = 2.8f,
+                    pointRadius = 4f,
+                    xTickCount = 6,
+                    yTickCount = 4,
+                    yMax = yMax,
+                    xLabelFormatter = { "D${it.toInt()}" },
+                    yLabelFormatter = { it.toInt().toString() }
+                ),
+                preparedSeries
+            )
+            text(description, modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 440f), textModifier = captionText)
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.pieAbilityCard(
+        title: String,
+        description: String,
+        donut: Boolean,
+        data: List<PieSlice>,
+        maxNamedSlices: Int? = null
+    ) {
+        themeCard(title, 500f, 420f) {
+            if (donut) {
+                donutChart(pieTheme(donut = true, maxNamedSlices = maxNamedSlices), data)
+            } else {
+                pieChart(pieTheme(donut = false, maxNamedSlices = maxNamedSlices), data)
+            }
+            text(description, modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 440f), textModifier = captionText)
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.categoryBarAbilityCard(
+        title: String,
+        description: String,
+        data: CategoryBarData,
+        mode: BarChartMode,
+        yMax: Float,
+        showValueLabels: Boolean = false
+    ) {
+        themeCard(title, 520f, 420f) {
+            categoryBarChart(
+                CategoryBarTheme(
+                    width = 470f,
+                    height = 292f,
+                    insets = ChartInsets(left = 52f, top = 24f, right = 24f, bottom = 46f),
+                    palette = chartPalette(),
+                    axis = chartAxis(),
+                    legend = chartLegend(ChartLegendPosition.BOTTOM),
+                    mode = mode,
+                    plotBackgroundColor = Color.makeRGB(248, 250, 253),
+                    yTickCount = 4,
+                    barAreaRatio = if (mode == BarChartMode.GROUPED) 0.74f else 0.58f,
+                    stackedGap = 1.5f,
+                    showValueLabels = showValueLabels,
+                    valueLabelTextStyle = ChartTextStyle(10f, ink, uiFont),
+                    yMax = yMax,
+                    yLabelFormatter = { it.toInt().toString() }
+                ),
+                data
+            )
+            text(description, modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 440f), textModifier = captionText)
+        }
+    }
+
+    private fun pieTheme(donut: Boolean, maxNamedSlices: Int?): PieChartTheme {
+        return PieChartTheme(
+            width = 450f,
+            height = 292f,
+            radius = if (donut) 92f else 96f,
+            innerRadius = if (donut) 54f else 0f,
+            insets = ChartInsets(left = 22f, top = 26f, right = 24f, bottom = 24f),
+            palette = chartPalette(),
+            legend = chartLegend(ChartLegendPosition.RIGHT).copy(maxWidth = 172f),
+            strokeWidth = 2f,
+            labelTextStyle = ChartTextStyle(12f, Color.WHITE, uiFont),
+            minLabelPercent = if (donut) 0.07f else 0.08f,
+            maxNamedSlices = maxNamedSlices,
+            labelFormatter = { slice, _, _ -> slice.label }
+        )
+    }
+
+    private fun chartAxis(): AxisTheme {
+        return AxisTheme(
+            axisColor = Color.makeRGB(161, 174, 194),
+            axisWidth = 1.2f,
+            gridColor = Color.makeARGB(70, 161, 174, 194),
+            labelTextStyle = ChartTextStyle(12f, muted, uiFont)
+        )
+    }
+
+    private fun chartLegend(position: ChartLegendPosition): ChartLegendTheme {
+        return ChartLegendTheme(
+            position = position,
+            textStyle = ChartTextStyle(12f, muted, uiFont),
+            swatchSize = 10f,
+            itemGap = 8f,
+            columnGap = 18f,
+            maxWidth = 180f
+        )
+    }
+
+    private fun chartPalette(): ChartPalette {
+        return ChartPalette(
+            listOf(
+                blue,
+                green,
+                yellow,
+                red,
+                Color.makeRGB(132, 94, 247),
+                Color.makeRGB(40, 177, 210),
+                Color.makeRGB(233, 92, 156),
+                Color.makeRGB(98, 114, 136)
+            )
+        )
+    }
+
+    private fun translucent(color: Int, alpha: Int): Int =
+        (color and 0x00FFFFFF) or (alpha.coerceIn(0, 255) shl 24)
 
     @UiDsl
     private fun UiElement.radarCard(title: String, fixPolicy: RadarFixPolicy, gridCount: Int, showGridText: Boolean, color: Int) {
@@ -923,6 +1131,98 @@ class ComposeThemeManualTest {
             red to 24f,
             green to 18f,
             yellow to 16f
+        )
+        val lineTrendSeries = listOf(
+            LineSeries(
+                name = "日活",
+                color = blue,
+                points = listOf(
+                    LinePoint(1f, 36f),
+                    LinePoint(2f, 42f),
+                    LinePoint(3f, 47f),
+                    LinePoint(4f, 58f),
+                    LinePoint(5f, 63f),
+                    LinePoint(6f, 69f),
+                    LinePoint(7f, 78f)
+                )
+            )
+        )
+        val lineServerSeries = listOf(
+            LineSeries(
+                name = "API",
+                color = blue,
+                fillColor = Color.makeARGB(34, 44, 101, 255),
+                points = listOf(
+                    LinePoint(1f, 52f),
+                    LinePoint(2f, 58f),
+                    LinePoint(3f, 62f),
+                    LinePoint(4f, 71f),
+                    LinePoint(5f, 69f),
+                    LinePoint(6f, 78f),
+                    LinePoint(7f, 84f)
+                )
+            ),
+            LineSeries(
+                name = "Worker",
+                color = green,
+                lineStyle = StrokeStyle.Dashed(listOf(10f, 6f)),
+                points = listOf(
+                    LinePoint(1f, 34f),
+                    LinePoint(2f, 39f),
+                    LinePoint(3f, 46f),
+                    LinePoint(4f, null),
+                    LinePoint(5f, 55f),
+                    LinePoint(6f, 61f),
+                    LinePoint(7f, 66f)
+                )
+            ),
+            LineSeries(
+                name = "降级",
+                color = red,
+                lineStyle = StrokeStyle.Dotted(dot = 3f, gap = 5f),
+                showPoints = false,
+                points = listOf(
+                    LinePoint(1f, 18f),
+                    LinePoint(2f, 22f),
+                    LinePoint(3f, 19f),
+                    LinePoint(4f, 28f),
+                    LinePoint(5f, 24f),
+                    LinePoint(6f, 31f),
+                    LinePoint(7f, 26f)
+                )
+            )
+        )
+        val pieRuntimeSlices = listOf(
+            PieSlice("Kotlin", 46f, blue),
+            PieSlice("Skia", 24f, green),
+            PieSlice("Compose", 18f, red),
+            PieSlice("Gradle", 12f, yellow)
+        )
+        val piePluginSlices = listOf(
+            PieSlice("文本", 31f, blue),
+            PieSlice("图片", 24f, green),
+            PieSlice("图表", 18f, red),
+            PieSlice("关系图", 12f, yellow),
+            PieSlice("表格", 8f, Color.makeRGB(132, 94, 247)),
+            PieSlice("图标", 5f, Color.makeRGB(40, 177, 210)),
+            PieSlice("其它", 2f, Color.makeRGB(98, 114, 136))
+        )
+        val groupedBarData = CategoryBarData(
+            categories = listOf("周一", "周二", "周三", "周四"),
+            series = listOf(
+                BarSeries("生成", listOf(42f, 58f, 64f, 73f), blue),
+                BarSeries("缓存", listOf(28f, 34f, 38f, 49f), green),
+                BarSeries("失败", listOf(8f, 11f, 6f, 9f), red)
+            )
+        )
+        val stackedBarData = CategoryBarData(
+            categories = listOf("Q1", "Q2", "Q3", "Q4"),
+            series = listOf(
+                BarSeries("基础", listOf(42f, 48f, 55f, 64f), blue),
+                BarSeries("扩展", listOf(22f, 28f, 34f, 39f), green),
+                BarSeries("插件", listOf(14f, 20f, 26f, 31f), yellow),
+                BarSeries("人工", listOf(8f, 10f, 12f, 15f), red)
+            )
         )
         val radarData = listOf(
             "质量" to 0.92f,

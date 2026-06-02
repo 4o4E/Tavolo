@@ -144,6 +144,139 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun chartScaleExpandsFlatDomainAndDataLimiterKeepsEdges() {
+        val scale = ChartScale.linear(
+            domainMin = 10f,
+            domainMax = 10f,
+            rangeMin = 0f,
+            rangeMax = 100f
+        )
+
+        assertFloatEquals(50f, scale.map(10f))
+        assertEquals(listOf(0, 2, 4, 6, 9), ChartDataLimiter.limit((0..9).toList(), maxItems = 5))
+    }
+
+    @Test
+    fun lineChartRecordsAxesSplitSegmentsPointsAndLegend() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            lineChart(
+                theme = LineChartTheme(
+                    width = 260f,
+                    height = 160f,
+                    xTickCount = 2,
+                    yTickCount = 2,
+                    pointRadius = 2f
+                ),
+                series = listOf(
+                    LineSeries(
+                        name = "在线",
+                        color = Color.RED,
+                        fillColor = Color.makeARGB(40, 255, 0, 0),
+                        points = listOf(
+                            LinePoint(0f, 1f),
+                            LinePoint(1f, null),
+                            LinePoint(2f, 4f),
+                            LinePoint(3f, 2f)
+                        )
+                    )
+                )
+            )
+        }
+
+        assertTrue(commands.filterIsInstance<DrawCommand.Line>().size >= 8)
+        assertEquals(2, commands.filterIsInstance<DrawCommand.Path>().size)
+        assertEquals(3, commands.filterIsInstance<DrawCommand.Circle>().size)
+        assertEquals(1, commands.filterIsInstance<DrawCommand.Rect>().count { it.paint.color == Color.RED })
+    }
+
+    @Test
+    fun pieChartSupportsTopNamedSlicesLabelsLegendAndDonutHole() {
+        val recorder = RecordingDrawCanvas()
+
+        drawPieChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf(
+                PieSlice("A", 4f, Color.RED),
+                PieSlice("B", 3f, Color.BLUE),
+                PieSlice("C", 2f, Color.GREEN),
+                PieSlice("D", 1f, Color.YELLOW)
+            ),
+            theme = PieChartTheme(
+                width = 240f,
+                height = 150f,
+                radius = 40f,
+                innerRadius = 16f,
+                maxNamedSlices = 2,
+                minLabelPercent = 0f,
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val arcs = recorder.commands.filterIsInstance<DrawCommand.Arc>()
+        assertEquals(6, arcs.size)
+        assertEquals(3, arcs.count { it.paint.mode == PaintMode.FILL })
+        assertTrue(recorder.commands.any { it is DrawCommand.ClipPath })
+        assertEquals(2, recorder.commands.filterIsInstance<DrawCommand.Circle>().size)
+        assertEquals(6, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+    }
+
+    @Test
+    fun categoryBarChartRecordsGroupedAndStackedBars() {
+        val grouped = RecordingDrawCanvas()
+        val data = CategoryBarData(
+            categories = listOf("A", "B"),
+            series = listOf(
+                BarSeries("玩家", listOf(2f, 4f), Color.RED),
+                BarSeries("服务器", listOf(3f, 1f), Color.BLUE)
+            )
+        )
+
+        drawCategoryBarChart(
+            canvas = grouped,
+            parentX = 0f,
+            parentY = 0f,
+            data = data,
+            theme = CategoryBarTheme(
+                width = 240f,
+                height = 160f,
+                legend = ChartLegendTheme(position = ChartLegendPosition.NONE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val groupedBars = grouped.commands
+            .filterIsInstance<DrawCommand.Rect>()
+            .filter { it.paint.color == Color.RED || it.paint.color == Color.BLUE }
+        assertEquals(4, groupedBars.size)
+        assertTrue(groupedBars.all { it.rect.height > 0f })
+
+        val stacked = RecordingDrawCanvas()
+        drawCategoryBarChart(
+            canvas = stacked,
+            parentX = 0f,
+            parentY = 0f,
+            data = data,
+            theme = CategoryBarTheme(
+                width = 240f,
+                height = 160f,
+                mode = BarChartMode.STACKED,
+                legend = ChartLegendTheme(position = ChartLegendPosition.NONE)
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer())
+        )
+
+        val stackedBars = stacked.commands
+            .filterIsInstance<DrawCommand.Rect>()
+            .filter { it.paint.color == Color.RED || it.paint.color == Color.BLUE }
+        assertEquals(4, stackedBars.size)
+        assertTrue(stackedBars.all { it.rect.height > 0f })
+    }
+
+    @Test
     fun radarChartRecordsPathsLinesAndTextLines() {
         val recorder = RecordingDrawCanvas()
         val theme = RadarTheme(

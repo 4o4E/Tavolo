@@ -15,7 +15,7 @@ dependencies {
 模块名是 `graphics`，当前公开包名仍保留 `top.e404.tavolo.draw.*`，避免无关包名迁移影响已有调用方。
 
 - `top.e404.tavolo.draw.compose`: 推荐使用的 2D 绘图 DSL。
-- `top.e404.tavolo.draw.compose.charts`: 内置图表组件，目前包含环形图、雷达图和关系图。
+- `top.e404.tavolo.draw.compose.charts`: 内置图表组件，目前包含折线图、饼图、donut、分类柱状图、雷达图和关系图。
 - `top.e404.tavolo.draw.render3d`: CPU 3D 渲染相关类型和渲染函数。
 - `top.e404.tavolo.draw.element`: 旧版绘图元素，已废弃，不建议新增使用。
 
@@ -314,46 +314,330 @@ fun main() {
 
 ## 图表
 
-关系图支持 `Circular`、`Layered`、`Fixed` 和 `Force` 布局。`Force` 是力导向布局，适合社交关系、人物关系等有环、多中心的复杂网络；它通过边弹簧、节点斥力、中心吸引和碰撞间距让图形保持团状，避免复杂关系被拉成长条。关系图也支持通过 `RelationNodeDrawer` 和 `RelationEdgeDrawer` 扩展节点、普通边和自环边绘制。绘制器可配置在 `RelationGraphTheme` 上作为全局默认，也可配置到单个 `RelationNode` 或 `RelationEdge` 上做局部覆盖；绘制上下文会暴露画布、测量上下文、节点坐标、边端点和 `drawDefault()`，便于在默认图形前后追加高亮、徽标、状态标记等自定义内容。
+图表组件面向静态图片渲染，适合聊天图片、统计卡片和离线报表。所有图表本质上都是固定宽高的 `CanvasElement`，外层仍然用 Compose DSL 的 `row`、`column`、`box`、`padding`、`background` 组合标题、说明和卡片样式。
+
+统一导入：
 
 ```kotlin
 import org.jetbrains.skia.Color
-import org.jetbrains.skia.EncodedImageFormat
 import top.e404.tavolo.draw.compose.*
-import top.e404.tavolo.draw.compose.charts.BarTheme
-import top.e404.tavolo.draw.compose.charts.RadarTheme
-import top.e404.tavolo.draw.compose.charts.bar
-import top.e404.tavolo.draw.compose.charts.radar
-import java.io.File
+import top.e404.tavolo.draw.compose.charts.*
+```
 
-fun main() {
-    val image = render(Color.makeRGB(24, 28, 34)) {
-        row(modifier = Modifier.padding(24f)) {
-            bar(
-                BarTheme(outerRadius = 90f),
-                listOf(
-                    Color.makeRGB(72, 149, 239) to 42f,
-                    Color.makeRGB(247, 127, 0) to 28f,
-                    Color.makeRGB(76, 175, 80) to 30f,
-                )
-            )
+### 通用配置
 
-            radar(
-                RadarTheme(width = 360f, height = 260f, radius = 90f),
-                listOf(
-                    "A" to 0.85f,
-                    "B" to 0.65f,
-                    "C" to 0.92f,
-                    "D" to 0.55f,
-                    "E" to 0.75f,
-                )
-            )
-        }
-    }
+多数新图表共享以下配置：
 
-    File("out/charts.png").apply { parentFile.mkdirs() }
-        .writeBytes(image.encodeToData(EncodedImageFormat.PNG)!!.bytes)
+- `ChartInsets`: 控制图表内容、坐标轴标签和图例之间的留白。
+- `ChartPalette`: 多 series 或多分类默认色板，显式传入颜色时优先使用数据自身颜色。
+- `AxisTheme`: 坐标轴、网格线和轴标签样式，用于折线图和分类柱状图。
+- `ChartLegendTheme`: 图例样式，`ChartLegendPosition.RIGHT` 表示右侧图例，`BOTTOM` 表示底部图例，`NONE` 表示不绘制图例。
+- `ChartTextStyle`: 图表内部文本样式，包含字号、颜色和字体名。
+
+推荐把标题、子标题、脚注等放在图表外层：
+
+```kotlin
+column(
+    modifier = Modifier
+        .padding(24f)
+        .background(Color.WHITE)
+        .padding(20f)
+) {
+    text("在线玩家趋势", fontSize = 24f, textColor = Color.makeRGB(32, 38, 46))
+    lineChart(theme = lineTheme, series = playerSeries)
+    text("数据按小时聚合", modifier = Modifier.padding(top = 8f), fontSize = 14f, textColor = Color.GRAY)
 }
+```
+
+### 折线图
+
+入口：`lineChart(theme: LineChartTheme, series: List<LineSeries>)`
+
+适用场景：时间趋势、版本变化、在线人数、请求量、延迟等连续数据。`single_linechart` 使用一个 `LineSeries`，`multi_linechart` 使用多个 `LineSeries`。
+
+关键数据模型：
+
+- `LinePoint(x, y)`: `x` 是数值坐标，`y` 允许为 `null`；`null` 会断开折线，用于缺失数据。
+- `LineSeries.name`: 图例名称。
+- `LineSeries.color`: 当前 series 颜色；不传则从 `ChartPalette` 取色。
+- `LineSeries.fillColor`: 面积填充色；不传则只画线。
+- `LineSeries.lineStyle`: 支持 `StrokeStyle.Solid`、`Dashed`、`Dotted`。
+- `LineSeries.showPoints`: 是否绘制点标记。
+
+常用主题参数：
+
+- `xMin` / `xMax`、`yMin` / `yMax`: 手动固定坐标范围，适合多张图统一尺度。
+- `includeZeroY`: 自动计算 y 轴范围时是否包含 0。
+- `xTickCount` / `yTickCount`: 刻度段数。
+- `xLabelFormatter` / `yLabelFormatter`: 轴标签格式化。
+- `maxPointsPerSeries`: 数据抽样上限，避免超长数据压缩成一团。
+
+```kotlin
+val lineTheme = LineChartTheme(
+    width = 620f,
+    height = 280f,
+    insets = ChartInsets(left = 56f, top = 24f, right = 24f, bottom = 48f),
+    legend = ChartLegendTheme(position = ChartLegendPosition.BOTTOM),
+    xTickCount = 6,
+    yTickCount = 4,
+    yMax = 100f,
+    xLabelFormatter = { "D${it.toInt()}" },
+    yLabelFormatter = { it.toInt().toString() }
+)
+
+val series = listOf(
+    LineSeries(
+        name = "API",
+        color = Color.makeRGB(54, 112, 255),
+        fillColor = Color.makeARGB(34, 54, 112, 255),
+        points = listOf(
+            LinePoint(1f, 52f),
+            LinePoint(2f, 58f),
+            LinePoint(3f, 62f),
+            LinePoint(4f, 71f)
+        )
+    ),
+    LineSeries(
+        name = "Worker",
+        color = Color.makeRGB(50, 181, 128),
+        lineStyle = StrokeStyle.Dashed(listOf(10f, 6f)),
+        points = listOf(
+            LinePoint(1f, 34f),
+            LinePoint(2f, 39f),
+            LinePoint(3f, null),
+            LinePoint(4f, 55f)
+        )
+    )
+)
+
+lineChart(lineTheme, series)
+```
+
+### 饼图和 Donut
+
+入口：
+
+- `pieChart(theme: PieChartTheme, data: List<PieSlice>)`
+- `donutChart(theme: PieChartTheme, data: List<PieSlice>)`
+
+适用场景：分类占比、构成比例、Top N 分类。`simple_pie` 使用普通 `pieChart`，`advanced_pie` 可开启 `maxNamedSlices` 合并长尾；donut 通过 `innerRadius` 表达环形图。
+
+关键数据模型：
+
+- `PieSlice.label`: 扇区名称。
+- `PieSlice.value`: 扇区数值；非正数会被忽略。
+- `PieSlice.color`: 扇区颜色；不传则从 `ChartPalette` 取色。
+
+常用主题参数：
+
+- `radius`: 外半径。
+- `innerRadius`: 内半径，`0f` 是实心饼图，大于 `0f` 是 donut。
+- `maxNamedSlices`: 只保留前 N 个分类，其余合并为 `othersLabel`。
+- `minLabelPercent`: 低于该占比的小扇区不画扇区内标签。
+- `labelFormatter`: 扇区内标签格式。
+- `legendLabelFormatter`: 图例标签格式，默认包含百分比。
+- `startAngle`: 起始角度，默认从顶部开始。
+
+```kotlin
+val pieData = listOf(
+    PieSlice("Paper", 52f),
+    PieSlice("Spigot", 31f),
+    PieSlice("Fabric", 12f),
+    PieSlice("Other", 5f)
+)
+
+pieChart(
+    theme = PieChartTheme(
+        width = 420f,
+        height = 240f,
+        radius = 82f,
+        legend = ChartLegendTheme(position = ChartLegendPosition.RIGHT),
+        maxNamedSlices = 3,
+        minLabelPercent = 0.06f
+    ),
+    data = pieData
+)
+
+donutChart(
+    theme = PieChartTheme(
+        width = 420f,
+        height = 240f,
+        radius = 82f,
+        innerRadius = 48f,
+        legend = ChartLegendTheme(position = ChartLegendPosition.RIGHT),
+        maxNamedSlices = 3,
+        othersLabel = "其它"
+    ),
+    data = pieData
+)
+```
+
+当前饼图标签不会做复杂避让。分类很多或小扇区很多时，优先用 `maxNamedSlices` 合并长尾，或提高 `minLabelPercent` 隐藏小标签。
+
+### 分类柱状图
+
+入口：`categoryBarChart(theme: CategoryBarTheme, data: CategoryBarData)`
+
+适用场景：分类对比、版本分布、按时间桶统计。`simple_bar` 可用单 series；`advanced_bar` 可用多 series，并选择分组或堆叠。
+
+关键数据模型：
+
+- `CategoryBarData.categories`: 分类轴标签。
+- `CategoryBarData.series`: 多个柱状图系列。
+- `BarSeries.values`: 与 `categories` 按下标对应；缺失、非有限数值会按 `0f` 处理。
+
+常用主题参数：
+
+- `mode`: `BarChartMode.GROUPED` 分组柱，`BarChartMode.STACKED` 堆叠柱。
+- `barAreaRatio`: 每个分类槽内柱子占用比例。
+- `stackedGap`: 堆叠柱块之间的间隙。
+- `showValueLabels`: 是否显示数值标签。
+- `categoryLabelEvery`: 分类很多时每隔几个分类显示一个标签。
+- `yMin` / `yMax`: 固定数值轴范围。
+
+```kotlin
+val barData = CategoryBarData(
+    categories = listOf("1.20", "1.21", "1.22", "1.23"),
+    series = listOf(
+        BarSeries("Servers", listOf(80f, 126f, 142f, 155f)),
+        BarSeries("Players", listOf(430f, 610f, 690f, 760f)),
+        BarSeries("Errors", listOf(8f, 12f, 7f, 10f))
+    )
+)
+
+categoryBarChart(
+    theme = CategoryBarTheme(
+        width = 620f,
+        height = 280f,
+        mode = BarChartMode.GROUPED,
+        legend = ChartLegendTheme(position = ChartLegendPosition.BOTTOM),
+        showValueLabels = true,
+        yMax = 800f
+    ),
+    data = barData
+)
+
+categoryBarChart(
+    theme = CategoryBarTheme(
+        width = 620f,
+        height = 280f,
+        mode = BarChartMode.STACKED,
+        legend = ChartLegendTheme(position = ChartLegendPosition.BOTTOM),
+        stackedGap = 1.5f,
+        yMax = 1500f
+    ),
+    data = barData
+)
+```
+
+### Legacy Donut
+
+旧入口 `bar(theme: BarTheme, data: List<Pair<Int, Float>>)` 仍可用，但它实际绘制的是 donut，不是柱状图。它只负责扇区绘制，没有内置标签、图例、Top N 合并等能力；新代码优先使用 `pieChart` / `donutChart`。
+
+```kotlin
+bar(
+    theme = BarTheme(
+        outerRadius = 82f,
+        innerRadius = 48f,
+        start = -90f,
+        strokeWidth = 3f
+    ),
+    data = listOf(
+        Color.makeRGB(54, 112, 255) to 42f,
+        Color.makeRGB(50, 181, 128) to 24f,
+        Color.makeRGB(245, 167, 36) to 18f
+    )
+)
+```
+
+### 雷达图
+
+入口：`radar(theme: RadarTheme, data: List<Pair<String, Float>>)`
+
+适用场景：能力模型、评分维度、质量画像。建议把值归一化到 `0f..1f`，便于不同图之间对比。
+
+常用主题参数：
+
+- `radius`: 雷达图半径。
+- `gridCount`: 网格层数。
+- `gridFontProvider`: 网格文字提供器，返回 `null` 可隐藏某层文字。
+- `labelFixPolicy`: 标签修正策略，常用 `RATED_FIX`、`MOVE_OUTSIDE`、`NONE`、`TILT`。
+- `fillColor` / `fillOutlineColor`: 数据区域填充和描边。
+
+```kotlin
+radar(
+    RadarTheme(
+        width = 320f,
+        height = 320f,
+        radius = 96f,
+        gridCount = 5,
+        gridFontProvider = { "${it + 1}" },
+        labelFixPolicy = RadarFixPolicy.RATED_FIX,
+        fillOutlineColor = Color.makeRGB(54, 112, 255),
+        fillColor = Color.makeARGB(80, 54, 112, 255)
+    ),
+    listOf(
+        "质量" to 0.92f,
+        "速度" to 0.72f,
+        "稳定" to 0.84f,
+        "覆盖" to 0.64f
+    )
+)
+```
+
+### 关系图
+
+入口：`relationGraph(theme: RelationGraphTheme, nodes: List<RelationNode>, edges: List<RelationEdge>)`
+
+适用场景：依赖图、调用链、人物关系、模块关联。节点通过 `RelationNode.id` 和边的 `from` / `to` 关联。
+
+布局模式：
+
+- `RelationGraphLayout.Layered`: 分层布局，适合 DAG、流程图和依赖链。
+- `RelationGraphLayout.Circular`: 环形布局，适合小规模关联网络。
+- `RelationGraphLayout.Fixed`: 固定坐标布局，适合人工排版或部分节点定位。
+- `RelationGraphLayout.Force`: 力导向布局，适合有环、多中心的复杂网络。
+
+扩展点：
+
+- `RelationNodeDrawer`: 自定义节点绘制。
+- `RelationEdgeDrawer`: 自定义边绘制，包含普通边和自环边。
+- 绘制器可以配置在 `RelationGraphTheme` 上作为全局默认，也可以配置到单个 `RelationNode` 或 `RelationEdge` 上做局部覆盖。
+- 绘制上下文会暴露画布、测量上下文、节点坐标、边端点和 `drawDefault()`，可在默认图形前后追加高亮、徽标、状态标记等自定义内容。
+
+```kotlin
+relationGraph(
+    RelationGraphTheme(
+        width = 620f,
+        height = 360f,
+        layout = RelationGraphLayout.Layered(roots = listOf("input")),
+        nodeRadius = 30f,
+        arrowSize = 12f
+    ),
+    nodes = listOf(
+        RelationNode("input", "输入", Color.makeRGB(54, 112, 255)),
+        RelationNode("parser", "解析", Color.makeRGB(232, 76, 92)),
+        RelationNode("render", "渲染", Color.makeRGB(50, 181, 128))
+    ),
+    edges = listOf(
+        RelationEdge("input", "parser", "文本"),
+        RelationEdge("parser", "render", "结构")
+    )
+)
+```
+
+### 人工测试示例
+
+图表能力合集的人工测试会生成包含折线图、饼图、donut、分组柱状图、堆叠柱状图、legacy donut 和 radar 变体的示例图片：
+
+```powershell
+.\gradlew.bat :graphics:manualTest --tests "*ComposeThemeManualTest.test_compose_theme_charts"
+```
+
+输出文件：
+
+```text
+run/out/compose/主题-图表-统计图能力合集.png
 ```
 
 ## 3D 渲染
