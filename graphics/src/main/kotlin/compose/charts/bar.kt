@@ -121,7 +121,8 @@ enum class PieLabelPosition {
 enum class PieLabelAlignTo {
     NONE,
     LABEL_LINE,
-    EDGE
+    EDGE,
+    RADIAL
 }
 
 data class PieChartTheme(
@@ -311,6 +312,8 @@ private data class OutsidePieLabel(
     val state: PieLabelState,
     val measured: ChartMeasuredText,
     val side: PieLabelSide,
+    val radialX: Float,
+    val radialY: Float,
     val anchorX: Float,
     val anchorY: Float,
     val elbowX: Float,
@@ -524,6 +527,8 @@ private fun drawOutsidePieLabels(
             state = state,
             measured = measured,
             side = side,
+            radialX = cosValue,
+            radialY = sinValue,
             anchorX = anchorX,
             anchorY = anchorY,
             elbowX = elbowX,
@@ -538,7 +543,7 @@ private fun drawOutsidePieLabels(
         .groupBy { it.side }
         .entries
         .flatMap { (side, sideLabels) ->
-            layoutOutsideLabelSide(sideLabels, side, topLimit, bottomLimit, viewLeft, viewRight, theme)
+            layoutOutsideLabelSide(sideLabels, side, topLimit, bottomLimit, viewLeft, viewRight, labelLineLength, theme)
         }
         .forEach { label ->
             val labelCenterY = label.labelTop + label.measured.box.height / 2f
@@ -560,6 +565,7 @@ private fun layoutOutsideLabelSide(
     bottomLimit: Float,
     viewLeft: Float,
     viewRight: Float,
+    labelLineLength: Float,
     theme: PieChartTheme
 ): List<OutsidePieLabel> {
     val adjusted = avoidOutsideLabelOverlap(labels, topLimit, bottomLimit, theme.outsideLabelMinGap)
@@ -571,6 +577,8 @@ private fun layoutOutsideLabelSide(
     return when (theme.outsideLabelAlignTo) {
         PieLabelAlignTo.EDGE -> adjusted.map { label ->
             val safeEdge = theme.outsideLabelEdgeDistance.coerceAtLeast(0f)
+            val labelCenterY = label.labelTop + label.measured.box.height / 2f
+            val elbowX = avoidPieCrossingElbowX(label, labelCenterY)
             val labelX = if (side == PieLabelSide.RIGHT) {
                 viewRight - safeEdge - label.measured.box.width
             } else {
@@ -581,16 +589,20 @@ private fun layoutOutsideLabelSide(
             } else {
                 labelX + label.measured.box.width + distanceToLine
             }
-            label.copy(labelX = labelX, lineEndX = lineEndX)
+            label.copy(elbowX = elbowX, labelX = labelX, lineEndX = lineEndX)
         }
 
         PieLabelAlignTo.LABEL_LINE -> {
             val bleedMargin = theme.outsideLabelBleedMargin.coerceAtLeast(0f)
             val widest = adjusted.maxOf { it.measured.box.width }
             val naturalEndX = if (side == PieLabelSide.RIGHT) {
-                adjusted.maxOf { it.elbowX } + theme.outsideLabelLineLength.coerceAtLeast(0f)
+                adjusted.maxOf { label ->
+                    avoidPieCrossingElbowX(label, label.labelTop + label.measured.box.height / 2f)
+                } + labelLineLength
             } else {
-                adjusted.minOf { it.elbowX } - theme.outsideLabelLineLength.coerceAtLeast(0f)
+                adjusted.minOf { label ->
+                    avoidPieCrossingElbowX(label, label.labelTop + label.measured.box.height / 2f)
+                } - labelLineLength
             }
             val lineEndX = if (side == PieLabelSide.RIGHT) {
                 naturalEndX.coerceAtMost(viewRight - bleedMargin - widest - distanceToLine)
@@ -598,18 +610,22 @@ private fun layoutOutsideLabelSide(
                 naturalEndX.coerceAtLeast(viewLeft + bleedMargin + widest + distanceToLine)
             }
             adjusted.map { label ->
+                val labelCenterY = label.labelTop + label.measured.box.height / 2f
+                val elbowX = avoidPieCrossingElbowX(label, labelCenterY)
                 val labelX = if (side == PieLabelSide.RIGHT) {
                     lineEndX + distanceToLine
                 } else {
                     lineEndX - distanceToLine - label.measured.box.width
                 }
-                label.copy(labelX = labelX, lineEndX = lineEndX)
+                label.copy(elbowX = elbowX, labelX = labelX, lineEndX = lineEndX)
             }
         }
 
         PieLabelAlignTo.NONE -> adjusted.map { label ->
             val bleedMargin = theme.outsideLabelBleedMargin.coerceAtLeast(0f)
-            val naturalLineEndX = label.elbowX + sideSign * theme.outsideLabelLineLength.coerceAtLeast(0f)
+            val labelCenterY = label.labelTop + label.measured.box.height / 2f
+            val elbowX = avoidPieCrossingElbowX(label, labelCenterY)
+            val naturalLineEndX = elbowX + sideSign * labelLineLength
             val labelX = if (side == PieLabelSide.RIGHT) {
                 (naturalLineEndX + distanceToLine)
                     .coerceAtMost(viewRight - bleedMargin - label.measured.box.width)
@@ -622,8 +638,42 @@ private fun layoutOutsideLabelSide(
             } else {
                 labelX + label.measured.box.width + distanceToLine
             }
-            label.copy(labelX = labelX, lineEndX = lineEndX)
+            label.copy(elbowX = elbowX, labelX = labelX, lineEndX = lineEndX)
         }
+
+        PieLabelAlignTo.RADIAL -> adjusted.map { label ->
+            val bleedMargin = theme.outsideLabelBleedMargin.coerceAtLeast(0f)
+            val labelCenterY = label.labelTop + label.measured.box.height / 2f
+            val elbowX = avoidPieCrossingElbowX(label, labelCenterY)
+            val naturalLineEndX = elbowX + sideSign * labelLineLength
+            val naturalLabelX = if (side == PieLabelSide.RIGHT) {
+                naturalLineEndX + distanceToLine
+            } else {
+                naturalLineEndX - distanceToLine - label.measured.box.width
+            }
+            val labelX = if (side == PieLabelSide.RIGHT) {
+                naturalLabelX.coerceAtMost(viewRight - bleedMargin - label.measured.box.width)
+            } else {
+                naturalLabelX.coerceAtLeast(viewLeft + bleedMargin)
+            }
+            val lineEndX = if (side == PieLabelSide.RIGHT) {
+                labelX - distanceToLine
+            } else {
+                labelX + label.measured.box.width + distanceToLine
+            }
+            label.copy(elbowX = elbowX, labelX = labelX, lineEndX = lineEndX)
+        }
+    }
+}
+
+private fun avoidPieCrossingElbowX(label: OutsidePieLabel, labelCenterY: Float): Float {
+    val radialX = label.radialX
+    if (kotlin.math.abs(radialX) < 0.0001f) return label.elbowX
+    // 标签纵向避让后，按扇区切线外侧重新约束折点，避免第一段引线穿过饼图主体。
+    val tangentSafeX = label.anchorX - (labelCenterY - label.anchorY) * label.radialY / radialX
+    return when (label.side) {
+        PieLabelSide.RIGHT -> max(label.elbowX, tangentSafeX)
+        PieLabelSide.LEFT -> min(label.elbowX, tangentSafeX)
     }
 }
 

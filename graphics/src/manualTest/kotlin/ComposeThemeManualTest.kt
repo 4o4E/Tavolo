@@ -734,30 +734,30 @@ class ComposeThemeManualTest {
     @UiDsl
     private fun UiElement.densePieAbilityCard() {
         chartContainer(
-            title = "饼图：外侧标签避让",
-            caption = "覆盖左右外侧标签、边界对齐、水平引线和同侧纵向避让",
+            title = "饼图：圆周短折线",
+            caption = "覆盖 bStats 密集小切片、短折线和同侧纵向避让",
             theme = chartCardContainerTheme(width = 520f, textMaxWidth = 440f)
         ) {
             pieChart(
                 PieChartTheme(
                     width = 470f,
                     height = 292f,
-                    radius = 82f,
-                    insets = ChartInsets(left = 132f, top = 42f, right = 24f, bottom = 24f),
+                    radius = 76f,
+                    insets = ChartInsets(left = 154f, top = 44f, right = 56f, bottom = 24f),
                     palette = chartPalette(),
                     legend = chartLegend(ChartLegendPosition.NONE),
                     labelPosition = PieLabelPosition.OUTSIDE,
-                    outsideLabelAlignTo = PieLabelAlignTo.EDGE,
-                    labelTextStyle = ChartTextStyle(12f, muted, uiFont),
+                    outsideLabelAlignTo = PieLabelAlignTo.RADIAL,
+                    labelTextStyle = ChartTextStyle(10f, muted, uiFont),
                     minLabelPercent = 0f,
-                    outsideLabelOffset = 20f,
+                    outsideLabelOffset = 18f,
                     outsideLabelLineLength = 14f,
-                    outsideLabelMinGap = 5f,
-                    outsideLabelEdgeDistance = 54f,
-                    outsideLabelDistanceToLine = 5f,
-                    labelFormatter = { slice, _, total -> "${slice.label} ${((slice.value / total) * 100).toInt()}%" }
+                    outsideLabelMinGap = 3f,
+                    outsideLabelBleedMargin = 6f,
+                    outsideLabelDistanceToLine = 4f,
+                    labelFormatter = { slice, _, total -> "${slice.label} ${((slice.value / total) * 1000).toInt() / 10f}%" }
                 ),
-                pieDenseSlices
+                bstatsPieSlices
             )
         }
     }
@@ -1308,17 +1308,19 @@ class ComposeThemeManualTest {
             PieSlice("图标", 5f, Color.makeRGB(40, 177, 210)),
             PieSlice("其它", 2f, Color.makeRGB(98, 114, 136))
         )
-        val pieDenseSlices = listOf(
-            PieSlice("A", 13f, blue),
-            PieSlice("B", 11f, green),
-            PieSlice("C", 10f, red),
-            PieSlice("D", 9f, yellow),
-            PieSlice("E", 8f, Color.makeRGB(132, 94, 247)),
-            PieSlice("F", 7f, Color.makeRGB(40, 177, 210)),
-            PieSlice("G", 6f, Color.makeRGB(233, 92, 156)),
-            PieSlice("H", 5f, Color.makeRGB(98, 114, 136)),
-            PieSlice("I", 4f, Color.makeRGB(255, 145, 77)),
-            PieSlice("J", 3f, Color.makeRGB(78, 188, 104))
+        val bstatsPieSlices = listOf(
+            PieSlice("23.1", 44.1f, green),
+            PieSlice("23.2", 19.1f, blue),
+            PieSlice("22.4", 9.1f, yellow),
+            PieSlice("23.0", 6.9f, Color.makeRGB(132, 94, 247)),
+            PieSlice("23.4", 6.3f, Color.makeRGB(233, 92, 156)),
+            PieSlice("23.3", 4.1f, Color.makeRGB(40, 177, 210)),
+            PieSlice("22.2", 2.3f, Color.makeRGB(255, 145, 77)),
+            PieSlice("24.0", 2.0f, Color.makeRGB(90, 101, 246)),
+            PieSlice("23.2-RC5", 1.9f, Color.makeRGB(132, 94, 247)),
+            PieSlice("21.3", 1.6f, Color.makeRGB(24, 190, 160)),
+            PieSlice("21.2", 1.3f, Color.makeRGB(98, 114, 136)),
+            PieSlice("24.0-rc1", 1.3f, Color.makeRGB(54, 112, 255))
         )
         val drilldownPieData = listOf(
             DrilldownPieSlice(

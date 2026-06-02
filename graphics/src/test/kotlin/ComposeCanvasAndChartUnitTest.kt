@@ -264,6 +264,60 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun pieChartRadialOutsideLabelsKeepLeaderLinesOutsidePie() {
+        val recorder = RecordingDrawCanvas()
+        val theme = PieChartTheme(
+            width = 420f,
+            height = 300f,
+            radius = 88f,
+            insets = ChartInsets(left = 142f, top = 40f, right = 56f, bottom = 36f),
+            legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
+            labelPosition = PieLabelPosition.OUTSIDE,
+            outsideLabelAlignTo = PieLabelAlignTo.RADIAL,
+            minLabelPercent = 0f,
+            outsideLabelOffset = 18f,
+            outsideLabelLineLength = 16f,
+            outsideLabelMinGap = 4f,
+            outsideLabelBleedMargin = 8f,
+            labelFormatter = { slice, _, _ -> slice.label }
+        )
+
+        drawPieChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf(
+                PieSlice("23.1", 44.1f),
+                PieSlice("23.2", 19.1f),
+                PieSlice("22.4", 9.1f),
+                PieSlice("23.0", 6.9f),
+                PieSlice("23.4", 6.3f),
+                PieSlice("23.3", 4.1f),
+                PieSlice("22.2", 2.3f),
+                PieSlice("24.0", 2.0f),
+                PieSlice("23.2-RC5", 1.9f),
+                PieSlice("21.3", 1.6f),
+                PieSlice("21.2", 1.3f),
+                PieSlice("24.0-rc1", 1.3f)
+            ),
+            theme = theme,
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 4f))
+        )
+
+        val centerX = theme.insets.left + theme.radius
+        val centerY = theme.insets.top + theme.radius
+        val lines = recorder.commands.filterIsInstance<DrawCommand.Line>()
+        assertEquals(recorder.commands.filterIsInstance<DrawCommand.TextLine>().size * 2, lines.size)
+        lines.chunked(2).forEach { pair ->
+            val first = pair.first()
+            val radialX = (first.x0 - centerX) / theme.radius
+            val radialY = (first.y0 - centerY) / theme.radius
+            val outwardDot = (first.x1 - first.x0) * radialX + (first.y1 - first.y0) * radialY
+            assertTrue(outwardDot >= -0.001f, "外侧标签第一段引线不应进入饼图圆内")
+        }
+    }
+
+    @Test
     fun pieChartMinShowLabelAngleSkipsTinyOutsideLabels() {
         val recorder = RecordingDrawCanvas()
 

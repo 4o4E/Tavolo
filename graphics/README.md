@@ -446,11 +446,11 @@ lineChart(lineTheme, series)
 - `minShowLabelAngle`: 低于该角度的小扇区不画标签和外侧引线，适合过滤极细扇区。
 - `labelPosition`: 标签位置，`INSIDE` 为扇区内标签，`OUTSIDE` 为全部外侧标签和引线，`AUTO` 在标签较多时保留大扇区内置、小扇区外置。
 - `autoInsideMinPercent` / `autoInsideMaxLabels`: `AUTO` 模式下允许内置显示的最小占比和最多标签数。
-- `outsideLabelAlignTo`: 外侧标签横向对齐策略，`EDGE` 将文本边缘对齐到图表画布边界，`LABEL_LINE` 将文本对齐到同侧引线终点，`NONE` 保留每个扇区的自然引线位置。
+- `outsideLabelAlignTo`: 外侧标签横向对齐策略，`RADIAL` 围绕饼图外圈短折线分布，`EDGE` 将文本边缘对齐到图表画布边界，`LABEL_LINE` 将文本对齐到同侧引线终点，`NONE` 保留每个扇区的自然引线位置。
 - `outsideLabelOffset` / `outsideLabelLineLength`: 外侧引线的径向外扩距离和水平段长度。
 - `outsideLabelMinGap`: 同侧外侧标签最小垂直间距。
 - `outsideLabelEdgeDistance`: `EDGE` 模式下文本边缘到画布边界的距离。
-- `outsideLabelBleedMargin`: `NONE` / `LABEL_LINE` 模式下文本到画布边界的最小距离。
+- `outsideLabelBleedMargin`: `RADIAL` / `NONE` / `LABEL_LINE` 模式下文本到画布边界的最小距离。
 - `outsideLabelDistanceToLine`: 外侧文本和引线终点之间的距离。
 - `labelFormatter`: 扇区内标签格式。
 - `legendLabelFormatter`: 图例标签格式，默认包含百分比。
@@ -494,9 +494,12 @@ donutChart(
 
 外侧标签对齐策略建议：
 
+- `PieLabelAlignTo.RADIAL`: 围绕饼图外圈分布，水平段较短且不拉到画布边缘；适合 bStats 一类分类多、小切片密集的饼图。
 - `PieLabelAlignTo.EDGE`: 默认策略，优先保证文本在 `PieChartTheme.width` / `height` 画布内完整可见；适合静态图片和卡片式报表。
 - `PieLabelAlignTo.LABEL_LINE`: 同侧标签沿引线终点对齐，视觉更紧凑；适合左右预留空间明确的图。
 - `PieLabelAlignTo.NONE`: 保留每个扇区的自然外侧位置，只做纵向避让和边界限制；适合扇区不密集的图。
+
+外侧标签避让后，第一段引线会按扇区切线重新约束折点位置，避免从扇区到标签的连线穿过饼图主体。
 
 ```kotlin
 pieChart(
@@ -507,13 +510,13 @@ pieChart(
         insets = ChartInsets(left = 140f, top = 48f, right = 32f, bottom = 32f),
         legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
         labelPosition = PieLabelPosition.OUTSIDE,
-        outsideLabelAlignTo = PieLabelAlignTo.EDGE,
+        outsideLabelAlignTo = PieLabelAlignTo.RADIAL,
         minLabelPercent = 0f,
         minShowLabelAngle = 0f,
         outsideLabelOffset = 20f,
         outsideLabelLineLength = 16f,
         outsideLabelMinGap = 5f,
-        outsideLabelEdgeDistance = 48f,
+        outsideLabelBleedMargin = 8f,
         outsideLabelDistanceToLine = 5f
     ),
     data = listOf(
