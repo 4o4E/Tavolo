@@ -225,6 +225,151 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun pieChartOutsideLabelsDrawLeaderLinesAndAvoidDenseOverlap() {
+        val recorder = RecordingDrawCanvas()
+        val data = (1..8).map { index ->
+            PieSlice("L$index", 1f, ChartPalette.Default.colorAt(index))
+        }
+
+        drawPieChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = data,
+            theme = PieChartTheme(
+                width = 320f,
+                height = 260f,
+                radius = 70f,
+                legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
+                labelPosition = PieLabelPosition.OUTSIDE,
+                minLabelPercent = 0f,
+                outsideLabelMinGap = 4f
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 4f))
+        )
+
+        val textLines = recorder.commands.filterIsInstance<DrawCommand.TextLine>()
+        assertEquals(data.size, textLines.size)
+        assertEquals(data.size * 2, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+        assertTrue(textLines.all { it.x in 0f..320f }, "外侧标签应留在饼图画布横向范围内")
+        textLines
+            .groupBy { it.x < 120f }
+            .values
+            .forEach { sideLabels ->
+                sideLabels.map { it.y }.sorted().zipWithNext().forEach { (previous, next) ->
+                    assertTrue(next - previous >= 4f, "同侧外侧标签应至少保持最小垂直间距")
+                }
+                assertEquals(1, sideLabels.map { it.x }.distinct().size, "同侧外侧标签应保持边界对齐")
+        }
+    }
+
+    @Test
+    fun pieChartMinShowLabelAngleSkipsTinyOutsideLabels() {
+        val recorder = RecordingDrawCanvas()
+
+        drawPieChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf(
+                PieSlice("大扇区", 99f, Color.RED),
+                PieSlice("极细扇区", 1f, Color.BLUE)
+            ),
+            theme = PieChartTheme(
+                width = 320f,
+                height = 260f,
+                radius = 70f,
+                legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
+                labelPosition = PieLabelPosition.OUTSIDE,
+                minLabelPercent = 0f,
+                minShowLabelAngle = 10f
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 4f))
+        )
+
+        assertEquals(1, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+        assertTrue(recorder.commands.filterIsInstance<DrawCommand.Line>().isNotEmpty())
+    }
+
+    @Test
+    fun pieChartAutoLabelsKeepLargeSlicesInsideAndMoveTailOutside() {
+        val recorder = RecordingDrawCanvas()
+        val data = listOf(
+            PieSlice("A", 50f, Color.RED),
+            PieSlice("B", 25f, Color.BLUE),
+            PieSlice("C", 12f, Color.GREEN),
+            PieSlice("D", 6f, Color.YELLOW),
+            PieSlice("E", 4f, Color.makeRGB(51, 173, 214)),
+            PieSlice("F", 3f, Color.makeRGB(236, 91, 159))
+        )
+
+        drawPieChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = data,
+            theme = PieChartTheme(
+                width = 320f,
+                height = 260f,
+                radius = 70f,
+                legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
+                labelPosition = PieLabelPosition.AUTO,
+                minLabelPercent = 0f,
+                autoInsideMinPercent = 0.1f,
+                autoInsideMaxLabels = 4
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 4f))
+        )
+
+        assertEquals(data.size, recorder.commands.filterIsInstance<DrawCommand.TextLine>().size)
+        assertEquals(6, recorder.commands.filterIsInstance<DrawCommand.Line>().size)
+    }
+
+    @Test
+    fun drilldownPieChartRendersTopPieAndStaticSummary() {
+        val recorder = RecordingDrawCanvas()
+
+        drawDrilldownPieChart(
+            canvas = recorder,
+            parentX = 0f,
+            parentY = 0f,
+            data = listOf(
+                DrilldownPieSlice(
+                    label = "核心",
+                    value = 6f,
+                    color = Color.RED,
+                    drilldown = listOf(PieSlice("API", 4f), PieSlice("渲染", 2f))
+                ),
+                DrilldownPieSlice(
+                    label = "扩展",
+                    value = 4f,
+                    color = Color.BLUE,
+                    drilldown = listOf(PieSlice("图表", 3f), PieSlice("文档", 1f))
+                ),
+                DrilldownPieSlice("其它", 1f, Color.GREEN)
+            ),
+            theme = DrilldownPieChartTheme(
+                pieTheme = PieChartTheme(
+                    width = 360f,
+                    height = 220f,
+                    radius = 52f,
+                    legend = ChartLegendTheme(position = ChartLegendPosition.RIGHT),
+                    showLabels = false
+                ),
+                summaryMaxGroups = 2,
+                summaryMaxItemsPerGroup = 1
+            ),
+            measureContext = MeasureContext(FixedTextMeasurer(charWidth = 4f))
+        )
+
+        val arcs = recorder.commands.filterIsInstance<DrawCommand.Arc>()
+        assertEquals(6, arcs.size)
+        assertEquals(3, arcs.count { it.paint.mode == PaintMode.FILL })
+        assertTrue(recorder.commands.filterIsInstance<DrawCommand.TextLine>().size >= 7)
+        assertEquals(0, recorder.commands.filterIsInstance<DrawCommand.TextLine>().count { it.x < 120f })
+    }
+
+    @Test
     fun categoryBarChartRecordsGroupedAndStackedBars() {
         val grouped = RecordingDrawCanvas()
         val data = CategoryBarData(

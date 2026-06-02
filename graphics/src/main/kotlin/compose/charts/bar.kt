@@ -2,6 +2,10 @@ package top.e404.tavolo.draw.compose.charts
 
 import org.jetbrains.skia.*
 import top.e404.tavolo.draw.compose.*
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
 
 fun UiElement.bar(theme: BarTheme, data: List<Pair<Int, Float>>) = add(
     CanvasElement(
@@ -98,6 +102,28 @@ data class PieSlice(
     val color: Int? = null
 )
 
+data class DrilldownPieSlice(
+    val label: String,
+    val value: Float,
+    val color: Int? = null,
+    val drilldown: List<PieSlice> = emptyList()
+)
+
+enum class PieLabelPosition {
+    INSIDE,
+    OUTSIDE,
+    AUTO
+}
+
+/**
+ * 外侧饼图标签的横向对齐策略，语义接近 ECharts 的 label.alignTo。
+ */
+enum class PieLabelAlignTo {
+    NONE,
+    LABEL_LINE,
+    EDGE
+}
+
 data class PieChartTheme(
     val width: Float,
     val height: Float,
@@ -111,7 +137,20 @@ data class PieChartTheme(
     val strokeWidth: Float = 1.5f,
     val showLabels: Boolean = true,
     val labelTextStyle: ChartTextStyle = ChartTextStyle(12f, Color.makeRGB(42, 48, 58)),
+    val labelPosition: PieLabelPosition = PieLabelPosition.INSIDE,
     val minLabelPercent: Float = 0.04f,
+    val minShowLabelAngle: Float = 0f,
+    val autoInsideMinPercent: Float = 0.1f,
+    val autoInsideMaxLabels: Int = 4,
+    val outsideLabelAlignTo: PieLabelAlignTo = PieLabelAlignTo.EDGE,
+    val outsideLabelOffset: Float = 18f,
+    val outsideLabelLineLength: Float = 16f,
+    val outsideLabelMinGap: Float = 4f,
+    val outsideLabelEdgeDistance: Float = 8f,
+    val outsideLabelBleedMargin: Float = 8f,
+    val outsideLabelDistanceToLine: Float = 4f,
+    val outsideLabelLineColor: Int = Color.makeARGB(150, 105, 122, 140),
+    val outsideLabelLineWidth: Float = 1f,
     val maxNamedSlices: Int? = null,
     val othersLabel: String = "其它",
     val labelFormatter: (PieSlice, Float, Float) -> String = { slice, _, total ->
@@ -124,6 +163,25 @@ data class PieChartTheme(
     val stroke: ChartStroke get() = ChartStroke(strokeColor, strokeWidth)
 }
 
+data class DrilldownPieChartTheme(
+    val pieTheme: PieChartTheme,
+    val summaryTitle: String = "下钻摘要",
+    val summaryMaxGroups: Int = 4,
+    val summaryMaxItemsPerGroup: Int = 3,
+    val summaryLeftGap: Float = 24f,
+    val summaryWidth: Float? = null,
+    val summaryTitleTextStyle: ChartTextStyle = ChartTextStyle(14f, Color.makeRGB(35, 44, 58), fontWeight = 700),
+    val summaryGroupTextStyle: ChartTextStyle = ChartTextStyle(12f, Color.makeRGB(56, 64, 76), fontWeight = 700),
+    val summaryItemTextStyle: ChartTextStyle = ChartTextStyle(11f, Color.makeRGB(86, 96, 112)),
+    val summarySwatchSize: Float = 8f,
+    val summaryItemGap: Float = 6f,
+    val summaryGroupGap: Float = 10f,
+    val summaryOthersLabel: String = "其它",
+    val summaryValueFormatter: (PieSlice, Float, Float) -> String = { slice, _, total ->
+        "${slice.label} ${formatChartPercent(slice.value, total)}"
+    }
+)
+
 fun UiElement.pieChart(theme: PieChartTheme, data: List<PieSlice>) = add(
     CanvasElement(theme.width, theme.height) { canvas, measureContext ->
         drawPieChart(canvas, parentX, parentY, data, theme, measureContext)
@@ -131,6 +189,12 @@ fun UiElement.pieChart(theme: PieChartTheme, data: List<PieSlice>) = add(
 )
 
 fun UiElement.donutChart(theme: PieChartTheme, data: List<PieSlice>) = pieChart(theme, data)
+
+fun UiElement.drilldownPieChart(theme: DrilldownPieChartTheme, data: List<DrilldownPieSlice>) = add(
+    CanvasElement(theme.pieTheme.width, theme.pieTheme.height) { canvas, measureContext ->
+        drawDrilldownPieChart(canvas, parentX, parentY, data, theme, measureContext)
+    }
+)
 
 fun drawPieChart(
     canvas: DrawCanvas,
@@ -176,7 +240,7 @@ fun drawPieChart(
         if (theme.strokeWidth > 0f) {
             canvas.drawArc(left, top, right, bottom, start, sweep, true, strokePaint)
         }
-        if (theme.showLabels && slice.value / total >= theme.minLabelPercent) {
+        if (theme.showLabels && slice.value / total >= theme.minLabelPercent && sweep >= theme.minShowLabelAngle) {
             labelStates += PieLabelState(slice, start, sweep)
         }
         start += sweep
@@ -206,10 +270,55 @@ fun drawPieChart(
     }
 }
 
+fun drawDrilldownPieChart(
+    canvas: DrawCanvas,
+    parentX: Float,
+    parentY: Float,
+    data: List<DrilldownPieSlice>,
+    theme: DrilldownPieChartTheme,
+    measureContext: MeasureContext = MeasureContext()
+) {
+    val slices = resolveDrilldownPieSlices(data, theme.pieTheme.palette)
+    if (slices.isEmpty()) return
+    val topData = slices.map { PieSlice(it.label, it.value, it.color) }
+
+    // drilldown_pie 的静态摘要会占用右侧空间，因此顶层图例固定由摘要区承担。
+    drawPieChart(
+        canvas = canvas,
+        parentX = parentX,
+        parentY = parentY,
+        data = topData,
+        theme = theme.pieTheme.copy(legend = ChartLegendTheme(position = ChartLegendPosition.NONE)),
+        measureContext = measureContext
+    )
+    drawDrilldownSummary(canvas, parentX, parentY, slices, theme, measureContext)
+}
+
 private data class PieLabelState(
     val slice: PieSlice,
     val startAngle: Float,
     val sweepAngle: Float
+) {
+    val midAngle: Float get() = startAngle + sweepAngle / 2f
+}
+
+private enum class PieLabelSide {
+    LEFT,
+    RIGHT
+}
+
+private data class OutsidePieLabel(
+    val state: PieLabelState,
+    val measured: ChartMeasuredText,
+    val side: PieLabelSide,
+    val anchorX: Float,
+    val anchorY: Float,
+    val elbowX: Float,
+    val elbowY: Float,
+    val labelX: Float,
+    val lineEndX: Float,
+    val desiredTop: Float,
+    val labelTop: Float = desiredTop
 )
 
 private fun normalizePieSlices(data: List<PieSlice>, theme: PieChartTheme): List<PieSlice> {
@@ -228,7 +337,124 @@ private fun normalizePieSlices(data: List<PieSlice>, theme: PieChartTheme): List
     }
 }
 
+private fun resolveDrilldownPieSlices(data: List<DrilldownPieSlice>, palette: ChartPalette): List<DrilldownPieSlice> {
+    return data
+        .filter { it.value > 0f }
+        .mapIndexed { index, slice ->
+            slice.copy(
+                color = slice.color ?: palette.colorAt(index),
+                drilldown = resolvePieSliceColors(slice.drilldown, palette)
+            )
+        }
+}
+
+private fun resolvePieSliceColors(data: List<PieSlice>, palette: ChartPalette): List<PieSlice> {
+    return data
+        .filter { it.value > 0f }
+        .sortedByDescending { it.value }
+        .mapIndexed { index, slice -> slice.copy(color = slice.color ?: palette.colorAt(index)) }
+}
+
+private fun drawDrilldownSummary(
+    canvas: DrawCanvas,
+    parentX: Float,
+    parentY: Float,
+    slices: List<DrilldownPieSlice>,
+    theme: DrilldownPieChartTheme,
+    measureContext: MeasureContext
+) {
+    val pieTheme = theme.pieTheme
+    val total = slices.sumOf { it.value.toDouble() }.toFloat()
+    val summaryLeft = parentX + pieTheme.insets.left + pieTheme.radius * 2f + theme.summaryLeftGap
+    val summaryRight = parentX + pieTheme.width - pieTheme.insets.right
+    val summaryWidth = (theme.summaryWidth ?: (summaryRight - summaryLeft)).coerceAtLeast(0f)
+    if (summaryWidth <= 0f) return
+
+    var y = parentY + pieTheme.insets.top
+    if (theme.summaryTitle.isNotBlank()) {
+        val title = measureChartTextBox(theme.summaryTitle, theme.summaryTitleTextStyle, measureContext)
+        drawMeasuredChartText(canvas, title, summaryLeft, y, theme.summaryTitleTextStyle)
+        y += title.box.height + theme.summaryGroupGap
+    }
+
+    slices
+        .sortedByDescending { it.value }
+        .take(theme.summaryMaxGroups.coerceAtLeast(0))
+        .forEach { slice ->
+            val header = measureChartTextBox("${slice.label} ${formatChartPercent(slice.value, total)}", theme.summaryGroupTextStyle, measureContext)
+            val swatchTop = y + (header.box.height - theme.summarySwatchSize) / 2f
+            canvas.drawRect(Rect.makeXYWH(summaryLeft, swatchTop, theme.summarySwatchSize, theme.summarySwatchSize), ChartFill(slice.color!!).toPaint())
+            drawMeasuredChartText(
+                canvas,
+                header,
+                summaryLeft + theme.summarySwatchSize + theme.summaryItemGap,
+                y,
+                theme.summaryGroupTextStyle
+            )
+            y += header.box.height + theme.summaryItemGap
+
+            normalizedDrilldownItems(slice.drilldown, theme).forEach { item ->
+                val itemTotal = slice.drilldown.sumOf { it.value.toDouble() }.toFloat()
+                val itemText = theme.summaryValueFormatter(item, item.value / itemTotal.coerceAtLeast(0.0001f), itemTotal)
+                val measured = measureChartTextBox(itemText, theme.summaryItemTextStyle, measureContext)
+                val itemX = summaryLeft + theme.summarySwatchSize + theme.summaryItemGap
+                drawMeasuredChartText(canvas, measured, itemX, y, theme.summaryItemTextStyle)
+                y += measured.box.height + theme.summaryItemGap
+            }
+            y += theme.summaryGroupGap
+        }
+}
+
+private fun normalizedDrilldownItems(data: List<PieSlice>, theme: DrilldownPieChartTheme): List<PieSlice> {
+    val positive = data.filter { it.value > 0f }.sortedByDescending { it.value }
+    val limit = theme.summaryMaxItemsPerGroup.coerceAtLeast(0)
+    if (positive.size <= limit) return positive
+    val named = positive.take(limit)
+    val othersValue = positive.drop(limit).sumOf { it.value.toDouble() }.toFloat()
+    return if (othersValue > 0f) named + PieSlice(theme.summaryOthersLabel, othersValue) else named
+}
+
+private fun drawMeasuredChartText(
+    canvas: DrawCanvas,
+    measured: ChartMeasuredText,
+    x: Float,
+    top: Float,
+    style: ChartTextStyle
+) {
+    canvas.drawTextLine(measured.line, x, top - measured.box.ascent, style.toPaint())
+}
+
 private fun drawPieLabels(
+    canvas: DrawCanvas,
+    centerX: Float,
+    centerY: Float,
+    labels: List<PieLabelState>,
+    total: Float,
+    theme: PieChartTheme,
+    measureContext: MeasureContext
+) {
+    when (theme.labelPosition) {
+        PieLabelPosition.INSIDE -> drawInsidePieLabels(canvas, centerX, centerY, labels, total, theme, measureContext)
+        PieLabelPosition.OUTSIDE -> drawOutsidePieLabels(canvas, centerX, centerY, labels, total, theme, measureContext)
+        PieLabelPosition.AUTO -> {
+            if (labels.size < 6) {
+                drawInsidePieLabels(canvas, centerX, centerY, labels, total, theme, measureContext)
+            } else {
+                val insideSet = labels
+                    .sortedByDescending { it.slice.value }
+                    .filter { it.slice.value / total >= theme.autoInsideMinPercent }
+                    .take(theme.autoInsideMaxLabels.coerceAtLeast(0))
+                    .toSet()
+                val insideLabels = labels.filter { it in insideSet }
+                val outsideLabels = labels.filter { it !in insideSet }
+                drawInsidePieLabels(canvas, centerX, centerY, insideLabels, total, theme, measureContext)
+                drawOutsidePieLabels(canvas, centerX, centerY, outsideLabels, total, theme, measureContext)
+            }
+        }
+    }
+}
+
+private fun drawInsidePieLabels(
     canvas: DrawCanvas,
     centerX: Float,
     centerY: Float,
@@ -250,5 +476,184 @@ private fun drawPieLabels(
         val x = centerX + kotlin.math.cos(angle).toFloat() * labelRadius - measured.box.width / 2f
         val y = centerY + kotlin.math.sin(angle).toFloat() * labelRadius - (measured.box.ascent + measured.box.descent) / 2f
         canvas.drawTextLine(measured.line, x, y, textPaint)
+    }
+}
+
+private fun drawOutsidePieLabels(
+    canvas: DrawCanvas,
+    centerX: Float,
+    centerY: Float,
+    labels: List<PieLabelState>,
+    total: Float,
+    theme: PieChartTheme,
+    measureContext: MeasureContext
+) {
+    if (labels.isEmpty()) return
+    val linePaint = ChartStroke(theme.outsideLabelLineColor, theme.outsideLabelLineWidth).toPaint()
+    val textPaint = theme.labelTextStyle.toPaint()
+    val parentX = centerX - theme.insets.left - theme.radius
+    val parentY = centerY - theme.insets.top - theme.radius
+    val viewLeft = parentX
+    val viewRight = parentX + theme.width
+    val viewTop = parentY
+    val viewBottom = parentY + theme.height
+    val labelOffset = theme.outsideLabelOffset.coerceAtLeast(0f)
+    val labelLineLength = theme.outsideLabelLineLength.coerceAtLeast(0f)
+    val topLimit = max(centerY - theme.radius - labelOffset, viewTop)
+    val bottomLimit = min(centerY + theme.radius + labelOffset, viewBottom)
+    // 先保留扇区自然折点，避让只移动折点后的纵向段，避免引线直接斜穿到文本。
+    val rawLabels = labels.map { state ->
+        val angle = Math.toRadians(state.midAngle.toDouble())
+        val cosValue = cos(angle).toFloat()
+        val sinValue = sin(angle).toFloat()
+        val side = if (cosValue >= 0f) PieLabelSide.RIGHT else PieLabelSide.LEFT
+        val label = theme.labelFormatter(state.slice, state.slice.value / total, total)
+        val measured = measureChartTextBox(label, theme.labelTextStyle, measureContext)
+        val anchorX = centerX + cosValue * theme.radius
+        val anchorY = centerY + sinValue * theme.radius
+        val sideSign = if (side == PieLabelSide.RIGHT) 1f else -1f
+        val elbowX = centerX + cosValue * (theme.radius + labelOffset)
+        val elbowY = centerY + sinValue * (theme.radius + labelOffset)
+        val lineEndX = elbowX + sideSign * labelLineLength
+        val labelX = if (side == PieLabelSide.RIGHT) {
+            lineEndX + theme.outsideLabelDistanceToLine
+        } else {
+            lineEndX - theme.outsideLabelDistanceToLine - measured.box.width
+        }
+        OutsidePieLabel(
+            state = state,
+            measured = measured,
+            side = side,
+            anchorX = anchorX,
+            anchorY = anchorY,
+            elbowX = elbowX,
+            elbowY = elbowY,
+            labelX = labelX,
+            lineEndX = lineEndX,
+            desiredTop = elbowY - measured.box.height / 2f
+        )
+    }
+
+    rawLabels
+        .groupBy { it.side }
+        .entries
+        .flatMap { (side, sideLabels) ->
+            layoutOutsideLabelSide(sideLabels, side, topLimit, bottomLimit, viewLeft, viewRight, theme)
+        }
+        .forEach { label ->
+            val labelCenterY = label.labelTop + label.measured.box.height / 2f
+            canvas.drawLine(label.anchorX, label.anchorY, label.elbowX, labelCenterY, linePaint)
+            canvas.drawLine(label.elbowX, labelCenterY, label.lineEndX, labelCenterY, linePaint)
+            canvas.drawTextLine(
+                label.measured.line,
+                label.labelX,
+                label.labelTop - label.measured.box.ascent,
+                textPaint
+            )
+        }
+}
+
+private fun layoutOutsideLabelSide(
+    labels: List<OutsidePieLabel>,
+    side: PieLabelSide,
+    topLimit: Float,
+    bottomLimit: Float,
+    viewLeft: Float,
+    viewRight: Float,
+    theme: PieChartTheme
+): List<OutsidePieLabel> {
+    val adjusted = avoidOutsideLabelOverlap(labels, topLimit, bottomLimit, theme.outsideLabelMinGap)
+    if (adjusted.isEmpty()) return emptyList()
+
+    // 纵向位置已在上一步确定，这里只根据对齐策略重新计算文本和水平引线的 X 坐标。
+    val sideSign = if (side == PieLabelSide.RIGHT) 1f else -1f
+    val distanceToLine = theme.outsideLabelDistanceToLine.coerceAtLeast(0f)
+    return when (theme.outsideLabelAlignTo) {
+        PieLabelAlignTo.EDGE -> adjusted.map { label ->
+            val safeEdge = theme.outsideLabelEdgeDistance.coerceAtLeast(0f)
+            val labelX = if (side == PieLabelSide.RIGHT) {
+                viewRight - safeEdge - label.measured.box.width
+            } else {
+                viewLeft + safeEdge
+            }
+            val lineEndX = if (side == PieLabelSide.RIGHT) {
+                labelX - distanceToLine
+            } else {
+                labelX + label.measured.box.width + distanceToLine
+            }
+            label.copy(labelX = labelX, lineEndX = lineEndX)
+        }
+
+        PieLabelAlignTo.LABEL_LINE -> {
+            val bleedMargin = theme.outsideLabelBleedMargin.coerceAtLeast(0f)
+            val widest = adjusted.maxOf { it.measured.box.width }
+            val naturalEndX = if (side == PieLabelSide.RIGHT) {
+                adjusted.maxOf { it.elbowX } + theme.outsideLabelLineLength.coerceAtLeast(0f)
+            } else {
+                adjusted.minOf { it.elbowX } - theme.outsideLabelLineLength.coerceAtLeast(0f)
+            }
+            val lineEndX = if (side == PieLabelSide.RIGHT) {
+                naturalEndX.coerceAtMost(viewRight - bleedMargin - widest - distanceToLine)
+            } else {
+                naturalEndX.coerceAtLeast(viewLeft + bleedMargin + widest + distanceToLine)
+            }
+            adjusted.map { label ->
+                val labelX = if (side == PieLabelSide.RIGHT) {
+                    lineEndX + distanceToLine
+                } else {
+                    lineEndX - distanceToLine - label.measured.box.width
+                }
+                label.copy(labelX = labelX, lineEndX = lineEndX)
+            }
+        }
+
+        PieLabelAlignTo.NONE -> adjusted.map { label ->
+            val bleedMargin = theme.outsideLabelBleedMargin.coerceAtLeast(0f)
+            val naturalLineEndX = label.elbowX + sideSign * theme.outsideLabelLineLength.coerceAtLeast(0f)
+            val labelX = if (side == PieLabelSide.RIGHT) {
+                (naturalLineEndX + distanceToLine)
+                    .coerceAtMost(viewRight - bleedMargin - label.measured.box.width)
+            } else {
+                (naturalLineEndX - distanceToLine - label.measured.box.width)
+                    .coerceAtLeast(viewLeft + bleedMargin)
+            }
+            val lineEndX = if (side == PieLabelSide.RIGHT) {
+                labelX - distanceToLine
+            } else {
+                labelX + label.measured.box.width + distanceToLine
+            }
+            label.copy(labelX = labelX, lineEndX = lineEndX)
+        }
+    }
+}
+
+private fun avoidOutsideLabelOverlap(
+    labels: List<OutsidePieLabel>,
+    topLimit: Float,
+    bottomLimit: Float,
+    minGap: Float
+): List<OutsidePieLabel> {
+    if (labels.isEmpty()) return emptyList()
+    val sorted = labels.sortedBy { it.desiredTop }
+    val forward = mutableListOf<OutsidePieLabel>()
+    sorted.forEach { label ->
+        val minTop = forward.lastOrNull()?.let { it.labelTop + it.measured.box.height + minGap } ?: topLimit
+        forward += label.copy(labelTop = max(label.desiredTop, minTop))
+    }
+
+    val backward = forward.toMutableList()
+    for (index in backward.indices.reversed()) {
+        val label = backward[index]
+        val maxTop = if (index == backward.lastIndex) {
+            bottomLimit - label.measured.box.height
+        } else {
+            backward[index + 1].labelTop - label.measured.box.height - minGap
+        }
+        backward[index] = label.copy(labelTop = min(label.labelTop, maxTop))
+    }
+
+    return backward.mapIndexed { index, label ->
+        val minTop = backward.getOrNull(index - 1)?.let { it.labelTop + it.measured.box.height + minGap } ?: topLimit
+        label.copy(labelTop = max(label.labelTop, minTop))
     }
 }

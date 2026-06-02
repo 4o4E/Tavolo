@@ -426,21 +426,32 @@ lineChart(lineTheme, series)
 
 - `pieChart(theme: PieChartTheme, data: List<PieSlice>)`
 - `donutChart(theme: PieChartTheme, data: List<PieSlice>)`
+- `drilldownPieChart(theme: DrilldownPieChartTheme, data: List<DrilldownPieSlice>)`
 
-适用场景：分类占比、构成比例、Top N 分类。`simple_pie` 使用普通 `pieChart`，`advanced_pie` 可开启 `maxNamedSlices` 合并长尾；donut 通过 `innerRadius` 表达环形图。
+适用场景：分类占比、构成比例、Top N 分类和 bStats 风格下钻摘要。`simple_pie` 使用普通 `pieChart`，`advanced_pie` 可开启 `maxNamedSlices` 合并长尾；donut 通过 `innerRadius` 表达环形图；`drilldown_pie` 使用 `drilldownPieChart` 静态展示顶层 `seriesData` 和下钻明细摘要。
 
 关键数据模型：
 
 - `PieSlice.label`: 扇区名称。
 - `PieSlice.value`: 扇区数值；非正数会被忽略。
 - `PieSlice.color`: 扇区颜色；不传则从 `ChartPalette` 取色。
+- `DrilldownPieSlice.drilldown`: 当前顶层扇区的下钻明细，用 `PieSlice` 表达。
 
 常用主题参数：
 
 - `radius`: 外半径。
 - `innerRadius`: 内半径，`0f` 是实心饼图，大于 `0f` 是 donut。
 - `maxNamedSlices`: 只保留前 N 个分类，其余合并为 `othersLabel`。
-- `minLabelPercent`: 低于该占比的小扇区不画扇区内标签。
+- `minLabelPercent`: 低于该占比的小扇区不画标签。
+- `minShowLabelAngle`: 低于该角度的小扇区不画标签和外侧引线，适合过滤极细扇区。
+- `labelPosition`: 标签位置，`INSIDE` 为扇区内标签，`OUTSIDE` 为全部外侧标签和引线，`AUTO` 在标签较多时保留大扇区内置、小扇区外置。
+- `autoInsideMinPercent` / `autoInsideMaxLabels`: `AUTO` 模式下允许内置显示的最小占比和最多标签数。
+- `outsideLabelAlignTo`: 外侧标签横向对齐策略，`EDGE` 将文本边缘对齐到图表画布边界，`LABEL_LINE` 将文本对齐到同侧引线终点，`NONE` 保留每个扇区的自然引线位置。
+- `outsideLabelOffset` / `outsideLabelLineLength`: 外侧引线的径向外扩距离和水平段长度。
+- `outsideLabelMinGap`: 同侧外侧标签最小垂直间距。
+- `outsideLabelEdgeDistance`: `EDGE` 模式下文本边缘到画布边界的距离。
+- `outsideLabelBleedMargin`: `NONE` / `LABEL_LINE` 模式下文本到画布边界的最小距离。
+- `outsideLabelDistanceToLine`: 外侧文本和引线终点之间的距离。
 - `labelFormatter`: 扇区内标签格式。
 - `legendLabelFormatter`: 图例标签格式，默认包含百分比。
 - `startAngle`: 起始角度，默认从顶部开始。
@@ -479,7 +490,84 @@ donutChart(
 )
 ```
 
-当前饼图标签不会做复杂避让。分类很多或小扇区很多时，优先用 `maxNamedSlices` 合并长尾，或提高 `minLabelPercent` 隐藏小标签。
+分类很多或小扇区很多，并且希望每个扇区都有可读标签时，推荐使用 `OUTSIDE` 全外侧标签。外侧标签会先按扇区中点分到左右两侧，再在同侧做纵向避让，最后重新计算文本位置和引线终点，避免标签因为避让被推出画布。`AUTO` 更适合大扇区内置、小扇区外置的混合展示。
+
+外侧标签对齐策略建议：
+
+- `PieLabelAlignTo.EDGE`: 默认策略，优先保证文本在 `PieChartTheme.width` / `height` 画布内完整可见；适合静态图片和卡片式报表。
+- `PieLabelAlignTo.LABEL_LINE`: 同侧标签沿引线终点对齐，视觉更紧凑；适合左右预留空间明确的图。
+- `PieLabelAlignTo.NONE`: 保留每个扇区的自然外侧位置，只做纵向避让和边界限制；适合扇区不密集的图。
+
+```kotlin
+pieChart(
+    theme = PieChartTheme(
+        width = 520f,
+        height = 300f,
+        radius = 86f,
+        insets = ChartInsets(left = 140f, top = 48f, right = 32f, bottom = 32f),
+        legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
+        labelPosition = PieLabelPosition.OUTSIDE,
+        outsideLabelAlignTo = PieLabelAlignTo.EDGE,
+        minLabelPercent = 0f,
+        minShowLabelAngle = 0f,
+        outsideLabelOffset = 20f,
+        outsideLabelLineLength = 16f,
+        outsideLabelMinGap = 5f,
+        outsideLabelEdgeDistance = 48f,
+        outsideLabelDistanceToLine = 5f
+    ),
+    data = listOf(
+        PieSlice("A", 13f),
+        PieSlice("B", 11f),
+        PieSlice("C", 10f),
+        PieSlice("D", 9f),
+        PieSlice("E", 8f),
+        PieSlice("F", 7f),
+        PieSlice("G", 6f),
+        PieSlice("H", 5f)
+    )
+)
+```
+
+`drilldownPieChart` 面向静态图片，不做交互式下钻。它左侧渲染顶层饼图，右侧按顶层分类输出下钻明细摘要；摘要区会承担顶层图例职责，因此传入的 `pieTheme.legend` 会被忽略：
+
+```kotlin
+drilldownPieChart(
+    theme = DrilldownPieChartTheme(
+        pieTheme = PieChartTheme(
+            width = 560f,
+            height = 300f,
+            radius = 82f,
+            legend = ChartLegendTheme(position = ChartLegendPosition.NONE),
+            labelFormatter = { slice, _, _ -> slice.label }
+        ),
+        summaryTitle = "下钻摘要",
+        summaryMaxGroups = 3,
+        summaryMaxItemsPerGroup = 2
+    ),
+    data = listOf(
+        DrilldownPieSlice(
+            label = "核心",
+            value = 42f,
+            drilldown = listOf(
+                PieSlice("渲染", 18f),
+                PieSlice("布局", 14f),
+                PieSlice("文本", 10f)
+            )
+        ),
+        DrilldownPieSlice(
+            label = "图表",
+            value = 31f,
+            drilldown = listOf(
+                PieSlice("折线", 10f),
+                PieSlice("饼图", 9f),
+                PieSlice("柱状", 7f),
+                PieSlice("关系", 5f)
+            )
+        )
+    )
+)
+```
 
 ### 分类柱状图
 

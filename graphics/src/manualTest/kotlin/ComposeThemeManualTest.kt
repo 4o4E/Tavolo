@@ -59,9 +59,13 @@ import top.e404.tavolo.draw.compose.charts.ChartLegendPosition
 import top.e404.tavolo.draw.compose.charts.ChartLegendTheme
 import top.e404.tavolo.draw.compose.charts.ChartPalette
 import top.e404.tavolo.draw.compose.charts.ChartTextStyle
+import top.e404.tavolo.draw.compose.charts.DrilldownPieChartTheme
+import top.e404.tavolo.draw.compose.charts.DrilldownPieSlice
 import top.e404.tavolo.draw.compose.charts.LineChartTheme
 import top.e404.tavolo.draw.compose.charts.LinePoint
 import top.e404.tavolo.draw.compose.charts.LineSeries
+import top.e404.tavolo.draw.compose.charts.PieLabelAlignTo
+import top.e404.tavolo.draw.compose.charts.PieLabelPosition
 import top.e404.tavolo.draw.compose.charts.PieChartTheme
 import top.e404.tavolo.draw.compose.charts.PieSlice
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
@@ -76,6 +80,7 @@ import top.e404.tavolo.draw.compose.charts.bar
 import top.e404.tavolo.draw.compose.charts.categoryBarChart
 import top.e404.tavolo.draw.compose.charts.chartContainer
 import top.e404.tavolo.draw.compose.charts.donutChart
+import top.e404.tavolo.draw.compose.charts.drilldownPieChart
 import top.e404.tavolo.draw.compose.charts.lineChart
 import top.e404.tavolo.draw.compose.charts.pieChart
 import top.e404.tavolo.draw.compose.charts.radar
@@ -371,7 +376,7 @@ class ComposeThemeManualTest {
     @Test
     fun test_compose_theme_charts() {
         ManualTestSupport.saveCompose("主题-图表-统计图能力合集") {
-            themePage("图表主题", "折线图、饼图、donut、分组/堆叠柱状图、legacy donut 与 radar 变体", width = 1680f, height = 1840f) {
+            themePage("图表主题", "折线图、饼图、donut、分组/堆叠柱状图、legacy donut 与 radar 变体", width = 1680f, height = 2260f) {
                 row {
                     lineAbilityCard(
                         title = "折线图：单系列趋势",
@@ -421,6 +426,11 @@ class ComposeThemeManualTest {
                         mode = BarChartMode.STACKED,
                         yMax = 160f
                     )
+                }
+                row(modifier = Modifier.padding(top = 26f)) {
+                    densePieAbilityCard()
+                    gap(26f)
+                    drilldownPieAbilityCard()
                 }
                 row(modifier = Modifier.padding(top = 26f)) {
                     chartCard("Legacy Donut 均分", 260f, 310f) {
@@ -718,6 +728,72 @@ class ComposeThemeManualTest {
             } else {
                 pieChart(pieTheme(donut = false, maxNamedSlices = maxNamedSlices), data)
             }
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.densePieAbilityCard() {
+        chartContainer(
+            title = "饼图：外侧标签避让",
+            caption = "覆盖左右外侧标签、边界对齐、水平引线和同侧纵向避让",
+            theme = chartCardContainerTheme(width = 520f, textMaxWidth = 440f)
+        ) {
+            pieChart(
+                PieChartTheme(
+                    width = 470f,
+                    height = 292f,
+                    radius = 82f,
+                    insets = ChartInsets(left = 132f, top = 42f, right = 24f, bottom = 24f),
+                    palette = chartPalette(),
+                    legend = chartLegend(ChartLegendPosition.NONE),
+                    labelPosition = PieLabelPosition.OUTSIDE,
+                    outsideLabelAlignTo = PieLabelAlignTo.EDGE,
+                    labelTextStyle = ChartTextStyle(12f, muted, uiFont),
+                    minLabelPercent = 0f,
+                    outsideLabelOffset = 20f,
+                    outsideLabelLineLength = 14f,
+                    outsideLabelMinGap = 5f,
+                    outsideLabelEdgeDistance = 54f,
+                    outsideLabelDistanceToLine = 5f,
+                    labelFormatter = { slice, _, total -> "${slice.label} ${((slice.value / total) * 100).toInt()}%" }
+                ),
+                pieDenseSlices
+            )
+        }
+    }
+
+    @UiDsl
+    private fun UiElement.drilldownPieAbilityCard() {
+        chartContainer(
+            title = "Drilldown Pie：静态摘要",
+            caption = "覆盖顶层 seriesData 饼图和右侧下钻 Top N 摘要",
+            theme = chartCardContainerTheme(width = 520f, textMaxWidth = 440f)
+        ) {
+            drilldownPieChart(
+                DrilldownPieChartTheme(
+                    pieTheme = PieChartTheme(
+                        width = 470f,
+                        height = 292f,
+                        radius = 78f,
+                        insets = ChartInsets(left = 28f, top = 44f, right = 24f, bottom = 24f),
+                        palette = chartPalette(),
+                        legend = chartLegend(ChartLegendPosition.RIGHT),
+                        labelTextStyle = ChartTextStyle(12f, Color.WHITE, uiFont),
+                        minLabelPercent = 0.08f,
+                        labelFormatter = { slice, _, _ -> slice.label }
+                    ),
+                    summaryTitle = "下钻摘要",
+                    summaryMaxGroups = 2,
+                    summaryMaxItemsPerGroup = 1,
+                    summaryLeftGap = 28f,
+                    summaryTitleTextStyle = ChartTextStyle(14f, ink, uiFont, fontWeight = 700),
+                    summaryGroupTextStyle = ChartTextStyle(12f, ink, uiFont, fontWeight = 700),
+                    summaryItemTextStyle = ChartTextStyle(11f, muted, uiFont),
+                    summaryItemGap = 4f,
+                    summaryGroupGap = 8f
+                ),
+                drilldownPieData
+            )
         }
     }
 
@@ -1231,6 +1307,60 @@ class ComposeThemeManualTest {
             PieSlice("表格", 8f, Color.makeRGB(132, 94, 247)),
             PieSlice("图标", 5f, Color.makeRGB(40, 177, 210)),
             PieSlice("其它", 2f, Color.makeRGB(98, 114, 136))
+        )
+        val pieDenseSlices = listOf(
+            PieSlice("A", 13f, blue),
+            PieSlice("B", 11f, green),
+            PieSlice("C", 10f, red),
+            PieSlice("D", 9f, yellow),
+            PieSlice("E", 8f, Color.makeRGB(132, 94, 247)),
+            PieSlice("F", 7f, Color.makeRGB(40, 177, 210)),
+            PieSlice("G", 6f, Color.makeRGB(233, 92, 156)),
+            PieSlice("H", 5f, Color.makeRGB(98, 114, 136)),
+            PieSlice("I", 4f, Color.makeRGB(255, 145, 77)),
+            PieSlice("J", 3f, Color.makeRGB(78, 188, 104))
+        )
+        val drilldownPieData = listOf(
+            DrilldownPieSlice(
+                label = "核心",
+                value = 42f,
+                color = blue,
+                drilldown = listOf(
+                    PieSlice("渲染", 18f),
+                    PieSlice("布局", 14f),
+                    PieSlice("文本", 10f)
+                )
+            ),
+            DrilldownPieSlice(
+                label = "图表",
+                value = 31f,
+                color = green,
+                drilldown = listOf(
+                    PieSlice("折线", 10f),
+                    PieSlice("饼图", 9f),
+                    PieSlice("柱状", 7f),
+                    PieSlice("关系", 5f)
+                )
+            ),
+            DrilldownPieSlice(
+                label = "文档",
+                value = 17f,
+                color = yellow,
+                drilldown = listOf(
+                    PieSlice("README", 9f),
+                    PieSlice("示例", 5f),
+                    PieSlice("TODO", 3f)
+                )
+            ),
+            DrilldownPieSlice(
+                label = "测试",
+                value = 10f,
+                color = red,
+                drilldown = listOf(
+                    PieSlice("单元", 6f),
+                    PieSlice("人工", 4f)
+                )
+            )
         )
         val groupedBarData = CategoryBarData(
             categories = listOf("周一", "周二", "周三", "周四"),
