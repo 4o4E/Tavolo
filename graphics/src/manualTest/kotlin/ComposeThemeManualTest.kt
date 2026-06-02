@@ -54,6 +54,7 @@ import top.e404.tavolo.draw.compose.charts.BarSeries
 import top.e404.tavolo.draw.compose.charts.CategoryBarData
 import top.e404.tavolo.draw.compose.charts.CategoryBarTheme
 import top.e404.tavolo.draw.compose.charts.ChartInsets
+import top.e404.tavolo.draw.compose.charts.ChartContainerTheme
 import top.e404.tavolo.draw.compose.charts.ChartLegendPosition
 import top.e404.tavolo.draw.compose.charts.ChartLegendTheme
 import top.e404.tavolo.draw.compose.charts.ChartPalette
@@ -73,6 +74,7 @@ import top.e404.tavolo.draw.compose.charts.RelationNode
 import top.e404.tavolo.draw.compose.charts.RelationNodeDrawer
 import top.e404.tavolo.draw.compose.charts.bar
 import top.e404.tavolo.draw.compose.charts.categoryBarChart
+import top.e404.tavolo.draw.compose.charts.chartContainer
 import top.e404.tavolo.draw.compose.charts.donutChart
 import top.e404.tavolo.draw.compose.charts.lineChart
 import top.e404.tavolo.draw.compose.charts.pieChart
@@ -666,7 +668,11 @@ class ComposeThemeManualTest {
         fill: Boolean,
         yMax: Float
     ) {
-        themeCard(title, 520f, 420f) {
+        chartContainer(
+            title = title,
+            caption = description,
+            theme = chartCardContainerTheme(width = 520f, textMaxWidth = 440f)
+        ) {
             val preparedSeries = if (fill) {
                 series.map { item -> item.copy(fillColor = item.fillColor ?: translucent(item.color ?: blue, 32)) }
             } else {
@@ -691,7 +697,6 @@ class ComposeThemeManualTest {
                 ),
                 preparedSeries
             )
-            text(description, modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 440f), textModifier = captionText)
         }
     }
 
@@ -703,13 +708,16 @@ class ComposeThemeManualTest {
         data: List<PieSlice>,
         maxNamedSlices: Int? = null
     ) {
-        themeCard(title, 500f, 420f) {
+        chartContainer(
+            title = title,
+            caption = description,
+            theme = chartCardContainerTheme(width = 500f, textMaxWidth = 440f)
+        ) {
             if (donut) {
                 donutChart(pieTheme(donut = true, maxNamedSlices = maxNamedSlices), data)
             } else {
                 pieChart(pieTheme(donut = false, maxNamedSlices = maxNamedSlices), data)
             }
-            text(description, modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 440f), textModifier = captionText)
         }
     }
 
@@ -722,7 +730,11 @@ class ComposeThemeManualTest {
         yMax: Float,
         showValueLabels: Boolean = false
     ) {
-        themeCard(title, 520f, 420f) {
+        chartContainer(
+            title = title,
+            caption = description,
+            theme = chartCardContainerTheme(width = 520f, textMaxWidth = 440f)
+        ) {
             categoryBarChart(
                 CategoryBarTheme(
                     width = 470f,
@@ -743,8 +755,21 @@ class ComposeThemeManualTest {
                 ),
                 data
             )
-            text(description, modifier = Modifier.padding(top = 14f).sizeIn(maxWidth = 440f), textModifier = captionText)
         }
+    }
+
+    private fun chartCardContainerTheme(width: Float, textMaxWidth: Float): ChartContainerTheme {
+        return ChartContainerTheme(
+            width = width,
+            padding = 22f,
+            cornerRadius = 16f,
+            borderColor = Color.makeRGB(218, 225, 236),
+            titleTextStyle = ChartTextStyle(21f, Color.makeRGB(35, 44, 58), uiFont, fontWeight = 700),
+            captionTextStyle = ChartTextStyle(15f, muted, uiFont),
+            contentTopGap = 18f,
+            captionTopGap = 14f,
+            textMaxWidth = textMaxWidth
+        )
     }
 
     private fun pieTheme(donut: Boolean, maxNamedSlices: Int?): PieChartTheme {

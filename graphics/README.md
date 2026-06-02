@@ -328,26 +328,33 @@ import top.e404.tavolo.draw.compose.charts.*
 
 多数新图表共享以下配置：
 
+- `ChartContainerTheme`: 图表卡片容器样式，用于标题、副标题、内容区、脚注、圆角背景、边框和可选阴影。
 - `ChartInsets`: 控制图表内容、坐标轴标签和图例之间的留白。
 - `ChartPalette`: 多 series 或多分类默认色板，显式传入颜色时优先使用数据自身颜色。
 - `AxisTheme`: 坐标轴、网格线和轴标签样式，用于折线图和分类柱状图。
 - `ChartLegendTheme`: 图例样式，`ChartLegendPosition.RIGHT` 表示右侧图例，`BOTTOM` 表示底部图例，`NONE` 表示不绘制图例。
 - `ChartTextStyle`: 图表内部文本样式，包含字号、颜色和字体名。
 
-推荐把标题、子标题、脚注等放在图表外层：
+推荐用 `chartContainer` 组合标题、说明和图表内容。它只封装图表卡片外壳，不改变内部图表的绘制和数据模型：
 
 ```kotlin
-column(
-    modifier = Modifier
-        .padding(24f)
-        .background(Color.WHITE)
-        .padding(20f)
+chartContainer(
+    title = "在线玩家趋势",
+    subtitle = "最近 7 天",
+    caption = "数据按小时聚合，缺失点会断开折线",
+    theme = ChartContainerTheme(
+        width = 680f,
+        padding = 22f,
+        cornerRadius = 16f,
+        shadow = ChartContainerShadow(),
+        textMaxWidth = 620f
+    )
 ) {
-    text("在线玩家趋势", fontSize = 24f, textColor = Color.makeRGB(32, 38, 46))
     lineChart(theme = lineTheme, series = playerSeries)
-    text("数据按小时聚合", modifier = Modifier.padding(top = 8f), fontSize = 14f, textColor = Color.GRAY)
 }
 ```
+
+如果需要完全自定义卡片布局，也可以继续用普通 `column` / `box` 自行组合。
 
 ### 折线图
 

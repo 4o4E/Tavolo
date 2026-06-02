@@ -277,6 +277,48 @@ class ComposeCanvasAndChartUnitTest {
     }
 
     @Test
+    fun chartContainerWrapsHeaderContentAndCaption() {
+        val theme = ChartContainerTheme(
+            width = 240f,
+            padding = 16f,
+            contentTopGap = 10f,
+            captionTopGap = 8f
+        )
+        val root = Column()
+
+        root.apply {
+            chartContainer(
+                title = "趋势",
+                subtitle = "本周统计",
+                caption = "数据按小时聚合",
+                theme = theme
+            ) {
+                box(Modifier.size(120f, 40f).background(Color.RED))
+            }
+        }
+        root.measure(MeasureContext(FixedTextMeasurer()))
+
+        assertFloatEquals(240f, root.width)
+        assertTrue(root.height > 100f)
+        val container = root.children.single()
+        assertEquals(4, container.children.size)
+        assertEquals(1, container.children[2].children.size)
+
+        val commands = renderCommands(measureContext = MeasureContext(FixedTextMeasurer())) {
+            chartContainer(
+                title = "趋势",
+                subtitle = "本周统计",
+                caption = "数据按小时聚合",
+                theme = theme
+            ) {
+                box(Modifier.size(120f, 40f).background(Color.RED))
+            }
+        }
+
+        assertTrue(commands.isNotEmpty())
+    }
+
+    @Test
     fun radarChartRecordsPathsLinesAndTextLines() {
         val recorder = RecordingDrawCanvas()
         val theme = RadarTheme(
