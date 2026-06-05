@@ -110,7 +110,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 然后在项目中引入依赖：
 
 ```kotlin
-val version = "2.6.4-SNAPSHOT"
+val version = "2.7.0"
 
 repositories {
     mavenCentral()
