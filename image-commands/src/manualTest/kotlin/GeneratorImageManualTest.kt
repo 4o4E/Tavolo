@@ -18,7 +18,7 @@ class GeneratorImageManualTest {
             val frames = generator.generate(args)
             val extension = if (frames.size == 1) "png" else "gif"
             val generatorName = generator::class.simpleName ?: "generator"
-            ManualTestSupport.coreOutputFile("generator", generatorName, extension)
+            ManualTestSupport.outputFile("generator", generatorName, extension)
                 .writeBytes(frames.encodeToBytes())
         }
     }

@@ -35,7 +35,7 @@ abstract class HandlerManualTestSupport {
                             val handlerName = handler::class.simpleName ?: "handler"
                             val inputName = listOfNotNull(it.nameWithoutExtension, it.extension.ifBlank { null })
                                 .joinToString("-")
-                            ManualTestSupport.coreOutputFile("handler", "$handlerName-$inputName", suffix)
+                            ManualTestSupport.outputFile("handler", "$handlerName-$inputName", suffix)
                                 .writeBytes(handleResult.getOrThrow().encodeToBytes())
                         }
                         println("${it.name} - done")

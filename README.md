@@ -23,7 +23,8 @@ Tavolo 的目标是在没有显示输出的服务器环境中完成图片处理�
 | --- | --- |
 | [`graphics`](graphics/src/main/kotlin) | Compose 风格绘图 DSL，支持布局、文本、图片、SVG、图表、Modifier 效果和 3D 渲染。 |
 | [`gif-codec`](gif-codec/src/main/kotlin) | GIF 编解码和逐帧处理框架，部分实现参考 [`cssxsh/mirai-skia-plugin`](https://github.com/cssxsh/mirai-skia-plugin)。 |
-| [`core`](core/src/main/kotlin) | 图片处理指令、表情生成器和输入驱动的图片生成能力。 |
+| [`command-framework`](command-framework/src/main/kotlin) | 指令发现、注册、执行和 pipeline 框架。 |
+| [`image-commands`](image-commands/src/main/kotlin) | 图片处理指令、表情生成器和输入驱动的图片生成能力。 |
 | [`bdf-parser`](bdf-parser/src/main/kotlin) | BDF 点阵字体解析。 |
 | [`http-server`](http-server) | HTTP 指令服务，封装命令查询和图片执行接口。 |
 | [`http-client`](http-client) | HTTP 指令服务客户端。 |
@@ -109,7 +110,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 然后在项目中引入依赖：
 
 ```kotlin
-val version = "2.6.1"
+val version = "2.6.4-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -118,7 +119,7 @@ repositories {
 }
 
 dependencies {
-    implementation("top.e404.tavolo:tavolo-core:${version}")
+    implementation("top.e404.tavolo:tavolo-image-commands:${version}")
     implementation("top.e404.tavolo:tavolo-graphics:${version}")
     implementation("top.e404.tavolo:tavolo-gif-codec:${version}")
     implementation("top.e404.tavolo:tavolo-common:${version}")

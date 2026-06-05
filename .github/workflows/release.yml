@@ -102,7 +102,7 @@ jobs:
           ./gradlew checkPomFileForMavenPublication --parallel --build-cache --stacktrace --console=plain
 
       - name: 构建 server jar 和外置指令资源包
-        run: ./gradlew :http-server:packageServerJar :core:packageCommandAssets --parallel --build-cache --stacktrace --console=plain
+        run: ./gradlew :http-server:packageServerJar :image-commands:packageCommandAssets --parallel --build-cache --stacktrace --console=plain
 
       - name: 发布 Nexus Maven 包
         env:
@@ -128,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build/release-assets
-          cp "core/build/distributions/tavolo-assets-${RELEASE_VERSION}.zip" build/release-assets/
+          cp "image-commands/build/distributions/tavolo-assets-${RELEASE_VERSION}.zip" build/release-assets/
           cp "http-server/build/distributions/tavolo-server-${RELEASE_VERSION}.jar" build/release-assets/
           ls -lh build/release-assets
 

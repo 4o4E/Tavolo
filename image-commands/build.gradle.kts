@@ -7,29 +7,26 @@ plugins {
 }
 
 dependencies {
-    // ksp
     ksp(project(":ksp"))
 
-    api(project(":annotation"))
-    api(project(":common"))
-    api(project(":gif-codec"))
+    api(project(":command-framework"))
     api(project(":graphics"))
     api(project(":bdf-parser"))
-    // skiko
+
     compileOnly(skiko("windows-x64"))
     compileOnly(skiko("linux-x64"))
-    // serialization
     implementation(kotlinx("serialization-core-jvm", Versions.KOTLINX_SERIALIZATION))
-    // kaml
     implementation("com.charleskorn.kaml:kaml:0.45.0")
-//    // reflect
 //    implementation(kotlin("reflect", Versions.kotlin))
 
-    // test
     testImplementation(kotlin("test", Versions.KOTLIN))
-    // skiko
     testImplementation(skiko("windows-x64"))
     testImplementation(skiko("linux-x64"))
+}
+
+ksp {
+    arg("tavolo.command.contributionPackage", "top.e404.tavolo.imagecommands.generated")
+    arg("tavolo.command.contributionClass", "ImageCommandsContribution")
 }
 
 tasks {
@@ -156,7 +153,7 @@ configurations["manualTestImplementation"].extendsFrom(configurations["testImple
 configurations["manualTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
 
 tasks.register<Test>("manualTest") {
-    description = "运行需要人工查看输出图片或依赖本地资源的 core 测试"
+    description = "运行需要人工查看输出图片或依赖本地资源的图片指令测试"
     group = "verification"
     testClassesDirs = manualTest.output.classesDirs
     classpath = manualTest.runtimeClasspath

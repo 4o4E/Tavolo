@@ -4,7 +4,7 @@
 
 ## 设计目标
 
-- HTTP 层复用 `core` 的 `CommandRegistry` 和执行能力，不重新维护指令模型。
+- HTTP 层复用 `command-framework` 的 `CommandRegistry` 和执行能力，不重新维护指令模型。
 - 对外提供能力发现、健康检查、handler 执行、generator 执行和统一指令执行接口。
 - 客户端模块封装 Ktor Client 调用，避免调用方手写 multipart 和二进制响应处理。
 - 服务端返回稳定 JSON 错误结构，执行成功时返回 PNG/GIF 二进制。
@@ -139,7 +139,7 @@ http-server/src/main/kotlin/top/e404/tavolo/http/server/
 ]
 ```
 
-服务端会在 `core` 的 pipeline 执行器中复用已注册 handler，上一阶段的输出帧会作为下一阶段的输入帧。当前只支持 handler 链路，不执行 generator 步骤；默认最多执行 8 个 handler 步骤。
+服务端会在 `command-framework` 的 pipeline 执行器中复用已注册 handler，上一阶段的输出帧会作为下一阶段的输入帧。当前只支持 handler 链路，不执行 generator 步骤；默认最多执行 8 个 handler 步骤。
 
 ## 错误响应
 

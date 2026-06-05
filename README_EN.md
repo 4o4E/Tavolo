@@ -23,7 +23,8 @@ Tavolo is suitable for:
 | --- | --- |
 | [`graphics`](graphics/src/main/kotlin) | Compose-style drawing DSL with layout, text, images, SVG, charts, Modifier effects, and 3D rendering. |
 | [`gif-codec`](gif-codec/src/main/kotlin) | GIF encoding/decoding and frame processing. Part of the implementation references [`cssxsh/mirai-skia-plugin`](https://github.com/cssxsh/mirai-skia-plugin). |
-| [`core`](core/src/main/kotlin) | Image processing commands, meme generators, and input-driven image generation. |
+| [`command-framework`](command-framework/src/main/kotlin) | Command discovery, registration, execution, and pipeline framework. |
+| [`image-commands`](image-commands/src/main/kotlin) | Image processing commands, meme generators, and input-driven image generation. |
 | [`bdf-parser`](bdf-parser/src/main/kotlin) | BDF bitmap font parser. |
 | [`http-server`](http-server) | HTTP command service for command discovery and image execution APIs. |
 | [`http-client`](http-client) | Client for the HTTP command service. |
@@ -109,7 +110,7 @@ Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions
 Then add the repository and dependencies:
 
 ```kotlin
-val version = "2.6.1"
+val version = "2.6.4-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -118,7 +119,7 @@ repositories {
 }
 
 dependencies {
-    implementation("top.e404.tavolo:tavolo-core:${version}")
+    implementation("top.e404.tavolo:tavolo-image-commands:${version}")
     implementation("top.e404.tavolo:tavolo-graphics:${version}")
     implementation("top.e404.tavolo:tavolo-gif-codec:${version}")
     implementation("top.e404.tavolo:tavolo-common:${version}")

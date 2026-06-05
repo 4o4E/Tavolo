@@ -13,11 +13,12 @@ include(
     ":annotation",
     ":bdf-parser",
     ":common",
-    ":core",
+    ":command-framework",
     ":gif-codec",
     ":graphics",
     ":http-client",
     ":http-server",
+    ":image-commands",
     ":ksp",
     ":word-cloud",
 )

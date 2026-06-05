@@ -19,7 +19,7 @@ class JumpAnimationManualTest {
         val side = File("MACHINE_WHITE_SIDE.png").readBytes().let { Image.makeFromEncoded(it) }
 
         gen(center, side).let {
-            ManualTestSupport.coreOutputFile("animation", "jump", "gif").writeBytes(it)
+            ManualTestSupport.outputFile("animation", "jump", "gif").writeBytes(it)
         }
     }
 

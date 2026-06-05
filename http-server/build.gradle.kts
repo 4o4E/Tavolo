@@ -2,7 +2,6 @@ import org.gradle.api.tasks.bundling.Jar
 
 plugins {
     kotlin("jvm")
-    id("com.google.devtools.ksp")
     kotlin("plugin.serialization")
     application
 }
@@ -15,11 +14,11 @@ val serverReleaseVersion = providers.gradleProperty("releaseVersion")
     .orElse(project.version.toString())
 
 dependencies {
-    implementation(project(":core"))
-    // skiko
+    implementation(project(":command-framework"))
+    implementation(project(":image-commands"))
+
     runtimeOnly(skiko("windows-x64"))
     runtimeOnly(skiko("linux-x64"))
-    // ktor
     implementation(ktor("server-content-negotiation"))
     implementation(ktor("server-compression-jvm"))
     implementation(ktor("serialization-kotlinx-json"))

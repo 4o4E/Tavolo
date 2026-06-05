@@ -10,6 +10,10 @@ import top.e404.tavolo.annotation.ImageGenerator
 class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolProcessor {
     private val codeGenerator = environment.codeGenerator
     private val logger = environment.logger
+    private val contributionPackage = environment.options["tavolo.command.contributionPackage"]
+        ?: "top.e404.tavolo.generated.command"
+    private val contributionClass = environment.options["tavolo.command.contributionClass"]
+        ?: "GeneratedCommandContribution"
     private val handlerSignName = ImageHandler::class.java.name
     private val generatorSignName = ImageGenerator::class.java.name
     private val handlers = linkedMapOf<String, String>()
@@ -38,49 +42,67 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
     }
 
     override fun finish() {
+        if (handlers.isEmpty() && generators.isEmpty()) {
+            logger.warn("skip empty command contribution")
+            return
+        }
         val stream = try {
             codeGenerator.createNewFile(
                 dependencies = Dependencies(true),
-                packageName = "top.e404.tavolo.handler",
-                fileName = "registries",
+                packageName = contributionPackage,
+                fileName = contributionClass,
                 extensionName = "kt"
             )
         } catch (e: Exception) {
-            logger.warn("skip exists file top/e404/tavolo/handler/registries.kt")
+            logger.warn("skip exists file ${contributionPackage.replace('.', '/')}/$contributionClass.kt")
             return
         }
         logger.warn("process ${handlers.size} handlers, ${generators.size} generators")
         stream.bufferedWriter().use { bw ->
-            bw.appendLine("package top.e404.tavolo.handler").appendLine()
-            bw.appendLine("// handler size: ${handlers.size}")
-            bw.appendLine("val handlerMap: Map<String, () -> top.e404.tavolo.frame.FramesHandler> = mapOf(")
+            bw.appendLine("package $contributionPackage").appendLine()
+            bw.appendLine("class $contributionClass : top.e404.tavolo.registry.CommandContribution {")
+            bw.appendLine("    // handler 数量: ${handlers.size}")
+            bw.appendLine("    override val handlers: Map<String, () -> top.e404.tavolo.frame.FramesHandler> = mapOf(")
             handlers.toSortedMap().forEach { (id, qualifiedName) ->
-                bw.append("    ")
+                bw.append("        ")
                     .append("\"")
                     .append(id)
                     .append("\" to { ")
                     .append(qualifiedName)
                     .appendLine(" },")
             }
-            bw.appendLine(")")
+            bw.appendLine("    )")
             bw.appendLine()
-            bw.appendLine("val handlerSet: Set<top.e404.tavolo.frame.FramesHandler>")
-            bw.appendLine("    get() = handlerMap.values.map { it() }.toSet()")
-            bw.appendLine()
-            bw.appendLine("// generator size: ${generators.size}")
-            bw.appendLine("val generatorMap: Map<String, () -> top.e404.tavolo.generator.FramesGenerator> = mapOf(")
+            bw.appendLine("    // generator 数量: ${generators.size}")
+            bw.appendLine("    override val generators: Map<String, () -> top.e404.tavolo.generator.FramesGenerator> = mapOf(")
             generators.toSortedMap().forEach { (id, qualifiedName) ->
-                bw.append("    ")
+                bw.append("        ")
                     .append("\"")
                     .append(id)
                     .append("\" to { ")
                     .append(qualifiedName)
                     .appendLine(" },")
             }
-            bw.appendLine(")")
-            bw.appendLine()
-            bw.appendLine("val generatorSet: Set<top.e404.tavolo.generator.FramesGenerator>")
-            bw.appendLine("    get() = generatorMap.values.map { it() }.toSet()")
+            bw.appendLine("    )")
+            bw.appendLine("}")
+        }
+        writeServiceFile()
+    }
+
+    private fun writeServiceFile() {
+        val servicePath = "META-INF/services/top.e404.tavolo.registry.CommandContribution"
+        val serviceStream = try {
+            codeGenerator.createNewFileByPath(
+                dependencies = Dependencies(true),
+                path = servicePath,
+                extensionName = ""
+            )
+        } catch (e: Exception) {
+            logger.warn("skip exists file $servicePath")
+            return
+        }
+        serviceStream.bufferedWriter().use { bw ->
+            bw.append(contributionPackage).append('.').appendLine(contributionClass)
         }
     }
 

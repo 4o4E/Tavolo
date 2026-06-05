@@ -3,8 +3,7 @@ package top.e404.tavolo.registry
 import top.e404.tavolo.assets.Assets
 import top.e404.tavolo.frame.FramesHandler
 import top.e404.tavolo.generator.FramesGenerator
-import top.e404.tavolo.handler.generatorMap
-import top.e404.tavolo.handler.handlerMap
+import java.util.ServiceLoader
 
 enum class CommandCategory {
     HANDLER,
@@ -46,6 +45,19 @@ data class AssetsVersion(
     val time: String,
 )
 
+interface CommandContribution {
+    val handlers: Map<String, () -> FramesHandler>
+    val generators: Map<String, () -> FramesGenerator>
+
+    companion object {
+        fun load(
+            classLoader: ClassLoader = Thread.currentThread().contextClassLoader
+                ?: CommandContribution::class.java.classLoader
+        ): List<CommandContribution> =
+            ServiceLoader.load(CommandContribution::class.java, classLoader).toList()
+    }
+}
+
 class CommandRegistry(
     val assetsVersion: AssetsVersion,
     val handlers: List<RegisteredHandler>,
@@ -63,9 +75,18 @@ class CommandRegistry(
 }
 
 class ResourceCommandLoader(
-    private val handlers: Map<String, () -> FramesHandler> = handlerMap,
-    private val generators: Map<String, () -> FramesGenerator> = generatorMap,
+    contributions: List<CommandContribution> = CommandContribution.load(),
 ) {
+    constructor(
+        handlers: Map<String, () -> FramesHandler>,
+        generators: Map<String, () -> FramesGenerator>,
+    ) : this(listOf(StaticCommandContribution(handlers, generators)))
+
+    private val handlers: Map<String, () -> FramesHandler> =
+        mergeContributions("handler", contributions.map { it.handlers })
+    private val generators: Map<String, () -> FramesGenerator> =
+        mergeContributions("generator", contributions.map { it.generators })
+
     fun load(): CommandRegistry {
         val assetsVersion = loadVersion()
         val registeredHandlers = loadHandlers()
@@ -155,6 +176,27 @@ class ResourceCommandLoader(
             }
 
         }
+    }
+}
+
+private class StaticCommandContribution(
+    override val handlers: Map<String, () -> FramesHandler>,
+    override val generators: Map<String, () -> FramesGenerator>,
+) : CommandContribution
+
+private fun <T> mergeContributions(
+    category: String,
+    maps: List<Map<String, T>>,
+): Map<String, T> {
+    val duplicateIds = maps.asSequence()
+        .flatMap { it.keys.asSequence() }
+        .groupingBy { it }
+        .eachCount()
+        .filterValues { it > 1 }
+        .keys
+    require(duplicateIds.isEmpty()) { "$category 注册 id 重复: ${duplicateIds.joinToString()}" }
+    return linkedMapOf<String, T>().apply {
+        maps.forEach { putAll(it) }
     }
 }
 
