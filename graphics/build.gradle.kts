@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     api(project(":common"))
+    implementation("com.ibm.icu:icu4j:${Versions.ICU4J}")
     // skiko
     api(skiko("windows-x64"))
     api(skiko("linux-x64"))

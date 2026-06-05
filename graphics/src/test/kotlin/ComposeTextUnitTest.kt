@@ -248,6 +248,101 @@ class ComposeTextUnitTest {
     }
 
     @Test
+    fun graphemeSegmentationUsesExtendedClusterRules() {
+        val family = "👨‍👩‍👧‍👦"
+        val flag = "🇨🇳"
+
+        assertEquals(listOf("୧", "⍤⃝"), segmentGraphemeClusters("୧⍤⃝").map { it.text })
+        assertEquals(listOf("A⃝"), segmentGraphemeClusters("A⃝").map { it.text })
+        assertEquals(listOf(family), segmentGraphemeClusters(family).map { it.text })
+        assertEquals(listOf(flag), segmentGraphemeClusters(flag).map { it.text })
+        assertEquals(listOf("é"), segmentGraphemeClusters("é").map { it.text })
+    }
+
+    @Test
+    fun graphemeRiskDetectionCoversEmojiSequences() {
+        listOf("👨‍👩‍👧‍👦", "🇨🇳", "👍🏽", "❤️").forEach { sample ->
+            val cluster = segmentGraphemeClusters(sample).single()
+            assertTrue(cluster.needsClusterFontChoice(), "$sample 应进入 cluster 字体风险判断")
+            assertTrue(cluster.hasEmojiSequenceControl(), "$sample 应识别为 emoji 序列风险 cluster")
+        }
+    }
+
+    @Test
+    fun annotatedWrapPrefersLineBreaksBeforeClusterFallback() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                AnnotatedText(
+                    text = "hello world",
+                    spanStyles = listOf(TextRange(TextSpanStyle(textColor = Color.RED), 0, "hello world".length))
+                ),
+                modifier = Modifier.sizeIn(maxWidth = 80f),
+                textColor = Color.WHITE
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("hello ", "world"), texts.map { it.text })
+    }
+
+    @Test
+    fun annotatedWrapSplitsLongWordByGraphemeClusterOnlyWhenNeeded() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                AnnotatedText(
+                    text = "abcdefghij",
+                    spanStyles = listOf(TextRange(TextSpanStyle(textColor = Color.RED), 0, "abcdefghij".length))
+                ),
+                modifier = Modifier.sizeIn(maxWidth = 40f),
+                textColor = Color.WHITE
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("abcd", "efgh", "ij"), texts.map { it.text })
+    }
+
+    @Test
+    fun ellipsisKeepsEnclosingMarkClusterTogether() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                "A⃝BC",
+                Modifier.sizeIn(maxWidth = 30f),
+                textOverflow = TextOverflow.Ellipsis
+            )
+        }
+
+        val command = commands.filterIsInstance<DrawCommand.Text>().single()
+        assertEquals("A⃝…", command.text)
+    }
+
+    @Test
+    fun annotatedTextStyleRangeExpandsToWholeGraphemeCluster() {
+        val commands = renderCommands(
+            measureContext = MeasureContext(FixedTextMeasurer())
+        ) {
+            text(
+                AnnotatedText(
+                    text = "A⃝B",
+                    spanStyles = listOf(TextRange(TextSpanStyle(textColor = Color.RED), 1, 2))
+                ),
+                textColor = Color.WHITE
+            )
+        }
+
+        val texts = commands.filterIsInstance<DrawCommand.Text>()
+        assertEquals(listOf("A⃝", "B"), texts.map { it.text })
+        assertEquals(Color.RED, texts[0].paint.color)
+        assertEquals(Color.WHITE, texts[1].paint.color)
+    }
+
+    @Test
     fun textModifierLineHeightControlsWrappedBaselineSpacing() {
         val commands = renderCommands(
             measureContext = MeasureContext(FixedTextMeasurer())

@@ -83,10 +83,15 @@ class AssetsAndFontManagerTest {
         assertEquals("unit-empty", name)
         assertEquals(true, FontManager.isRegistered("unit-empty"))
         assertSame(typeface, FontManager.resolve("unit-empty"))
+        assertEquals(listOf("unit-empty"), FontManager.registeredFamilies())
+
+        FontManager.graphemeClusterFallbackFamilies = listOf("unit-empty")
 
         FontManager.clearRegistered()
 
         assertFalse(FontManager.isRegistered("unit-empty"))
+        assertEquals(emptyList(), FontManager.registeredFamilies())
+        assertEquals(emptyList(), FontManager.graphemeClusterFallbackFamilies)
         assertSame(FontManager.fallbackTypeface, FontManager.resolve("unit-empty"))
     }
 

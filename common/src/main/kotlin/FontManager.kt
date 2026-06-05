@@ -11,6 +11,7 @@ import org.jetbrains.skia.paragraph.TypefaceFontProvider
 import top.e404.tavolo.TavoloFonts
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Tavolo 全局字体管理器。
@@ -30,6 +31,7 @@ object FontManager {
 
     private val registeredFonts = ConcurrentHashMap<String, Typeface>()
     private val systemFontAliases = ConcurrentHashMap<String, SystemFontRef>()
+    private val registeredFamilyNames = CopyOnWriteArrayList<String>()
 
     var fontProvider: TypefaceFontProvider = TypefaceFontProvider()
         private set
@@ -39,12 +41,18 @@ object FontManager {
 
     var defaultFamily: String = DEFAULT
 
+    /**
+     * grapheme cluster（用户感知字符簇）强制同字体成形时优先尝试的字体名。
+     */
+    var graphemeClusterFallbackFamilies: List<String> = emptyList()
+
     var fallbackTypeface: Typeface = Typeface.makeEmpty()
 
     val defaultFont: Font by lazy { TavoloFonts.font(DEFAULT, 20F) }
 
     fun register(name: String, typeface: Typeface): String {
         requireValidName(name)
+        rememberFamilyName(name)
         registeredFonts[name] = typeface
         fontProvider.registerTypeface(typeface, name)
         return name
@@ -75,6 +83,7 @@ object FontManager {
 
     fun registerSystem(name: String, familyName: String = name, style: FontStyle = FontStyle.NORMAL): String {
         requireValidName(name)
+        rememberFamilyName(name)
         systemFontAliases[name] = SystemFontRef(familyName, style)
         fontMgr.matchFamilyStyle(familyName, style)?.let { fontProvider.registerTypeface(it, name) }
         return name
@@ -110,12 +119,22 @@ object FontManager {
     fun systemFamilies(): List<String> =
         (0 until fontMgr.familiesCount).map { fontMgr.getFamilyName(it) }
 
+    fun registeredFamilies(): List<String> =
+        registeredFamilyNames.toList()
+
+    fun findTypeface(name: String): Typeface? {
+        requireValidName(name)
+        return resolveRegisteredOrSystem(name)
+    }
+
     fun clearRegistered() {
         registeredFonts.clear()
         systemFontAliases.clear()
+        registeredFamilyNames.clear()
         fontProvider = TypefaceFontProvider()
         fonts = createFontCollection()
         defaultFamily = DEFAULT
+        graphemeClusterFallbackFamilies = emptyList()
         fallbackTypeface = Typeface.makeEmpty()
     }
 
@@ -129,6 +148,12 @@ object FontManager {
 
     private fun requireValidName(name: String) {
         require(name.isNotBlank()) { "字体名不能为空" }
+    }
+
+    private fun rememberFamilyName(name: String) {
+        if (!registeredFamilyNames.contains(name)) {
+            registeredFamilyNames += name
+        }
     }
 
     private fun createFontCollection(): FontCollection =

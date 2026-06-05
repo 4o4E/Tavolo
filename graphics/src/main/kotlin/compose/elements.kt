@@ -9,8 +9,7 @@ import org.jetbrains.skia.paragraph.RectHeightMode
 import org.jetbrains.skia.paragraph.RectWidthMode
 import org.jetbrains.skia.paragraph.TextStyle as ParagraphTextStyle
 import top.e404.tavolo.util.FontManager
-import java.text.BreakIterator
-import java.util.Locale
+import kotlin.math.abs
 
 private fun Paint.applyStrokeStyle(style: StrokeStyle) {
     val dashIntervals = when (style) {
@@ -36,19 +35,18 @@ private fun Paint.applyStrokeStyle(style: StrokeStyle) {
 }
 
 private fun textClusters(text: String): List<String> {
-    if (text.isEmpty()) return emptyList()
-    val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
-    iterator.setText(text)
-    val result = mutableListOf<String>()
-    var start = iterator.first()
-    var end = iterator.next()
-    while (end != BreakIterator.DONE) {
-        result += text.substring(start, end)
-        start = end
-        end = iterator.next()
-    }
-    return result
+    return segmentGraphemeClusters(text).map { it.text }
 }
+
+private val enclosingMarkFallbackNames = listOf(
+    "FreeMono",
+    "Free Mono",
+    "gnu-unifont-full",
+    "GNU Unifont",
+    "Unifont"
+)
+
+private const val ENCLOSING_MARK_MIN_OVERLAP_RATIO = 0.35f
 
 /**
  * UI 元素的基础接口，定义了所有 UI 组件共有的属性和行为。
@@ -682,21 +680,18 @@ class Text(
     private var effectiveFontSize: Float = 24f
     private var effectiveFontWeight: Int? = null
     private var effectiveItalic: Boolean = false
+    private var enableClusterTypefaceFallback: Boolean = false
 
     private data class ParagraphTextLayout(
         val paragraph: Paragraph,
         val lines: List<LineMetrics>
     )
 
-    private data class IndexedTextCluster(
-        val text: String,
-        val start: Int
-    )
-
     private data class ResolvedTextSpanStyle(
         val fontSize: Float,
         val textColor: Int,
         val fontFamily: String,
+        val typefaceOverride: Typeface?,
         val backgroundColor: Int?,
         val backgroundBorderColor: Int?,
         val backgroundBorderWidth: Float,
@@ -718,19 +713,36 @@ class Text(
                     backgroundPaddingHorizontal > 0f ||
                     backgroundPaddingVertical > 0f
                 )
+
+        fun withTypefaceOverride(typeface: Typeface?): ResolvedTextSpanStyle =
+            if (typeface == null || typefaceOverride === typeface) this else copy(typefaceOverride = typeface)
+
+        fun withoutParagraphBackground(): ResolvedTextSpanStyle =
+            copy(
+                backgroundColor = null,
+                backgroundBorderColor = null,
+                backgroundBorderWidth = 0f,
+                backgroundRadius = 0f,
+                backgroundPaddingHorizontal = 0f,
+                backgroundPaddingVertical = 0f
+            )
     }
 
     private data class StyledCluster(
         val text: String,
+        val start: Int,
+        val end: Int,
         val style: ResolvedTextSpanStyle,
-        val width: Float
+        val width: Float,
+        val useParagraphFallback: Boolean
     )
 
     private data class StyledLineFragment(
         val text: String,
         val style: ResolvedTextSpanStyle,
         val xOffset: Float,
-        val width: Float
+        val width: Float,
+        val useParagraphFallback: Boolean
     )
 
     private data class StyledLine(
@@ -742,6 +754,29 @@ class Text(
         val start: Int,
         val end: Int,
         val style: ResolvedTextSpanStyle
+    )
+
+    private data class ClusterTypefaceResolution(
+        val typefaceOverride: Typeface?,
+        val useParagraphFallback: Boolean
+    )
+
+    private data class StyledBreakUnit(
+        val clusters: List<StyledCluster>,
+        val hardBreakAfter: Boolean = false
+    )
+
+    private data class ShapedGlyphInfo(
+        val line: TextLine,
+        val glyphs: ShortArray,
+        val positions: FloatArray,
+        val bounds: Array<Rect>
+    )
+
+    private data class ShapedText(
+        val line: TextLine,
+        val drawOffsetX: Float,
+        val width: Float
     )
 
     private fun applyModifiers() {
@@ -779,25 +814,11 @@ class Text(
         paint = Paint().apply { color = finalColor; isAntiAlias = antiAlias.enabled }
     }
 
-    private fun indexedTextClusters(text: String): List<IndexedTextCluster> {
-        if (text.isEmpty()) return emptyList()
-        val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
-        iterator.setText(text)
-        val result = mutableListOf<IndexedTextCluster>()
-        var start = iterator.first()
-        var end = iterator.next()
-        while (end != BreakIterator.DONE) {
-            result += IndexedTextCluster(text.substring(start, end), start)
-            start = end
-            end = iterator.next()
-        }
-        return result
-    }
-
     private fun resolveSpanStyle(style: TextSpanStyle): ResolvedTextSpanStyle = ResolvedTextSpanStyle(
         fontSize = style.fontSize ?: effectiveFontSize,
         textColor = style.textColor ?: paint.color,
         fontFamily = style.fontFamily ?: effectiveFontFamily,
+        typefaceOverride = null,
         backgroundColor = style.backgroundColor,
         backgroundBorderColor = style.backgroundBorderColor,
         backgroundBorderWidth = style.backgroundBorderWidth?.coerceAtLeast(0f) ?: 0f,
@@ -809,37 +830,282 @@ class Text(
         letterSpacing = style.letterSpacing ?: effectiveLetterSpacing
     )
 
-    private fun mergedSpanStyleAt(index: Int): TextSpanStyle {
+    private fun mergedSpanStyleForCluster(cluster: GraphemeCluster): TextSpanStyle {
         var result = TextSpanStyle()
         for (range in annotatedText.spanStyles) {
-            if (index >= range.start && index < range.end) {
+            if (range.start < cluster.end && range.end > cluster.start) {
                 result = result.merge(range.item)
             }
         }
         return result
     }
 
-    private fun resolvedSpanStyleAt(index: Int): ResolvedTextSpanStyle =
-        resolveSpanStyle(mergedSpanStyleAt(index))
+    private fun resolvedSpanStyleForCluster(cluster: GraphemeCluster): ResolvedTextSpanStyle =
+        resolveSpanStyle(mergedSpanStyleForCluster(cluster))
 
-    private fun annotatedStyleRuns(): List<StyledSpanRange> {
-        if (annotatedText.spanStyles.isEmpty()) return emptyList()
-        val source = annotatedText.text
-        val boundaries = mutableSetOf(0, source.length)
-        annotatedText.spanStyles.forEach { range ->
-            boundaries += range.start
-            boundaries += range.end
+    private fun resolvedClusterStyle(cluster: GraphemeCluster): ResolvedTextSpanStyle {
+        val style = resolvedSpanStyleForCluster(cluster)
+        if (!enableClusterTypefaceFallback) return style
+        return style.withTypefaceOverride(clusterTypefaceResolution(cluster, style).typefaceOverride)
+    }
+
+    private fun hasClusterTypefaceOverrides(): Boolean =
+        segmentGraphemeClusters(annotatedText.text).any { cluster ->
+            cluster.needsClusterFontChoice() &&
+                resolvedSpanStyleForCluster(cluster).let { style ->
+                    clusterTypefaceResolution(cluster, style).typefaceOverride != null
+                }
         }
-        val sortedBoundaries = boundaries.sorted()
-        return (0 until sortedBoundaries.lastIndex).mapNotNull { index ->
-            val start = sortedBoundaries[index]
-            val end = sortedBoundaries[index + 1]
-            if (start >= end) null else StyledSpanRange(start, end, resolvedSpanStyleAt(start))
+
+    private fun paragraphStyleRuns(): List<StyledSpanRange> {
+        val clusters = segmentGraphemeClusters(annotatedText.text)
+        if (clusters.isEmpty()) return emptyList()
+        val runs = mutableListOf<StyledSpanRange>()
+        var runStart = clusters.first().start
+        var runEnd = clusters.first().end
+        var runStyle = resolvedClusterStyle(clusters.first())
+
+        fun flushRun() {
+            if (runStart < runEnd) runs += StyledSpanRange(runStart, runEnd, runStyle)
+        }
+
+        for (cluster in clusters.drop(1)) {
+            val style = resolvedClusterStyle(cluster)
+            if (style == runStyle && cluster.start == runEnd) {
+                runEnd = cluster.end
+            } else {
+                flushRun()
+                runStart = cluster.start
+                runEnd = cluster.end
+                runStyle = style
+            }
+        }
+        flushRun()
+        return runs
+    }
+
+    private fun clusterTypefaceResolution(
+        cluster: GraphemeCluster,
+        style: ResolvedTextSpanStyle
+    ): ClusterTypefaceResolution {
+        val primary = style.typefaceOverride ?: FontManager.resolve(style.fontFamily)
+        val needsClusterShaping = cluster.needsClusterFontChoice()
+        if (typefaceSupportsCluster(primary, cluster, needsClusterShaping)) {
+            return ClusterTypefaceResolution(null, useParagraphFallback = false)
+        }
+        if (!needsClusterShaping) {
+            return ClusterTypefaceResolution(null, useParagraphFallback = true)
+        }
+        val candidates = clusterTypefaceCandidates(style.fontFamily, cluster.hasEnclosingMark())
+        val fallback = candidates.firstOrNull { typefaceSupportsCluster(it, cluster, needsClusterShaping) }
+            ?: systemTypefaceForCluster(cluster, style, needsClusterShaping)
+        return if (fallback != null) {
+            ClusterTypefaceResolution(fallback, useParagraphFallback = false)
+        } else {
+            ClusterTypefaceResolution(null, useParagraphFallback = true)
+        }
+    }
+
+    private fun clusterTypefaceCandidates(primaryFamily: String, preferEnclosingMarkFont: Boolean): List<Typeface> {
+        val names = linkedSetOf<String>()
+        fun add(name: String?) {
+            val family = name?.takeIf { it.isNotBlank() } ?: return
+            names += family
+        }
+        add(primaryFamily)
+        FontManager.graphemeClusterFallbackFamilies.forEach(::add)
+        FontManager.registeredFamilies().forEach(::add)
+        add(FontManager.defaultFamily)
+        enclosingMarkFallbackNames.forEach(::add)
+
+        val candidates = names.mapNotNull { family ->
+            FontManager.findTypeface(family)?.let { family to it }
+        }.distinctBy { it.second.uniqueId }
+
+        val ordered = if (preferEnclosingMarkFont) {
+            candidates.sortedBy { enclosingMarkFallbackRank(it.first, it.second) }
+        } else {
+            candidates
+        }
+        return ordered.map { it.second }
+    }
+
+    private fun systemTypefaceForCluster(
+        cluster: GraphemeCluster,
+        style: ResolvedTextSpanStyle,
+        needsClusterShaping: Boolean
+    ): Typeface? {
+        val fontStyle = FontStyle(
+            style.fontWeight ?: FontWeight.NORMAL,
+            FontWidth.NORMAL,
+            if (style.italic) FontSlant.OBLIQUE else FontSlant.UPRIGHT
+        )
+        val families = arrayOf<String?>(style.fontFamily, null)
+        return cluster.codePoints
+            .filter(::codePointNeedsGlyph)
+            .asSequence()
+            .mapNotNull { codePoint ->
+                FontManager.fontMgr.matchFamiliesStyleCharacter(families, fontStyle, emptyArray(), codePoint)
+            }
+            .distinctBy { it.uniqueId }
+            .firstOrNull { typefaceSupportsCluster(it, cluster, needsClusterShaping) }
+    }
+
+    private fun typefaceSupportsCluster(
+        typeface: Typeface,
+        cluster: GraphemeCluster,
+        needsClusterShaping: Boolean
+    ): Boolean {
+        val hasGlyphs = cluster.codePoints.all { codePoint ->
+            !codePointNeedsGlyph(codePoint) || typeface.getUTF32Glyph(codePoint).toInt() != 0
+        }
+        if (!hasGlyphs) return false
+        if (!needsClusterShaping) return true
+        return when {
+            cluster.hasEnclosingMark() -> typefaceShapesEnclosingMark(typeface, cluster)
+            cluster.hasEmojiSequenceControl() -> typefaceShapesEmojiSequence(typeface, cluster)
+            cluster.hasCombiningMark() -> typefaceShapesCombiningMark(typeface, cluster)
+            else -> true
+        }
+    }
+
+    private fun typefaceShapesEnclosingMark(typeface: Typeface, cluster: GraphemeCluster): Boolean {
+        val shaped = shapedGlyphInfo(typeface, cluster) ?: return false
+        val glyphs = shaped.glyphs
+        val positions = shaped.positions
+        val bounds = shaped.bounds
+
+        val markGlyphs = cluster.codePoints
+            .filter { Character.getType(it) == Character.ENCLOSING_MARK.toInt() }
+            .map { typeface.getUTF32Glyph(it) }
+            .toSet()
+        if (markGlyphs.isEmpty()) return true
+        if (glyphs.size == 1) return true
+
+        val markIndexes = glyphs.indices.filter { glyphs[it] in markGlyphs }
+        val baseIndexes = glyphs.indices.filterNot { glyphs[it] in markGlyphs }
+        if (markIndexes.isEmpty() || baseIndexes.isEmpty()) return false
+
+        fun glyphLeft(index: Int): Float = positions[index * 2] + bounds[index].left
+        fun glyphRight(index: Int): Float = positions[index * 2] + bounds[index].right
+
+        val baseLeft = baseIndexes.minOf { glyphLeft(it) }
+        val baseRight = baseIndexes.maxOf { glyphRight(it) }
+        val baseWidth = baseRight - baseLeft
+        if (baseWidth <= 0f) return false
+
+        return markIndexes.all { index ->
+            val markLeft = glyphLeft(index)
+            val markRight = glyphRight(index)
+            val markWidth = markRight - markLeft
+            if (markWidth <= 0f) {
+                false
+            } else {
+                val overlap = minOf(baseRight, markRight) - maxOf(baseLeft, markLeft)
+                overlap >= minOf(baseWidth, markWidth) * ENCLOSING_MARK_MIN_OVERLAP_RATIO
+            }
+        }
+    }
+
+    private fun typefaceShapesCombiningMark(typeface: Typeface, cluster: GraphemeCluster): Boolean {
+        val shaped = shapedGlyphInfo(typeface, cluster) ?: return false
+        val glyphs = shaped.glyphs
+        val positions = shaped.positions
+        val bounds = shaped.bounds
+
+        val markGlyphs = cluster.codePoints
+            .filter {
+                when (Character.getType(it)) {
+                    Character.NON_SPACING_MARK.toInt(),
+                    Character.COMBINING_SPACING_MARK.toInt() -> true
+                    else -> false
+                }
+            }
+            .map { typeface.getUTF32Glyph(it) }
+            .toSet()
+        if (markGlyphs.isEmpty()) return true
+        if (glyphs.size == 1) return true
+
+        val markIndexes = glyphs.indices.filter { glyphs[it] in markGlyphs }
+        val baseIndexes = glyphs.indices.filterNot { glyphs[it] in markGlyphs }
+        if (markIndexes.isEmpty() || baseIndexes.isEmpty()) return false
+
+        fun glyphLeft(index: Int): Float = positions[index * 2] + bounds[index].left
+        fun glyphRight(index: Int): Float = positions[index * 2] + bounds[index].right
+
+        val baseLeft = baseIndexes.minOf { glyphLeft(it) }
+        val baseRight = baseIndexes.maxOf { glyphRight(it) }
+        val baseWidth = baseRight - baseLeft
+        if (baseWidth <= 0f) return false
+
+        return markIndexes.all { index ->
+            val markLeft = glyphLeft(index)
+            val markRight = glyphRight(index)
+            val markWidth = markRight - markLeft
+            markWidth > 0f &&
+                minOf(baseRight, markRight) - maxOf(baseLeft, markLeft) >=
+                minOf(baseWidth, markWidth) * ENCLOSING_MARK_MIN_OVERLAP_RATIO
+        }
+    }
+
+    private fun typefaceShapesEmojiSequence(typeface: Typeface, cluster: GraphemeCluster): Boolean {
+        val shaped = shapedGlyphInfo(typeface, cluster) ?: return false
+        val visibleGlyphCount = cluster.codePoints.count(::codePointNeedsGlyph)
+        if (visibleGlyphCount <= 0) return true
+
+        val requiresLigatureLikeShape =
+            cluster.hasZeroWidthJoiner() || cluster.hasRegionalIndicator() || cluster.hasEmojiModifier()
+        if (requiresLigatureLikeShape && shaped.glyphs.size >= visibleGlyphCount) return false
+
+        if (cluster.hasVariationSelector() && !typefaceShapesVariationSelector(typeface, cluster, shaped)) {
+            return false
+        }
+        return true
+    }
+
+    private fun typefaceShapesVariationSelector(
+        typeface: Typeface,
+        cluster: GraphemeCluster,
+        shaped: ShapedGlyphInfo
+    ): Boolean {
+        if (cluster.hasEmojiPresentationSelector() && typefaceLooksLikeEmoji(typeface)) return true
+        val baseText = buildString {
+            cluster.codePoints
+                .filterNot(::codePointIsVariationSelector)
+                .forEach { appendCodePoint(it) }
+        }
+        if (baseText == cluster.text) return true
+        val baseLine = TextLine.make(baseText, Font(typeface, effectiveFontSize))
+        return !baseLine.glyphs.contentEquals(shaped.glyphs) ||
+            abs(baseLine.width - shaped.line.width) > 0.01f
+    }
+
+    private fun typefaceLooksLikeEmoji(typeface: Typeface): Boolean {
+        val name = typeface.familyName.lowercase()
+        return "emoji" in name || "color" in name || "twemoji" in name
+    }
+
+    private fun shapedGlyphInfo(typeface: Typeface, cluster: GraphemeCluster): ShapedGlyphInfo? {
+        val font = Font(typeface, effectiveFontSize)
+        val line = TextLine.make(cluster.text, font)
+        val glyphs = line.glyphs
+        val positions = line.positions
+        val bounds = font.getBounds(glyphs)
+        if (glyphs.isEmpty() || positions.size < glyphs.size * 2 || bounds.size < glyphs.size) return null
+        return ShapedGlyphInfo(line, glyphs, positions, bounds)
+    }
+
+    private fun enclosingMarkFallbackRank(familyName: String, typeface: Typeface): Int {
+        val text = "$familyName ${typeface.familyName}".lowercase()
+        return when {
+            "freemono" in text || "free mono" in text -> 0
+            "gnu-unifont" in text || "gnu unifont" in text || "unifont" in text -> 1
+            else -> 2
         }
     }
 
     private fun styledFont(style: ResolvedTextSpanStyle): Font =
-        Font(FontManager.resolve(style.fontFamily), style.fontSize).apply {
+        Font(style.typefaceOverride ?: FontManager.resolve(style.fontFamily), style.fontSize).apply {
             if (style.fontWeight != null) isEmboldened = style.fontWeight >= 600
             if (style.italic) skewX = -0.25f
             scaleX = effectiveScaleX
@@ -893,16 +1159,72 @@ class Text(
     private fun measureStyledTextWidth(
         text: String,
         style: ResolvedTextSpanStyle,
-        measurer: TextMeasurer
+        measurer: TextMeasurer,
+        useParagraphFallback: Boolean = false
     ): Float =
-        if (text.isEmpty()) 0f else measurer.measureTextWidth(text, styledFont(style), styledPaint(style))
+        when {
+            text.isEmpty() -> 0f
+            useParagraphFallback && measurer === SkiaTextMeasurer ->
+                measureParagraphFragmentWidth(text, style)
+            measurer === SkiaTextMeasurer && style.typefaceOverride != null ->
+                shapedText(text, styledFont(style)).width
+            else -> measurer.measureTextWidth(text, styledFont(style), styledPaint(style))
+        }
 
-    private fun styledCluster(cluster: IndexedTextCluster, measurer: TextMeasurer): StyledCluster {
-        val style = resolvedSpanStyleAt(cluster.start)
+    private fun shapedText(text: String, font: Font): ShapedText {
+        val line = TextLine.make(text, font)
+        val bounds = line.textBlob?.tightBounds ?: Rect.makeWH(line.width, line.height)
+        val left = minOf(0f, bounds.left)
+        val right = maxOf(line.width, bounds.right)
+        return ShapedText(
+            line = line,
+            drawOffsetX = -left,
+            width = right - left
+        )
+    }
+
+    private fun measureParagraphFragmentWidth(text: String, style: ResolvedTextSpanStyle): Float {
+        val paragraph = buildParagraphFragment(text, style)
+        val metrics = paragraph.lineMetrics.toList()
+        val width = when {
+            metrics.isNotEmpty() -> metrics.maxOf { it.width.toFloat() }
+            else -> paragraph.maxIntrinsicWidth
+        }
+        return width * effectiveScaleX
+    }
+
+    private fun buildParagraphFragment(text: String, style: ResolvedTextSpanStyle): Paragraph =
+        ParagraphBuilder(ParagraphStyle().apply {
+            this.textStyle = paragraphTextStyle(effectiveLineHeight, style.withoutParagraphBackground())
+        }, FontManager.fonts)
+            .also { builder ->
+                builder.pushStyle(paragraphTextStyle(effectiveLineHeight, style.withoutParagraphBackground()))
+                builder.addText(text)
+                builder.popStyle()
+            }
+            .build()
+            .layout(1_000_000f)
+
+    private fun styledCluster(cluster: GraphemeCluster, measurer: TextMeasurer): StyledCluster {
+        val baseStyle = resolvedSpanStyleForCluster(cluster)
+        val resolution = if (enableClusterTypefaceFallback) {
+            clusterTypefaceResolution(cluster, baseStyle)
+        } else {
+            ClusterTypefaceResolution(null, useParagraphFallback = false)
+        }
+        val style = baseStyle.withTypefaceOverride(resolution.typefaceOverride)
         return StyledCluster(
             text = cluster.text,
+            start = cluster.start,
+            end = cluster.end,
             style = style,
-            width = measureStyledTextWidth(cluster.text, style, measurer)
+            width = measureStyledTextWidth(
+                text = cluster.text,
+                style = style,
+                measurer = measurer,
+                useParagraphFallback = resolution.useParagraphFallback
+            ),
+            useParagraphFallback = resolution.useParagraphFallback
         )
     }
 
@@ -912,6 +1234,7 @@ class Text(
         var xOffset = 0f
         var fragmentText = StringBuilder()
         var fragmentStyle = clusters.first().style
+        var fragmentUseParagraphFallback = clusters.first().useParagraphFallback
         var fragmentX = 0f
         var fragmentWidth = 0f
         var previousStyle: ResolvedTextSpanStyle? = null
@@ -922,7 +1245,8 @@ class Text(
                     text = fragmentText.toString(),
                     style = fragmentStyle,
                     xOffset = fragmentX,
-                    width = fragmentWidth
+                    width = fragmentWidth,
+                    useParagraphFallback = fragmentUseParagraphFallback
                 )
                 fragmentText = StringBuilder()
                 fragmentWidth = 0f
@@ -938,10 +1262,12 @@ class Text(
             }
             if (fragmentText.isEmpty()) {
                 fragmentStyle = cluster.style
+                fragmentUseParagraphFallback = cluster.useParagraphFallback
                 fragmentX = xOffset
-            } else if (fragmentStyle != cluster.style) {
+            } else if (fragmentStyle != cluster.style || fragmentUseParagraphFallback != cluster.useParagraphFallback) {
                 flushFragment()
                 fragmentStyle = cluster.style
+                fragmentUseParagraphFallback = cluster.useParagraphFallback
                 fragmentX = xOffset
             }
             fragmentText.append(cluster.text)
@@ -955,15 +1281,15 @@ class Text(
 
     private fun measureLineWidth(text: String, measurer: TextMeasurer): Float {
         if (text.isEmpty()) return 0f
-        val spacing = effectiveLetterSpacing * (textClusters(text).size - 1).coerceAtLeast(0)
-        return measurer.measureTextWidth(text, font, paint) + spacing
+        return styledLine(segmentGraphemeClusters(text).map { styledCluster(it, measurer) }).width
     }
 
     private fun clusterOffsets(text: String, measurer: TextMeasurer): List<Float> {
         var cursor = 0f
-        return textClusters(text).map { cluster ->
+        return segmentGraphemeClusters(text).map { cluster ->
+            val styled = styledCluster(cluster, measurer)
             val offset = cursor
-            cursor += measurer.measureTextWidth(cluster, font, paint) + effectiveLetterSpacing
+            cursor += styled.width + styled.style.letterSpacing
             offset
         }
     }
@@ -972,8 +1298,11 @@ class Text(
         val style = resolveSpanStyle(TextSpanStyle())
         return StyledCluster(
             text = overflowPlaceholder,
+            start = -1,
+            end = -1,
             style = style,
-            width = measureStyledTextWidth(overflowPlaceholder, style, measurer)
+            width = measureStyledTextWidth(overflowPlaceholder, style, measurer),
+            useParagraphFallback = false
         )
     }
 
@@ -993,34 +1322,104 @@ class Text(
 
     private fun wrapStyledClusters(
         clusters: List<StyledCluster>,
-        maxWidth: Float
+        maxWidth: Float,
+        sourceText: String
     ): List<List<StyledCluster>> {
         if (clusters.isEmpty()) return listOf(emptyList())
         val result = mutableListOf<List<StyledCluster>>()
         var current = mutableListOf<StyledCluster>()
-        for (cluster in clusters) {
-            if (cluster.text == "\n") {
+
+        fun commitLine(allowEmpty: Boolean = false) {
+            if (current.isNotEmpty() || allowEmpty) {
                 result += current
                 current = mutableListOf()
-                continue
-            }
-            val candidate = current + cluster
-            if (current.isNotEmpty() && styledLine(candidate).width > maxWidth) {
-                result += current
-                current = mutableListOf(cluster)
-            } else {
-                current += cluster
             }
         }
-        result += current
+
+        fun appendClusterFallback(unit: List<StyledCluster>) {
+            for (cluster in unit) {
+                val candidate = current + cluster
+                if (current.isNotEmpty() && styledLine(candidate).width > maxWidth) {
+                    commitLine()
+                    current += cluster
+                } else {
+                    current += cluster
+                }
+            }
+        }
+
+        fun appendUnit(unit: List<StyledCluster>) {
+            if (unit.isEmpty()) return
+            val unitWidth = styledLine(unit).width
+            val candidate = current + unit
+            when {
+                current.isEmpty() && (unitWidth > maxWidth && unit.size > 1) ->
+                    appendClusterFallback(unit)
+                current.isEmpty() -> current += unit
+                styledLine(candidate).width <= maxWidth -> current += unit
+                else -> {
+                    commitLine()
+                    appendUnit(unit)
+                }
+            }
+        }
+
+        for (unit in styledBreakUnits(clusters, sourceText)) {
+            appendUnit(unit.clusters)
+            if (unit.hardBreakAfter) {
+                commitLine(allowEmpty = true)
+            }
+        }
+        commitLine()
         return result.ifEmpty { listOf(emptyList()) }
     }
 
+    private fun styledBreakUnits(
+        clusters: List<StyledCluster>,
+        sourceText: String
+    ): List<StyledBreakUnit> {
+        val units = mutableListOf<StyledBreakUnit>()
+        val lineBreaks = segmentLineBreaks(sourceText)
+        var clusterIndex = 0
+
+        fun addSegment(end: Int) {
+            var unit = mutableListOf<StyledCluster>()
+            fun flushUnit(hardBreakAfter: Boolean = false) {
+                if (unit.isNotEmpty() || hardBreakAfter) {
+                    units += StyledBreakUnit(unit, hardBreakAfter)
+                    unit = mutableListOf()
+                }
+            }
+
+            while (clusterIndex < clusters.size && clusters[clusterIndex].end <= end) {
+                val cluster = clusters[clusterIndex++]
+                if (cluster.text == "\n") {
+                    flushUnit(hardBreakAfter = true)
+                } else {
+                    unit += cluster
+                }
+            }
+            flushUnit()
+        }
+
+        for (breakSegment in lineBreaks) {
+            addSegment(breakSegment.end)
+        }
+        if (clusterIndex < clusters.size) {
+            addSegment(Int.MAX_VALUE)
+        }
+        if (units.isEmpty()) {
+            val fallback = clusters.filter { it.text != "\n" }
+            if (fallback.isNotEmpty()) units += StyledBreakUnit(fallback)
+        }
+        return units
+    }
+
     private fun measureAnnotatedContent(sizeIn: SizeIn, lineHeight: Float, measurer: TextMeasurer) {
-        val clusters = indexedTextClusters(annotatedText.text).map { styledCluster(it, measurer) }
+        val clusters = segmentGraphemeClusters(annotatedText.text).map { styledCluster(it, measurer) }
         val maxWidth = sizeIn.maxWidth
         var rawLines = when {
-            overflow == TextOverflow.Wrap && maxWidth.isFinite() -> wrapStyledClusters(clusters, maxWidth)
+            overflow == TextOverflow.Wrap && maxWidth.isFinite() -> wrapStyledClusters(clusters, maxWidth, annotatedText.text)
             overflow == TextOverflow.Ellipsis && maxWidth.isFinite() && styledLine(clusters).width > maxWidth ->
                 listOf(appendOverflowPlaceholder(clusters, maxWidth, measurer))
             else -> listOf(clusters)
@@ -1056,6 +1455,7 @@ class Text(
         applyModifiers()
         paragraphLayout = null
         styledLines = emptyList()
+        enableClusterTypefaceFallback = false
 
         val sizeIn = sizeIn()
         val measurer = context.textMeasurer
@@ -1064,12 +1464,15 @@ class Text(
         val lineHeight = effectiveLineHeight.takeIf { it > 0f } ?: metrics.lineHeight
         effectiveLineHeight = lineHeight
 
-        if (context.textMeasurer === SkiaTextMeasurer) {
+        val useSkiaTextMeasurer = context.textMeasurer === SkiaTextMeasurer
+        val useClusterControlledLayout = useSkiaTextMeasurer && hasClusterTypefaceOverrides()
+        enableClusterTypefaceFallback = useClusterControlledLayout
+        if (useSkiaTextMeasurer && !useClusterControlledLayout) {
             measureParagraphContent(sizeIn, lineHeight)
             return
         }
 
-        if (annotatedText.spanStyles.isNotEmpty()) {
+        if (annotatedText.spanStyles.isNotEmpty() || useClusterControlledLayout) {
             measureAnnotatedContent(sizeIn, lineHeight, measurer)
             return
         }
@@ -1126,12 +1529,16 @@ class Text(
                     if (measureLineWidth("$truncated$overflowPlaceholder", measurer) <= sizeIn.maxWidth) {
                         truncated += overflowPlaceholder
                     } else {
-                        // 逐字符去掉直到放得下
-                        var t = truncated
-                        while (t.isNotEmpty() && measureLineWidth("$t$overflowPlaceholder", measurer) > sizeIn.maxWidth) {
-                            t = t.dropLast(1)
+                        // 省略号截断按 cluster 删除，避免切开组合符号或 emoji 序列。
+                        val visibleClusters = textClusters(truncated).toMutableList()
+                        while (
+                            visibleClusters.isNotEmpty() &&
+                            measureLineWidth("${visibleClusters.joinToString("")}$overflowPlaceholder", measurer) > sizeIn.maxWidth
+                        ) {
+                            visibleClusters.removeAt(visibleClusters.lastIndex)
                         }
-                        truncated = if (t.isEmpty()) overflowPlaceholder else t + overflowPlaceholder
+                        val visibleText = visibleClusters.joinToString("")
+                        truncated = if (visibleText.isEmpty()) overflowPlaceholder else visibleText + overflowPlaceholder
                     }
                     visible[lastIndex] = truncated
                     lines = visible
@@ -1220,21 +1627,13 @@ class Text(
         }
         return ParagraphBuilder(paragraphStyle, FontManager.fonts)
             .also { builder ->
-                if (annotatedText.spanStyles.isEmpty()) {
-                    builder.addText(text)
-                } else {
-                    appendAnnotatedParagraph(builder, lineHeight)
+                for (run in paragraphStyleRuns()) {
+                    builder.pushStyle(paragraphTextStyle(lineHeight, run.style))
+                    builder.addText(annotatedText.text.substring(run.start, run.end))
+                    builder.popStyle()
                 }
             }
             .build()
-    }
-
-    private fun appendAnnotatedParagraph(builder: ParagraphBuilder, lineHeight: Float) {
-        for (run in annotatedStyleRuns()) {
-            builder.pushStyle(paragraphTextStyle(lineHeight, run.style))
-            builder.addText(annotatedText.text.substring(run.start, run.end))
-            builder.popStyle()
-        }
     }
 
     private fun paragraphTextStyle(lineHeight: Float): ParagraphTextStyle =
@@ -1254,6 +1653,7 @@ class Text(
             )
             .setLetterSpacing(style.letterSpacing)
             .apply {
+                style.typefaceOverride?.let { setTypeface(it) }
                 if (!style.needsCustomBackground) style.backgroundColor?.let { color ->
                     setBackground(Paint().apply { this.color = color })
                 }
@@ -1292,8 +1692,17 @@ class Text(
                 context.canvas.drawString(line, drawX, yCursor, font, paint)
             } else {
                 val offsets = clusterOffsets.getOrElse(index) { emptyList() }
-                textClusters(line).forEachIndexed { clusterIndex, cluster ->
-                    context.canvas.drawString(cluster, drawX + offsets.getOrElse(clusterIndex) { 0f }, yCursor, font, paint)
+                val clusters = segmentGraphemeClusters(line).map {
+                    styledCluster(it, context.measureContext.textMeasurer)
+                }
+                clusters.forEachIndexed { clusterIndex, cluster ->
+                    context.canvas.drawString(
+                        cluster.text,
+                        drawX + offsets.getOrElse(clusterIndex) { 0f },
+                        yCursor,
+                        styledFont(cluster.style),
+                        styledPaint(cluster.style)
+                    )
                 }
             }
             if (underline != null && underline.mode == TextUnderlineMode.Line) {
@@ -1322,18 +1731,55 @@ class Text(
                 )
             }
             for (fragment in line.fragments) {
-                context.canvas.drawString(
-                    fragment.text,
-                    drawX + fragment.xOffset,
-                    yCursor,
-                    styledFont(fragment.style),
-                    styledPaint(fragment.style)
-                )
+                drawStyledFragment(context, fragment, drawX + fragment.xOffset, yCursor)
             }
             if (underline != null && underline.mode == TextUnderlineMode.Line) {
                 drawUnderline(context, underline, drawX, yCursor, line.width)
             }
             yCursor += lineHeight
+        }
+    }
+
+    private fun drawStyledFragment(
+        context: DrawContext,
+        fragment: StyledLineFragment,
+        x: Float,
+        y: Float
+    ) {
+        if (fragment.useParagraphFallback) {
+            drawParagraphFragment(context, fragment, x, y)
+            return
+        }
+        val font = styledFont(fragment.style)
+        val paint = styledPaint(fragment.style)
+        if (fragment.style.typefaceOverride != null) {
+            val shaped = shapedText(fragment.text, font)
+            context.canvas.drawTextLine(shaped.line, x + shaped.drawOffsetX, y, paint)
+        } else {
+            context.canvas.drawString(fragment.text, x, y, font, paint)
+        }
+    }
+
+    private fun drawParagraphFragment(
+        context: DrawContext,
+        fragment: StyledLineFragment,
+        x: Float,
+        baselineY: Float
+    ) {
+        val paragraph = buildParagraphFragment(fragment.text, fragment.style)
+        val baseline = paragraph.lineMetrics.firstOrNull()?.baseline?.toFloat() ?: -textMetrics.ascent
+        val top = baselineY - baseline
+        if (effectiveScaleX == 1f) {
+            context.canvas.drawParagraph(paragraph, x, top)
+            return
+        }
+        context.canvas.save()
+        try {
+            context.canvas.translate(x, top)
+            context.canvas.scale(effectiveScaleX, 1f)
+            context.canvas.drawParagraph(paragraph, 0f, 0f)
+        } finally {
+            context.canvas.restore()
         }
     }
 
@@ -1367,7 +1813,7 @@ class Text(
         drawX: Float,
         drawY: Float
     ) {
-        for (run in annotatedStyleRuns()) {
+        for (run in paragraphStyleRuns()) {
             if (!run.style.needsCustomBackground) continue
             val boxes = layout.paragraph.getRectsForRange(
                 run.start,

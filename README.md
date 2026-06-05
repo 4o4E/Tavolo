@@ -110,7 +110,7 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 然后在项目中引入依赖：
 
 ```kotlin
-val version = "2.7.0"
+val version = "2.7.1"
 
 repositories {
     mavenCentral()
@@ -202,6 +202,22 @@ text(
 )
 ```
 
+### 复杂 Unicode 文本的字体 fallback
+
+Compose `text(...)` 会保留 grapheme cluster（用户感知字符簇）边界，emoji ZWJ、国旗 regional indicator、组合变音符号和 `A⃝`、`୧⍤⃝` 这类组合包围符号不会在测量、省略号或 `AnnotatedText` 样式合并时被拆开。换行仍优先使用 ICU line break 规则，只有一个断点段本身放不下时才按 cluster 继续拆。
+
+普通缺字仍交给 Skia Paragraph 的字体 fallback；只有需要同字体成形的风险 cluster 才会使用 Tavolo 内部兜底。若业务文本包含组合包围符号，可以额外配置：
+
+```kotlin
+import java.io.File
+import top.e404.tavolo.util.FontManager
+
+val clusterFont = FontManager.registerFile("cluster-symbol", File("font/FreeMono.ttf"))
+FontManager.graphemeClusterFallbackFamilies = listOf(clusterFont)
+```
+
+更完整的机制和人工检查方式见 [下游文本字体回退：emoji 与 grapheme cluster](docs/下游升级到2.5.0-emoji回退.md)。
+
 ## 本地验证
 
 请先确保本机已安装并配置 Java 17 或更高版本。Tavolo 发布产物仍保持 Java 11 运行兼容。
@@ -218,6 +234,12 @@ text(
 ./gradlew :graphics:manualTest --tests "*ComposeHelloWorldManualTest"
 ```
 
+生成文本字体 fallback 与 grapheme cluster 人工测试图：
+
+```shell
+./gradlew :graphics:manualTest --tests "*ComposeTextFallbackManualTest"
+```
+
 人工测试输出位于 `run/out`。
 
 ## 文档入口
@@ -229,7 +251,7 @@ text(
 - [指令资源与能力注册设计](docs/指令资源与能力注册设计.md)
 - [HTTP 指令服务设计](docs/HTTP指令服务设计.md)
 - [TODO](docs/TODO.md)
-- [下游升级到 2.5.0：emoji 字体回退](docs/下游升级到2.5.0-emoji回退.md)
+- [下游文本字体回退：emoji 与 grapheme cluster](docs/下游升级到2.5.0-emoji回退.md)
 
 ## 许可证
 
