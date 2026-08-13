@@ -123,6 +123,8 @@ abstract class BaseElement : UiElement {
 
     protected fun sizeIn(): SizeIn = modifier.fold(SizeIn()) { acc, m -> m as? SizeIn ?: acc }
 
+    protected fun antiAlias(): AntiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
+
     private fun Float.coerceInConstraint(min: Float, max: Float): Float {
         val constrainedMin = min.coerceAtLeast(0f)
         val constrainedMax = if (max.isFinite()) max.coerceAtLeast(constrainedMin) else Float.POSITIVE_INFINITY
@@ -196,7 +198,7 @@ abstract class BaseElement : UiElement {
     protected abstract fun layoutChildren(content: Bounds)
 
     final override fun draw(context: DrawContext) {
-        val antiAlias = modifier.fold(AntiAlias()) { acc, m -> m as? AntiAlias ?: acc }
+        val antiAlias = antiAlias()
         var bounds = Bounds(x, y, width, height)
         var saveCount = 0
         for (mod in modifier.toList()) {
@@ -225,7 +227,7 @@ abstract class BaseElement : UiElement {
                     val clipPath = mod.shape.createPath(bounds.width, bounds.height)
                         .apply { transform(Matrix33.makeTranslate(bounds.x, bounds.y)) }
                     context.canvas.save()
-                    context.canvas.clipPath(clipPath, true)
+                    context.canvas.clipPath(clipPath, antiAlias.enabled)
                     saveCount += 1
                 }
             }
@@ -1889,55 +1891,25 @@ class ImageElement(
     private val image: Image,
     private val overflow: ImageOverflow = ImageOverflow.Scale
 ) : BaseElement() {
-    // 记录测量后的目标绘制尺寸与源裁剪 Rect（如果需要）
-    private var targetWidth: Float = 0f
-    private var targetHeight: Float = 0f
-    private var srcRect: Rect? = null
-
     override fun measureContent(context: MeasureContext) {
-        // 默认原图尺寸
         val iw = image.width.toFloat()
         val ih = image.height.toFloat()
-
         val sizeIn = sizeIn()
 
         if (sizeIn.maxWidth.isFinite() || sizeIn.maxHeight.isFinite()) {
             if (overflow == ImageOverflow.Scale) {
-                // 按比例缩放以适配 sizeIn（保持纵横比）
                 val wLimit = if (sizeIn.maxWidth.isFinite()) sizeIn.maxWidth else iw
                 val hLimit = if (sizeIn.maxHeight.isFinite()) sizeIn.maxHeight else ih
                 val scale = minOf(wLimit / iw, hLimit / ih, 1f)
-                targetWidth = iw * scale
-                targetHeight = ih * scale
-                contentWidth = targetWidth
-                contentHeight = targetHeight
-                srcRect = null
-            } else if (overflow == ImageOverflow.Crop) {
-                // Crop：目标尺寸受限于 sizeIn，但不放大图片；从中心裁剪源图
-                val dstW = if (sizeIn.maxWidth.isFinite()) minOf(sizeIn.maxWidth, iw) else iw
-                val dstH = if (sizeIn.maxHeight.isFinite()) minOf(sizeIn.maxHeight, ih) else ih
-                // 计算源裁剪区域（中心裁剪）
-                val srcLeft = ((iw - dstW) / 2f).coerceAtLeast(0f)
-                val srcTop = ((ih - dstH) / 2f).coerceAtLeast(0f)
-                srcRect = Rect.makeXYWH(srcLeft, srcTop, dstW, dstH)
-                targetWidth = dstW
-                targetHeight = dstH
-                contentWidth = targetWidth
-                contentHeight = targetHeight
+                contentWidth = iw * scale
+                contentHeight = ih * scale
             } else {
-                targetWidth = if (sizeIn.maxWidth.isFinite()) sizeIn.maxWidth else iw
-                targetHeight = if (sizeIn.maxHeight.isFinite()) sizeIn.maxHeight else ih
-                contentWidth = targetWidth
-                contentHeight = targetHeight
-                srcRect = null
+                contentWidth = if (sizeIn.maxWidth.isFinite()) minOf(sizeIn.maxWidth, iw) else iw
+                contentHeight = if (sizeIn.maxHeight.isFinite()) minOf(sizeIn.maxHeight, ih) else ih
             }
         } else {
-            // 无限制
-            targetWidth = iw
-            targetHeight = ih
             contentWidth = iw
             contentHeight = ih
-            srcRect = null
         }
     }
 
@@ -1945,17 +1917,38 @@ class ImageElement(
 
     override fun drawContent(context: DrawContext) {
         val content = contentBounds()
-        val drawX = content.x
-        val drawY = content.y
+        if (content.width <= 0f || content.height <= 0f || image.width <= 0 || image.height <= 0) return
 
-        val dstRect = Rect.makeXYWH(drawX, drawY, targetWidth, targetHeight)
-        if (srcRect != null) {
-            // 裁剪显示源图的一部分到目标区域（crop）
-            context.canvas.drawImageRect(image, srcRect!!, dstRect, Paint())
-        } else {
-            // 直接缩放绘制或原尺寸绘制（scale）
-            val fullSrc = Rect.makeXYWH(0f, 0f, image.width.toFloat(), image.height.toFloat())
-            context.canvas.drawImageRect(image, fullSrc, dstRect, Paint())
+        val imageWidth = image.width.toFloat()
+        val imageHeight = image.height.toFloat()
+        val fullSrc = Rect.makeXYWH(0f, 0f, imageWidth, imageHeight)
+        val targetBounds = Rect.makeXYWH(content.x, content.y, content.width, content.height)
+        val (src, dst) = when (overflow) {
+            ImageOverflow.Scale -> {
+                val scale = minOf(content.width / imageWidth, content.height / imageHeight)
+                val dstWidth = imageWidth * scale
+                val dstHeight = imageHeight * scale
+                fullSrc to Rect.makeXYWH(
+                    content.x + (content.width - dstWidth) / 2f,
+                    content.y + (content.height - dstHeight) / 2f,
+                    dstWidth,
+                    dstHeight
+                )
+            }
+            ImageOverflow.Crop -> {
+                val scale = maxOf(content.width / imageWidth, content.height / imageHeight)
+                val srcWidth = content.width / scale
+                val srcHeight = content.height / scale
+                Rect.makeXYWH(
+                    (imageWidth - srcWidth) / 2f,
+                    (imageHeight - srcHeight) / 2f,
+                    srcWidth,
+                    srcHeight
+                ) to targetBounds
+            }
+            ImageOverflow.Stretch -> fullSrc to targetBounds
         }
+        val paint = Paint().apply { isAntiAlias = antiAlias().enabled }
+        context.canvas.drawImageRect(image, src, dst, paint)
     }
 }

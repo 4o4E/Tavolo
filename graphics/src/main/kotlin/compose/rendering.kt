@@ -98,7 +98,14 @@ class SkiaDrawCanvas(private val canvas: Canvas) : DrawCanvas {
         paragraph.paint(canvas, x, y)
     }
     override fun drawImageRect(image: Image, src: Rect, dst: Rect, paint: Paint) {
-        canvas.drawImageRect(image, src, dst, paint)
+        canvas.drawImageRect(
+            image,
+            src,
+            dst,
+            imageSamplingMode(paint.isAntiAlias),
+            paint,
+            true
+        )
     }
     override fun drawSvg(svg: SVGDOM, dst: Rect) {
         if (dst.width <= 0f || dst.height <= 0f) return

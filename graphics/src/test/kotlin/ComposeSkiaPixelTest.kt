@@ -10,10 +10,12 @@ import top.e404.tavolo.draw.compose.Box
 import top.e404.tavolo.draw.compose.ImageOverflow
 import top.e404.tavolo.draw.compose.Modifier
 import top.e404.tavolo.draw.compose.Shape
+import top.e404.tavolo.draw.compose.antiAlias
 import top.e404.tavolo.draw.compose.background
 import top.e404.tavolo.draw.compose.border
 import top.e404.tavolo.draw.compose.box
 import top.e404.tavolo.draw.compose.clip
+import top.e404.tavolo.draw.compose.image
 import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.size
@@ -96,6 +98,21 @@ class ComposeSkiaPixelTest {
     }
 
     @Test
+    fun skiaRenderClipAntiAliasIsEnabledByDefaultAndCanBeDisabled() {
+        val smooth = renderCircleClip(antiAlias = true).toBitmap()
+        val nearest = renderCircleClip(antiAlias = false).toBitmap()
+
+        assertTrue(
+            pixelColors(smooth, 12, 12).any { Color.getA(it) in 1..254 },
+            "默认圆形裁剪应包含部分透明的平滑边缘像素"
+        )
+        assertTrue(
+            pixelColors(nearest, 12, 12).none { Color.getA(it) in 1..254 },
+            "关闭抗锯齿后圆形裁剪不应生成部分透明像素"
+        )
+    }
+
+    @Test
     fun skiaRenderKeepsBorderPaddingAndBackgroundOrder() {
         val image = render(
             backgroundColor = Color.TRANSPARENT,
@@ -131,6 +148,30 @@ class ComposeSkiaPixelTest {
         assertColorNear(Color.GREEN, bitmap.getColor(3, 0))
         assertColorNear(Color.BLUE, bitmap.getColor(0, 3))
         assertColorNear(Color.YELLOW, bitmap.getColor(3, 3))
+    }
+
+    @Test
+    fun skiaRenderSmoothsImageUpscalingByDefaultAndCanUseNearestNeighbor() {
+        val source = stripeImage()
+        val smooth = renderScaledImage(source, 8, 2, antiAlias = true).toBitmap()
+        val nearest = renderScaledImage(source, 8, 2, antiAlias = false).toBitmap()
+        val smoothReds = (0 until 8).map { Color.getR(smooth.getColor(it, 0)) }
+        val nearestReds = (0 until 8).map { Color.getR(nearest.getColor(it, 0)) }
+
+        assertTrue(smoothReds.any { it in 1..254 }, "默认放大应生成平滑过渡像素")
+        assertTrue(nearestReds.all { it == 0 || it == 255 }, "关闭抗锯齿后放大应使用最近邻像素")
+    }
+
+    @Test
+    fun skiaRenderSmoothsImageDownscalingByDefaultAndCanUseNearestNeighbor() {
+        val source = checkerImage(16)
+        val smooth = renderScaledImage(source, 2, 2, antiAlias = true).toBitmap()
+        val nearest = renderScaledImage(source, 2, 2, antiAlias = false).toBitmap()
+        val smoothReds = pixelColors(smooth, 2, 2).map(Color::getR)
+        val nearestReds = pixelColors(nearest, 2, 2).map(Color::getR)
+
+        assertTrue(smoothReds.all { it in 1..254 }, "默认缩小应混合高频像素以抑制锯齿")
+        assertTrue(nearestReds.all { it == 0 || it == 255 }, "关闭抗锯齿后缩小应使用最近邻像素")
     }
 
     @Test
@@ -215,6 +256,60 @@ class ComposeSkiaPixelTest {
             canvas.drawRect(Rect.makeXYWH(2f, 2f, 2f, 2f), paint)
             surface.makeImageSnapshot()
         }
+
+    private fun stripeImage(): Image =
+        Surface.makeRasterN32Premul(2, 1).use { surface ->
+            val paint = Paint().apply { isAntiAlias = false }
+            paint.color = Color.BLACK
+            surface.canvas.drawRect(Rect.makeXYWH(0f, 0f, 1f, 1f), paint)
+            paint.color = Color.WHITE
+            surface.canvas.drawRect(Rect.makeXYWH(1f, 0f, 1f, 1f), paint)
+            surface.makeImageSnapshot()
+        }
+
+    private fun checkerImage(size: Int): Image =
+        Surface.makeRasterN32Premul(size, size).use { surface ->
+            val paint = Paint().apply { isAntiAlias = false }
+            for (y in 0 until size) {
+                for (x in 0 until size) {
+                    paint.color = if ((x + y) % 2 == 0) Color.BLACK else Color.WHITE
+                    surface.canvas.drawRect(Rect.makeXYWH(x.toFloat(), y.toFloat(), 1f, 1f), paint)
+                }
+            }
+            surface.makeImageSnapshot()
+        }
+
+    private fun renderCircleClip(antiAlias: Boolean): Image = render(
+        backgroundColor = Color.TRANSPARENT,
+        root = Box().apply { modifier = Modifier.size(12f) }
+    ) {
+        box(
+            Modifier
+                .size(12f)
+                .antiAlias(antiAlias)
+                .clip(Shape.Circle)
+                .background(Color.GREEN)
+        )
+    }
+
+    private fun renderScaledImage(source: Image, width: Int, height: Int, antiAlias: Boolean): Image = render(
+        backgroundColor = Color.TRANSPARENT,
+        root = Box().apply { modifier = Modifier.size(width.toFloat(), height.toFloat()) }
+    ) {
+        image(
+            source,
+            Modifier
+                .size(width.toFloat(), height.toFloat())
+                .antiAlias(antiAlias),
+            ImageOverflow.Stretch
+        )
+    }
+
+    private fun pixelColors(bitmap: org.jetbrains.skia.Bitmap, width: Int, height: Int): List<Int> = buildList {
+        for (y in 0 until height) {
+            for (x in 0 until width) add(bitmap.getColor(x, y))
+        }
+    }
 
     private fun assertColorNear(expected: Int, actual: Int, tolerance: Int = COLOR_TOLERANCE) {
         assertChannelNear("alpha", Color.getA(expected), Color.getA(actual), tolerance)

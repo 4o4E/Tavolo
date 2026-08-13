@@ -106,6 +106,12 @@ data class Border(
     val shape: Shape? = null
 ) : ElementModifier
 
+/**
+ * 元素级抗锯齿开关，默认开启。
+ *
+ * 该开关不使用超采样：几何图形和裁剪交给 Skia 做覆盖率抗锯齿，图片缩放使用双线性过滤与
+ * 线性 mipmap；关闭后几何覆盖率抗锯齿关闭，图片改用最近邻采样。
+ */
 data class AntiAlias(
     val enabled: Boolean = true,
 ) : ElementModifier

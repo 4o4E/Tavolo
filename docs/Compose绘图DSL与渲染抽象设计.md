@@ -111,9 +111,13 @@ interface UiElement {
 - 背景与裁剪：`background(color)`、`background(image, imageOverflow)` / `backgroundImage(image, imageOverflow)`、`clip`。
 - 边框：`border`，支持实线、虚线、点线；传入 `shape` 时沿对应路径绘制圆角或圆形边框。
 - 效果：`shadow`、`rotate`。
-- 抗锯齿：`antiAlias`。
+- 抗锯齿：`antiAlias`，默认开启；`.antiAlias(false)` 可显式关闭。
 
-`Modifier` 按链式顺序逐层应用。`padding` 和 `border` 会影响测量尺寸，`background`、`clip`、`shadow`、`rotate` 只影响绘制。图片背景支持 `ImageOverflow.Scale`、`ImageOverflow.Crop` 和 `ImageOverflow.Stretch`：`Scale` 保持比例完整显示并居中，`Crop` 保持比例居中裁剪并铺满当前 modifier 边界，`Stretch` 不保留比例，直接拉伸到当前 modifier 边界。
+`Modifier` 按链式顺序逐层应用。`padding` 和 `border` 会影响测量尺寸，`background`、`clip`、`shadow`、`rotate` 只影响绘制。`ImageElement` 和图片背景都支持 `ImageOverflow.Scale`、`ImageOverflow.Crop` 和 `ImageOverflow.Stretch`：`Scale` 保持比例完整显示并居中，`Crop` 保持比例居中裁剪并铺满当前 modifier 边界，`Stretch` 不保留比例，直接拉伸到当前 modifier 边界。
+
+`Modifier.antiAlias` 是元素级统一开关，不是提高渲染分辨率后再缩小的超采样方案。默认 `true` 时，背景、边框等几何绘制使用 Skia 覆盖率抗锯齿，圆形/圆角 `clip` 使用抗锯齿裁剪，图片内容和图片背景使用 `FilterMode.LINEAR + MipmapMode.LINEAR`：双线性过滤负责放大时的像素过渡，线性 mipmap 负责缩小时的高频信息聚合。设置为 `false` 后，几何绘制和裁剪关闭覆盖率抗锯齿，图片使用 Skia 默认最近邻采样。一个元素链上的 `antiAlias` 同时作用于这些路径，避免裁剪平滑但图片仍按最近邻缩放的半开状态。
+
+通用图片工具 `Image.resize(w, h, smooth)` 使用相同采样语义。旧实现的两个分支不对称：`smooth=true` 使用 `Canvas.scale + drawImage`，`smooth=false` 反而调用内部实际为线性过滤的 `drawImageRectNearest`，开关名称与真实过滤路径不一致，放大和缩小也没有共享明确的采样策略。现在两个方向统一使用一次 `drawImageRect`：显式传入 `smooth=true` 时选择双线性过滤与线性 mipmap，`false` 时明确选择最近邻采样。`smooth` 的默认值继续保持 `false`，不改变既有 API 的默认参数约定。
 
 ## TextModifier
 
@@ -192,6 +196,6 @@ text(
 当前像素测试位于 `graphics/src/test/kotlin/ComposeSkiaPixelTest.kt`，覆盖：
 
 - `render(backgroundColor = ...)` 的真实清屏结果与实色 `background`。
-- `clip(Shape.Circle)` 在真实光栅化后的透明角和中心填充。
+- `clip(Shape.Circle)` 在真实光栅化后的透明角、中心填充和可开关抗锯齿边缘。
 - `border`、`padding`、`background` 按 modifier 顺序应用后的关键像素。
-- 背景图片通过真实 Skiko 后端绘制后的像素结果。
+- 图片与背景图片通过真实 Skiko 后端绘制后的像素结果，包括默认抗锯齿、关闭开关、放大平滑和高频图案缩小。

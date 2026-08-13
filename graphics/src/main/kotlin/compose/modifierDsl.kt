@@ -77,5 +77,11 @@ fun Modifier.border(
     shape: Shape? = null
 ): Modifier = this.then(Border(top, right, bottom, left, color, strokeStyle, shape))
 
+/**
+ * 设置当前元素的抗锯齿策略。
+ *
+ * 默认开启；控制元素的几何绘制与裁剪抗锯齿，同时控制 [ImageElement] 和图片背景的缩放采样。
+ * 这不是超采样方案，图片开启时使用双线性过滤与线性 mipmap，关闭时使用最近邻采样。
+ */
 fun Modifier.antiAlias(enabled: Boolean = true) = this.then(AntiAlias(enabled))
 

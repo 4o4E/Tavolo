@@ -44,10 +44,12 @@ fun Canvas.drawImageRectNearest(
 )
 
 /**
- * 缩放
+ * 缩放图片。
  *
  * @param w 新的宽度, 若小于0则作为百分比处理
  * @param h 新的高度, 若小于0则作为百分比处理
+ * @param smooth 是否开启缩放抗锯齿，默认值继续保持关闭；放大和缩小统一走同一个目标矩形采样流程，
+ * 开启时使用双线性过滤与线性 mipmap，关闭后使用最近邻采样
  * @return 缩放后的图片
  */
 fun Image.resize(w: Int, h: Int, smooth: Boolean = false): Image {
@@ -56,15 +58,17 @@ fun Image.resize(w: Int, h: Int, smooth: Boolean = false): Image {
     val width = if (w > 0) w else (w / -100.0 * width).toInt()
     val height = if (h > 0) h else (h / -100.0 * height).toInt()
     return Surface.makeRasterN32Premul(width, height).withCanvas {
-        scale(width / this@resize.width.toFloat(), height / this@resize.height.toFloat())
-        if (smooth) {
-            drawImage(this@resize, 0F, 0F)
-            return@withCanvas
-        }
-        drawImageRectNearest(
-            image = this@resize,
-            src = Rect.makeWH(this@resize.width.toFloat(), this@resize.height.toFloat()),
-            dst = Rect.makeWH(this@resize.width.toFloat(), this@resize.height.toFloat())
+        drawImageRect(
+            this@resize,
+            Rect.makeWH(this@resize.width.toFloat(), this@resize.height.toFloat()),
+            Rect.makeWH(width.toFloat(), height.toFloat()),
+            if (smooth) {
+                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR)
+            } else {
+                SamplingMode.DEFAULT
+            },
+            null,
+            true
         )
     }
 }
