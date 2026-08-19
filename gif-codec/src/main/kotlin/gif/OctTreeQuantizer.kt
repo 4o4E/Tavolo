@@ -1,7 +1,6 @@
 package top.e404.tavolo.gif
 
 import org.jetbrains.skia.Bitmap
-import top.e404.tavolo.util.rgb
 
 /**
  * qct树量化器
@@ -16,17 +15,31 @@ class OctTreeQuantizer {
     private val nodeList = arrayOfNulls<Node>(8)
 
     fun quantize(bitmap: Bitmap, maxColorCount: Int = 256, ignoreTransparent: Boolean = true): IntArray {
+        return quantize(BitmapPixels.from(bitmap), maxColorCount, ignoreTransparent)
+    }
+
+    internal fun quantize(pixels: BitmapPixels, maxColorCount: Int = 256, ignoreTransparent: Boolean = true): IntArray {
         require(maxColorCount in 1..256) { "GIF色表颜色数量必须在1..256之间" }
         leafCount = 0
         inIndex = 0
         nodeList.fill(null)
 
         val node = createNode(0)
-        for (x in 0 until bitmap.width) for (y in 0 until bitmap.height) {
-            if (ignoreTransparent && bitmap.getAlphaf(x, y) < 0.5F) continue
-            addColor(node, bitmap.getColor(x, y), 0)
-            while (leafCount > maxColorCount) {
-                reduceTree()
+        // 保持旧实现的列优先遍历顺序，避免八叉树归并顺序改变色表结果。
+        for (x in 0 until pixels.width) {
+            for (y in 0 until pixels.height) {
+                val color = pixels.argb[y * pixels.width + x]
+                if (ignoreTransparent && color ushr 24 < 0x80) continue
+                addColor(
+                    node,
+                    color ushr 16 and 0xFF,
+                    color ushr 8 and 0xFF,
+                    color and 0xFF,
+                    0,
+                )
+                while (leafCount > maxColorCount) {
+                    reduceTree()
+                }
             }
         }
         return HashSet<Int>().run {
@@ -35,27 +48,26 @@ class OctTreeQuantizer {
         }
     }
 
-    private fun addColor(node_: Node?, color: Int, inLevel: Int): Boolean {
+    private fun addColor(node_: Node?, red: Int, green: Int, blue: Int, inLevel: Int): Boolean {
         val node = node_ ?: createNode(inLevel)
         val nIndex: Int
         val shift: Int
-        val (r, g, b) = color.rgb()
         if (node.isLeaf) {
             node.pixelCount++
-            node.redSum += r
-            node.greenSum += g
-            node.blueSum += b
+            node.redSum += red
+            node.greenSum += green
+            node.blueSum += blue
         } else {
             shift = 7 - inLevel
-            nIndex = (r and mask[inLevel] shr shift shl 2
-                    or (g and mask[inLevel] shr shift shl 1)
-                    or (b and mask[inLevel] shr shift))
+            nIndex = (red and mask[inLevel] shr shift shl 2
+                    or (green and mask[inLevel] shr shift shl 1)
+                    or (blue and mask[inLevel] shr shift))
             var tmpNode = node.child[nIndex]
             if (tmpNode == null) {
                 tmpNode = createNode(inLevel + 1)
             }
             node.child[nIndex] = tmpNode
-            return addColor(node.child[nIndex], color, inLevel + 1)
+            return addColor(node.child[nIndex], red, green, blue, inLevel + 1)
         }
         return true
     }

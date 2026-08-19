@@ -87,3 +87,28 @@ fun main() = runBlocking {
 - `encodeToBytes` 要求至少有一帧；空列表会抛出 `IllegalArgumentException`。
 - 单帧会输出 PNG，多帧才会输出 GIF。
 - `GIFBuilder` 会根据局部色表、全局色表或自动量化结果写入颜色表。
+
+## 编码 benchmark
+
+`gif-codec` 使用 JMH 测量完整 GIF 编码耗时、吞吐、每次操作分配量和 GC 时间。基准素材在 `@Setup` 阶段生成，不计入编码耗时。
+
+串行场景覆盖 256×256×10 帧、600×900×20 帧和 1024×768×20 帧，并区分透明与不透明图片：
+
+```powershell
+$env:JAVA_HOME='D:\Jdk\dragonwell-17.0.9.0.10+9-GA'
+.\gradlew.bat :gif-codec:jmh `
+    '-PjmhInclude=.*GifEncodingBenchmark.encode' `
+    '-PjmhResult=reports/jmh/serial.json' `
+    '-PjmhOutput=reports/jmh/serial.txt'
+```
+
+四个 600×900×20 帧透明动画并发编码：
+
+```powershell
+.\gradlew.bat :gif-codec:jmh `
+    '-PjmhInclude=.*GifEncodingConcurrentBenchmark.encodeFourRequests' `
+    '-PjmhResult=reports/jmh/concurrent.json' `
+    '-PjmhOutput=reports/jmh/concurrent.txt'
+```
+
+重点比较 JSON 中的主指标、`gc.alloc.rate.norm`、`gc.count` 和 `gc.time`；前后对比必须使用相同 JDK、JMH 参数和素材。

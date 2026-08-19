@@ -110,12 +110,13 @@ class GIFBuilder(val width: Int, val height: Int) {
             coroutineScope {
                 frames.map { (bitmap, colors, info) ->
                     async(Dispatchers.Default) {
-                        val hasTransparency = !bitmap.computeIsOpaque()
+                        val pixels = BitmapPixels.from(bitmap)
+                        val hasTransparency = pixels.hasTransparency
                         val table = when {
                             colors.exists() -> colors
                             global.exists() -> global
                             else -> ColorTable.create(
-                                colors = OctTreeQuantizer().quantize(bitmap, if (hasTransparency) 255 else 256),
+                                colors = OctTreeQuantizer().quantize(pixels, if (hasTransparency) 255 else 256),
                                 sort = true,
                                 hasTransparency = hasTransparency
                             )
@@ -124,7 +125,7 @@ class GIFBuilder(val width: Int, val height: Int) {
                             require(table.transparency in table.colors.indices) { "透明GIF帧需要预留透明颜色索引" }
                             table.transparency
                         } else null
-                        val result = AtkinsonDitherer.dither(bitmap, table.colors, transparency)
+                        val result = AtkinsonDitherer.dither(pixels, table.colors, transparency)
 
                         val descBuf = ImageDescriptor.toBuffer(info.frameRect, table, table !== global, result)
                         val buf = ByteBuffer.allocate(descBuf.position() + 8)
