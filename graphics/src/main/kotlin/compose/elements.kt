@@ -339,7 +339,15 @@ abstract class BaseElement : UiElement {
         val pathWidth = (bounds.width - strokeWidth).coerceAtLeast(0f)
         val pathHeight = (bounds.height - strokeWidth).coerceAtLeast(0f)
         if (pathWidth <= 0f || pathHeight <= 0f) return
-        val path = border.shape!!.createPath(pathWidth, pathHeight).apply {
+        // shape 描述外轮廓；描边路径位于边框中心，圆角半径也要随半个描边宽度向内缩进。
+        val shape = when (val outerShape = border.shape!!) {
+            is Shape.RoundedRect -> Shape.RoundedRect(
+                (minOf(outerShape.radius, bounds.width / 2f, bounds.height / 2f) - strokeWidth / 2f)
+                    .coerceAtLeast(0f)
+            )
+            else -> outerShape
+        }
+        val path = shape.createPath(pathWidth, pathHeight).apply {
             transform(Matrix33.makeTranslate(bounds.x + strokeWidth / 2f, bounds.y + strokeWidth / 2f))
         }
         val paint = Paint().apply {

@@ -134,6 +134,27 @@ class ComposeSkiaPixelTest {
     }
 
     @Test
+    fun roundedBorderUsesOuterShapeRadiusForBothContours() {
+        val image = render(backgroundColor = Color.TRANSPARENT) {
+            box(
+                Modifier
+                    .antiAlias(false)
+                    .border(4f, Color.RED, shape = Shape.RoundedRect(18f))
+                    .size(72f)
+            )
+        }
+        val bitmap = image.toBitmap()
+
+        // 外轮廓半径 18，内轮廓向内缩进 4，四个圆角的圆心都位于距外沿 18 的位置。
+        for ((x, y) in listOf(3 to 8, 76 to 8, 3 to 71, 76 to 71)) {
+            assertColorNear(Color.RED, bitmap.getColor(x, y))
+        }
+        for ((x, y) in listOf(8 to 8, 71 to 8, 8 to 71, 71 to 71)) {
+            assertAlphaNear(0, bitmap.getColor(x, y))
+        }
+    }
+
+    @Test
     fun skiaRenderDrawsBackgroundImagePixels() {
         val source = quadrantImage()
         val image = render(
