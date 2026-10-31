@@ -13,6 +13,13 @@ dependencies {
     testImplementation(kotlin("test", Versions.KOTLIN))
 }
 
+// 发布制品需要随附移植几何算法的许可证与归属信息。
+tasks.withType<Jar>().configureEach {
+    from(rootProject.files("LICENSE", "NOTICE")) {
+        into("META-INF")
+    }
+}
+
 val manualTest by sourceSets.creating {
     java.srcDir("src/manualTest/kotlin")
     resources.srcDir("src/manualTest/resources")

@@ -7,3 +7,4 @@ jar
 .kotlin
 http-server/.env
 AGENTS.local.md
+.workspace/

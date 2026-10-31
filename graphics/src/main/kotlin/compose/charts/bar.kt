@@ -159,8 +159,17 @@ data class PieChartTheme(
     },
     val legendLabelFormatter: (PieSlice, Float, Float) -> String = { slice, _, total ->
         "${slice.label} ${formatChartPercent(slice.value, total)}"
-    }
+    },
+    /** 相切圆角半径（像素）；保持扇区角度，内外分别限制到环厚及可用空间允许的最大值。 */
+    val cornerRadius: Float = 0f,
+    /** 固定透明间距（像素），不随份额缩小；环形图按扣除间距、未倒圆角的内圆弧分配份额。 */
+    val sliceGap: Float = 0f
 ) {
+    init {
+        require(cornerRadius.isFinite() && cornerRadius >= 0f) { "扇区圆角半径必须是有限的非负数" }
+        require(sliceGap.isFinite() && sliceGap >= 0f) { "扇区间距必须是有限的非负数" }
+    }
+
     val stroke: ChartStroke get() = ChartStroke(strokeColor, strokeWidth)
 }
 
@@ -206,8 +215,13 @@ fun drawPieChart(
     measureContext: MeasureContext = MeasureContext()
 ) {
     val slices = normalizePieSlices(data, theme)
-    val total = slices.sumOf { it.value.toDouble() }.toFloat()
+    val preciseTotal = slices.sumOf { it.value.toDouble() }
+    val total = preciseTotal.toFloat()
     if (total <= 0f) return
+    val shapedSectors = theme.cornerRadius > 0f || theme.sliceGap > 0f
+    val sectorLayout = if (shapedSectors) {
+        layoutPieSectors(slices, preciseTotal, theme.radius, theme.innerRadius, theme.sliceGap)
+    } else null
 
     val legendItems = slices.map { slice ->
         ChartLegendItem(theme.legendLabelFormatter(slice, slice.value / total, total), slice.color!!)
@@ -222,8 +236,10 @@ fun drawPieChart(
     val bottom = centerY + theme.radius - arcInset
     val fillPaint = ChartFill(Color.TRANSPARENT).toPaint()
     val strokePaint = theme.stroke.toPaint()
+    // 独立扇区的描边全部绘制在路径内部，避免描边填满透明间距或越过内外半径。
+    if (shapedSectors) strokePaint.strokeWidth = theme.strokeWidth * 2f
 
-    if (theme.innerRadius > 0f) {
+    if (!shapedSectors && theme.innerRadius > 0f) {
         canvas.save()
         val clipPath = Path().apply {
             addCircle(centerX, centerY, theme.radius)
@@ -233,21 +249,42 @@ fun drawPieChart(
     }
 
     var start = theme.startAngle
+    var preciseStart = theme.startAngle.toDouble()
     val labelStates = mutableListOf<PieLabelState>()
-    slices.forEach { slice ->
-        val sweep = 360f * (slice.value / total)
+    slices.forEachIndexed { index, slice ->
+        val dataSweep = 360f * (slice.value / total)
+        val preciseSweep = if (sectorLayout != null) sectorLayout.sweepAngles[index] else dataSweep.toDouble()
+        val labelStart = if (sectorLayout != null) preciseStart.toFloat() else start
+        val labelSweep = preciseSweep.toFloat()
         fillPaint.color = slice.color!!
-        canvas.drawArc(left, top, right, bottom, start, sweep, true, fillPaint)
-        if (theme.strokeWidth > 0f) {
-            canvas.drawArc(left, top, right, bottom, start, sweep, true, strokePaint)
+        if (sectorLayout != null) {
+            roundedPieSectorPath(
+                centerX, centerY, theme.radius, theme.innerRadius,
+                preciseStart, preciseSweep, theme.cornerRadius, sectorLayout.sliceGap
+            ).use { path ->
+                canvas.drawPath(path, fillPaint)
+                if (theme.strokeWidth > 0f && !path.isEmpty) {
+                    canvas.save()
+                    canvas.clipPath(path)
+                    canvas.drawPath(path, strokePaint)
+                    canvas.restore()
+                }
+            }
+            preciseStart += preciseSweep
+        } else {
+            canvas.drawArc(left, top, right, bottom, start, dataSweep, true, fillPaint)
+            if (theme.strokeWidth > 0f) {
+                canvas.drawArc(left, top, right, bottom, start, dataSweep, true, strokePaint)
+            }
         }
-        if (theme.showLabels && slice.value / total >= theme.minLabelPercent && sweep >= theme.minShowLabelAngle) {
-            labelStates += PieLabelState(slice, start, sweep)
+        // 标签筛选保持原始数值口径，位置跟随含间距的实际扇区中点。
+        if (theme.showLabels && slice.value / total >= theme.minLabelPercent && dataSweep >= theme.minShowLabelAngle) {
+            labelStates += PieLabelState(slice, labelStart, labelSweep)
         }
-        start += sweep
+        start += dataSweep
     }
 
-    if (theme.innerRadius > 0f) {
+    if (!shapedSectors && theme.innerRadius > 0f) {
         canvas.restore()
         if (theme.strokeWidth > 0f) {
             canvas.drawCircle(centerX, centerY, theme.radius - arcInset, strokePaint)

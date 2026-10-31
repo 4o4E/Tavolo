@@ -105,17 +105,17 @@ Source: [`ComposeThemeManualTest.kt`](graphics/src/manualTest/kotlin/ComposeThem
 
 ## Dependency
 
-Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions. Release builds are published to Maven Central, and `-SNAPSHOT` preview builds are published to the Sonatype snapshot repository.
+Check [Releases](https://github.com/4o4E/Tavolo/releases) for available versions. Release builds are published to Maven Central, and `-SNAPSHOT` preview builds are published to the Nexus snapshot repository.
 
 Then add the repository and dependencies:
 
 ```kotlin
-val version = "2.7.3"
+val version = "2.8.0"
 
 repositories {
     mavenCentral()
     // Only required for -SNAPSHOT versions.
-    maven("https://central.sonatype.com/repository/maven-snapshots/")
+    maven("https://nexus.e404.top:3443/repository/maven-snapshots/")
 }
 
 dependencies {

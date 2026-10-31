@@ -441,6 +441,8 @@ lineChart(lineTheme, series)
 
 - `radius`: 外半径。
 - `innerRadius`: 内半径，`0f` 是实心饼图，大于 `0f` 是 donut。
+- `cornerRadius`: 相切圆角半径，单位像素，默认 `0f`；不改变扇区角度，内外圆角分别取配置值、环厚一半及各自几何空间允许的最大半径。
+- `sliceGap`: 相邻扇区直线侧边之间的固定透明间距，单位像素，默认 `0f`；环形图预留间距后，按数值占比分配未倒圆角的内圆弧，不随份额大小缩放间距。
 - `maxNamedSlices`: 只保留前 N 个分类，其余合并为 `othersLabel`。
 - `minLabelPercent`: 低于该占比的小扇区不画标签。
 - `minShowLabelAngle`: 低于该角度的小扇区不画标签和外侧引线，适合过滤极细扇区。
@@ -489,6 +491,42 @@ donutChart(
     data = pieData
 )
 ```
+
+#### 圆角与间距
+
+```kotlin
+donutChart(
+    theme = PieChartTheme(
+        width = 140f,
+        height = 140f,
+        radius = 65f,
+        innerRadius = 36f,
+        insets = ChartInsets(5f, 5f, 5f, 5f),
+        cornerRadius = 4f,
+        sliceGap = 3f,
+        strokeWidth = 0f,
+        showLabels = false,
+        legend = ChartLegendTheme(position = ChartLegendPosition.NONE)
+    ),
+    data = pieData
+)
+```
+
+`cornerRadius` 和 `sliceGap` 接受有限的非负数。两者均为零（包括未设置）时，沿用原有饼图／环形图绘制、描边、标签和图例行为。启用任一参数时，直接构造独立闭合扇区路径，内外主圆弧仍以同一点为圆心；颜色继续取自 `PieSlice.color` 或调用方的 `palette`。此模式下描边位于路径内部，不占用透明间距；设置 `strokeWidth = 0f` 可只绘制填充。
+
+环形图比例按**未倒圆角的内圆弧长**计算，参考半径为 `innerRadius`。先扣除固定透明间距，再按输入正值占比分配内圆弧；开启或关闭圆角，不改变扇区起止角度或分配宽度。此口径不是填充面积占比，也不是倒圆角后剩余内圆主弧的占比。实心饼图没有内圆，继续按半径 `radius / 2` 的可见中线弧长计算。
+
+记内半径为 `r`、侧边偏移为 `h = sliceGap / 2`、正值扇区数量为 `n`、数值占比为 `pᵢ`。每个扇区为固定间距预留角度 `d = 2 × asin(h / r)`，剩余内圆弧的总角度为 `V = 2π − n × d`。扇区分配角度为 `θᵢ = pᵢ × V + d`，未倒圆角的内圆弧长度为 `r × pᵢ × V`。圆角不参与这一步角度分配；标签和引线跟随扇区中点。
+
+圆角直接在已分配的扇区内部构造，与内外同心圆弧及侧边相切。空间足够时采用配置半径；空间受限时，内外圆角分别取各自允许的最大半径，且不超过环厚的一半，不按占比额外折减。很窄的扇区允许同一端的两个圆角相接形成圆头；此时该端的主圆弧可以缩短为一个切点，轮廓仍与对应的内圆或外圆相切。
+
+侧边各偏移 `sliceGap / 2`，形成等宽透明间距，圆角附近自然展开。多个正值扇区要求 `h < r × sin(π / n)`，否则抛出 `IllegalArgumentException`，调用方需要减小间距或增大图表尺寸；不会静默缩小间距。实心饼图仍使用 `sliceGap < radius × sin(π / n)` 的中线间距上限及既有圆角约束。只有一个正值数据项时绘制完整圆环，不添加切口或接缝，不受间距上限限制。
+
+不设置最小份额，不修改 `PieSlice.value` 或图例数据。`minLabelPercent` 和 `minShowLabelAngle` 仍按原始数值占比筛选标签，不将为间距预留的角度计入筛选。对于已包含上游百分比的快照，可以通过 `legendLabelFormatter = { slice, _, _ -> "${slice.label} ${slice.value}%" }` 保留原始显示值。极小份额的弧长在实际尺寸下仍可能低于像素分辨率；标签和图例继续遵循既有配置。零值、负值和空数据继续遵循既有规则。
+
+圆角切点计算移植自 [D3 arc](https://d3js.org/d3-shape/arc)，版权与 ISC 许可证保留在实现文件、仓库 `NOTICE` 以及 graphics 二进制／源码制品的 `META-INF/NOTICE` 中。可执行人工样例见 [人工测试说明](../docs/人工测试说明.md#圆角环形图)。
+
+#### 标签布局
 
 分类很多或小扇区很多，并且希望每个扇区都有可读标签时，推荐使用 `OUTSIDE` 全外侧标签。外侧标签会先按扇区中点分到左右两侧，再在同侧做纵向避让，最后重新计算文本位置和引线终点，避免标签因为避让被推出画布。`AUTO` 更适合大扇区内置、小扇区外置的混合展示。
 

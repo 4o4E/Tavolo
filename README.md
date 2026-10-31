@@ -105,17 +105,17 @@ ManualTestSupport.saveCompose("README-01-Hello-World") {
 
 ## 引入依赖
 
-版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。正式版本发布到 Maven Central，`-SNAPSHOT` 预览版本发布到 Sonatype snapshot 仓库。
+版本请在 [Release](https://github.com/4o4E/Tavolo/releases) 中查看。正式版本发布到 Maven Central，`-SNAPSHOT` 预览版本发布到 Nexus snapshot 仓库。
 
 然后在项目中引入依赖：
 
 ```kotlin
-val version = "2.7.3"
+val version = "2.8.0"
 
 repositories {
     mavenCentral()
     // 仅在使用 -SNAPSHOT 版本时需要。
-    maven("https://central.sonatype.com/repository/maven-snapshots/")
+    maven("https://nexus.e404.top:3443/repository/maven-snapshots/")
 }
 
 dependencies {
