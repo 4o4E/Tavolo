@@ -123,58 +123,59 @@ class ComposePieArcProportionTest {
 
     @Test
     fun renderedPathsAndLabelsKeepTheirAllocationAcrossCornerOptions() {
-        val values = snapshots.last()
-        val data = values.mapIndexed { i, value -> PieSlice("Model $i", value, Color.makeRGB(30 + i * 30, 80, 170)) }
-        val total = values.sumOf { it.toDouble() }
-        val layout = layoutPieSectors(data, total, 65f, 36f, 3f)
-        for (corner in listOf(0f, 4f, 100f)) {
-            val measured = mutableListOf<Double>()
-            val lineStarts = mutableListOf<Pair<Float, Float>>()
-            var drawn = 0
-            var start = 350.0
-            Surface.makeRasterN32Premul(600, 400).use { surface ->
-                val backend = SkiaDrawCanvas(surface.canvas)
-                // 观察原生路径与标签，同时原样交给 Skia 绘制。
-                val canvas = object : DrawCanvas by backend {
-                    override fun drawPath(path: Path, paint: Paint) {
-                        if (paint.mode == PaintMode.FILL) {
-                            val sweep = layout.sweepAngles[drawn]
-                            assertWithinUnroundedSector(path, 165.0, 165.0, 36.0, 65.0, start, sweep, 3.0)
-                            if (corner == 0f) measured += innerMainArcAngle(path, 165.0, 165.0, 36.0)
-                            start += sweep
-                            drawn++
+        for (values in listOf(listOf(50f, 50f), snapshots.last())) {
+            val data = values.mapIndexed { i, value -> PieSlice("Model $i", value, Color.makeRGB(30 + i * 30, 80, 170)) }
+            val total = values.sumOf { it.toDouble() }
+            val layout = layoutPieSectors(data, total, 65f, 36f, 3f)
+            for (corner in listOf(0f, 4f, 100f)) {
+                val measured = mutableListOf<Double>()
+                val lineStarts = mutableListOf<Pair<Float, Float>>()
+                var drawn = 0
+                var start = 350.0
+                Surface.makeRasterN32Premul(600, 400).use { surface ->
+                    val backend = SkiaDrawCanvas(surface.canvas)
+                    // 观察原生路径与标签，同时原样交给 Skia 绘制。
+                    val canvas = object : DrawCanvas by backend {
+                        override fun drawPath(path: Path, paint: Paint) {
+                            if (paint.mode == PaintMode.FILL) {
+                                val sweep = layout.sweepAngles[drawn]
+                                assertWithinUnroundedSector(path, 165.0, 165.0, 36.0, 65.0, start, sweep, 3.0)
+                                if (corner == 0f) measured += innerMainArcAngle(path, 165.0, 165.0, 36.0)
+                                start += sweep
+                                drawn++
+                            }
+                            backend.drawPath(path, paint)
                         }
-                        backend.drawPath(path, paint)
+                        override fun drawLine(x0: Float, y0: Float, x1: Float, y1: Float, paint: Paint) {
+                            lineStarts += x0 to y0
+                            backend.drawLine(x0, y0, x1, y1, paint)
+                        }
                     }
-                    override fun drawLine(x0: Float, y0: Float, x1: Float, y1: Float, paint: Paint) {
-                        lineStarts += x0 to y0
-                        backend.drawLine(x0, y0, x1, y1, paint)
-                    }
+                    drawPieChart(canvas, 0f, 0f, data, PieChartTheme(
+                        width = 600f, height = 400f, radius = 65f, innerRadius = 36f,
+                        insets = ChartInsets(100f, 100f, 20f, 20f), startAngle = 350f,
+                        cornerRadius = corner, sliceGap = 3f, strokeWidth = 0f,
+                        labelPosition = PieLabelPosition.OUTSIDE, minLabelPercent = 0f,
+                        legend = ChartLegendTheme(position = ChartLegendPosition.NONE)
+                    ))
                 }
-                drawPieChart(canvas, 0f, 0f, data, PieChartTheme(
-                    width = 600f, height = 400f, radius = 65f, innerRadius = 36f,
-                    insets = ChartInsets(100f, 100f, 20f, 20f), startAngle = 350f,
-                    cornerRadius = corner, sliceGap = 3f, strokeWidth = 0f,
-                    labelPosition = PieLabelPosition.OUTSIDE, minLabelPercent = 0f,
-                    legend = ChartLegendTheme(position = ChartLegendPosition.NONE)
-                ))
-            }
-            assertEquals(values.size, drawn)
-            if (corner == 0f) {
-                val tolerance = 4 * Math.ulp(230f).toDouble() / 36 / measured.sum()
-                for (i in values.indices) assertEquals(values[i] / total, measured[i] / measured.sum(), tolerance)
-            }
-            var angle = 350.0
-            val expectedMidpoints = layout.sweepAngles.map { sweep ->
-                val middle = Math.toRadians(angle + sweep / 2)
-                angle += sweep
-                (165 + 65 * cos(middle)) to (165 + 65 * sin(middle))
-            }
-            val radialStarts = lineStarts.filter { (x, y) -> abs(hypot(x - 165f, y - 165f) - 65f) < 0.01f }
-            assertEquals(values.size, radialStarts.size)
-            for ((x, y) in expectedMidpoints) {
-                assertTrue(radialStarts.any { hypot(it.first - x, it.second - y) < 0.001 },
-                    "圆角开关不能移动扇区及其引线位置：圆角$corner")
+                assertEquals(values.size, drawn)
+                if (corner == 0f) {
+                    val tolerance = 4 * Math.ulp(230f).toDouble() / 36 / measured.sum()
+                    for (i in values.indices) assertEquals(values[i] / total, measured[i] / measured.sum(), tolerance)
+                }
+                var angle = 350.0
+                val expectedMidpoints = layout.sweepAngles.map { sweep ->
+                    val middle = Math.toRadians(angle + sweep / 2)
+                    angle += sweep
+                    (165 + 65 * cos(middle)) to (165 + 65 * sin(middle))
+                }
+                val radialStarts = lineStarts.filter { (x, y) -> abs(hypot(x - 165f, y - 165f) - 65f) < 0.01f }
+                assertEquals(values.size, radialStarts.size)
+                for ((x, y) in expectedMidpoints) {
+                    assertTrue(radialStarts.any { hypot(it.first - x, it.second - y) < 0.001 },
+                        "圆角开关不能移动扇区及其引线位置：圆角$corner")
+                }
             }
         }
     }
@@ -248,7 +249,7 @@ class ComposePieArcProportionTest {
                 assertTrue(distance <= available + 1e-5, "圆角不得扩张原有扇区角度")
             }
         }
-        // 圆角达到半环厚时直线侧边可退化为切点，因此同时测量圆弧端点切线。
+        // 圆角达到半环厚时侧边可退化为切点；接触点还须位于对应径向射线，区分半圆的两端。
         val contacts = path.flatMap { segment ->
             when (segment?.verb) {
                 org.jetbrains.skia.PathVerb.LINE -> listOf(segment.p0!! to segment.p1!!)
@@ -266,6 +267,7 @@ class ComposePieArcProportionTest {
                 val ty = q.y.toDouble() - p.y
                 val length = hypot(tx, ty)
                 length > 1e-6 &&
+                    (p.x - cx) * cos(radians) + (p.y - cy) * sin(radians) > 0 &&
                     abs((p.x - cx) * nx + (p.y - cy) * ny - gap / 2) < 1e-4 &&
                     abs(tx * nx + ty * ny) < length * 1e-4
             }, "圆角后的两侧边界必须保持既定角度与固定间距：$start / $sweep / $gap / $angle")
