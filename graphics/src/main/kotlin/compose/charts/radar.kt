@@ -16,10 +16,13 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * 在 UiElement 上添加雷达图。
+ * 将雷达图添加到 UiElement。
  *
  * @param theme 雷达图主题
- * @param data 数据列表，second 表示当前轴上的比例
+ * @param data 数据列表，second 是 0..1 的归一化半径比例；0 位于圆心，1 位于外圈。
+ *   旧版合法比例迁移为 `gridUnit / radius + (1 - gridUnit / radius) * oldRate`。
+ *   五层对数计数按 `if (count == 0) 0f else minOf((1f + log10(count.toFloat())) / 5f, 1f)` 转换；
+ *   五层对应 1、10、100、1k、10k，10k 以上截断到外圈。
  */
 fun UiElement.radar(theme: RadarTheme, data: List<Pair<String, Float>>) = add(
     CanvasElement(
@@ -40,7 +43,7 @@ data class RadarTheme(
     val width: Float,
     /** 雷达图高度 */
     val height: Float,
-    /** 雷达图半径，即使设置了 gridStart 尺寸依然不变 */
+    /** 网格最外圈半径。 */
     val radius: Float = 200f,
 
     /** 数据填充轮廓 */
@@ -344,7 +347,7 @@ fun drawRadarChart(
     val dataPath = Path().run {
         data.forEachIndexed { i, (_, rate) ->
             val safeRate = rate.coerceIn(0f, 1f)
-            val r = (theme.radius - theme.gridUnit) * safeRate + theme.gridUnit
+            val r = theme.radius * safeRate
             val angle = i * angleStep - Math.PI / 2
             val x = centerX + r * cos(angle).toFloat()
             val y = centerY + r * sin(angle).toFloat()
