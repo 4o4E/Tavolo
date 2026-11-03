@@ -45,6 +45,9 @@ class ComposeRadarGeometryManualTest {
         ManualTestSupport.saveCompose("radar/04-五轴自然布局") {
             radar(base.copy(sizeMode = RadarSizeMode.NATURAL), axes.zip(mixedCounts.map(::logarithmicRate)))
         }
+        ManualTestSupport.saveCompose("radar/05-全零自然布局") {
+            radar(base.copy(sizeMode = RadarSizeMode.NATURAL), axes.map { it to 0f })
+        }
 
         listOf(
             RadarFixPolicy.NONE,

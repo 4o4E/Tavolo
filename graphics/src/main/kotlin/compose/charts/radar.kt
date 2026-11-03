@@ -3,6 +3,7 @@ package top.e404.tavolo.draw.compose.charts
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
+import org.jetbrains.skia.PaintMode
 import org.jetbrains.skia.Path
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.TextBlob
@@ -159,6 +160,7 @@ private data class RadarLayout(
     val rings: List<List<RadarPoint>>,
     val axisStarts: List<RadarPoint>,
     val dataPoints: List<RadarPoint>,
+    val zeroMarkerRadius: Float,
     val gridTexts: List<RadarText>,
     val labels: List<RadarText>
 )
@@ -187,6 +189,10 @@ private fun radarLayout(
     val dataPoints = data.mapIndexed { index, (_, rate) ->
         point(theme.radius * rate.coerceIn(0f, 1f), index)
     }
+    // 非空的全零数据表达圆心零活动点；空列表没有数据，不能生成标记。
+    val zeroMarkerRadius = if (data.isNotEmpty() && data.all { it.second == 0f }) {
+        maxOf(theme.fillOutlineWidth, 1f) / 2f
+    } else 0f
     val gridTextStyle = theme.gridTextStyle
     val labelTextStyle = theme.labelTextStyle
     val measureInk = theme.sizeMode == RadarSizeMode.NATURAL
@@ -232,8 +238,13 @@ private fun radarLayout(
         rings.forEach { include(it, halfGridStroke * ringMiterFactor) }
         include(axisStarts, halfGridStroke)
         include(vertices, halfGridStroke)
-        // 不等半径的数据轮廓包含锐角，以 Skia 默认 miter limit 4 的包络保留描边。
-        include(dataPoints, halfOutline * 4f)
+        if (zeroMarkerRadius > 0f) {
+            // 圆点取代退化多边形，测量圆点半径及一个像素的抗锯齿余量。
+            include(dataPoints, zeroMarkerRadius + 1f)
+        } else {
+            // 不等半径的数据轮廓包含锐角，以 Skia 默认 miter limit 4 的包络保留描边。
+            include(dataPoints, halfOutline * 4f)
+        }
         fun includeText(text: RadarText) {
             val ink = text.measured.inkBounds ?: return
             if (ink.isEmpty) return
@@ -264,6 +275,7 @@ private fun radarLayout(
         rings = rings.map { ring -> ring.map(::shifted) },
         axisStarts = axisStarts.map(::shifted),
         dataPoints = dataPoints.map(::shifted),
+        zeroMarkerRadius = zeroMarkerRadius,
         gridTexts = gridTexts.map(::shifted),
         labels = labels.map(::shifted)
     )
@@ -294,7 +306,6 @@ private fun drawRadarLayout(
     }
     val backgroundPaint = theme.background.toPaint()
     val gridLinePaint = theme.gridLine.toPaint()
-    val fillPaint = theme.fill.toPaint()
     val fillOutlinePaint = theme.fillOutline.toPaint()
     val gridTextPaint = theme.gridTextStyle.toPaint()
     val labelTextPaint = theme.labelTextStyle.toPaint()
@@ -308,9 +319,15 @@ private fun drawRadarLayout(
         val end = layout.vertices[index]
         canvas.drawLine(parentX + start.x, parentY + start.y, parentX + end.x, parentY + end.y, gridLinePaint)
     }
-    val dataPath = path(layout.dataPoints)
-    canvas.drawPath(dataPath, fillPaint)
-    canvas.drawPath(dataPath, fillOutlinePaint)
+    if (layout.zeroMarkerRadius > 0f) {
+        val center = layout.dataPoints[0]
+        fillOutlinePaint.mode = PaintMode.FILL
+        canvas.drawCircle(parentX + center.x, parentY + center.y, layout.zeroMarkerRadius, fillOutlinePaint)
+    } else {
+        val dataPath = path(layout.dataPoints)
+        canvas.drawPath(dataPath, theme.fill.toPaint())
+        canvas.drawPath(dataPath, fillOutlinePaint)
+    }
     layout.labels.forEach { text ->
         canvas.drawTextLine(text.measured.line, parentX + text.x, parentY + text.y, labelTextPaint)
     }
