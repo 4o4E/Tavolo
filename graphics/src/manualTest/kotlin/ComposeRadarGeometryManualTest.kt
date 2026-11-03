@@ -3,6 +3,7 @@ package top.e404.tavolo.draw.test
 import org.jetbrains.skia.Color
 import org.junit.Test
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
+import top.e404.tavolo.draw.compose.charts.RadarSizeMode
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.radar
 
@@ -40,6 +41,41 @@ class ComposeRadarGeometryManualTest {
         val mixedCounts = listOf(0, 1, 10, 1_000, 10_000)
         ManualTestSupport.saveCompose("radar/03-混合比例") {
             radar(base, axes.zip(mixedCounts.map(::logarithmicRate)))
+        }
+        ManualTestSupport.saveCompose("radar/04-五轴自然布局") {
+            radar(base.copy(sizeMode = RadarSizeMode.NATURAL), axes.zip(mixedCounts.map(::logarithmicRate)))
+        }
+
+        listOf(
+            RadarFixPolicy.NONE,
+            RadarFixPolicy.MOVE_OUTSIDE,
+            RadarFixPolicy.RATED_FIX,
+            RadarFixPolicy.TILT
+        ).forEach { policy ->
+            val natural = base.copy(
+                width = 1f,
+                height = 1f,
+                radius = 110f,
+                labelFontSize = 30f,
+                labelFontFamily = ManualTestSupport.uiFont,
+                labelOuterLength = 22f,
+                labelFixPolicy = policy,
+                sizeMode = RadarSizeMode.NATURAL,
+                naturalPadding = 18f
+            )
+            ManualTestSupport.saveCompose("radar/自然布局-${policy.name}") {
+                radar(
+                    natural,
+                    listOf(
+                        "北向长标签" to 0.75f,
+                        "East" to 0.9f,
+                        "south-axis" to 0.3f,
+                        "西" to 0.6f,
+                        "Five" to 1f,
+                        "additional" to 0.45f
+                    )
+                )
+            }
         }
     }
     private fun logarithmicRate(count: Int): Float =

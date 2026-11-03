@@ -433,6 +433,7 @@ lineChart(lineTheme.copy(showVerticalGrid = false), series)
 
 设置 `showHorizontalGrid = false` 可独立隐藏水平网格；两个选项同时关闭时，坐标轴和轴标签仍然保留。
 
+
 ### 饼图和 Donut
 
 入口：
@@ -712,6 +713,8 @@ bar(
 - `gridFontProvider`: 网格文字提供器，返回 `null` 可隐藏某层文字。
 - `labelFixPolicy`: 标签修正策略，常用 `RATED_FIX`、`MOVE_OUTSIDE`、`NONE`、`TILT`。
 - `fillColor` / `fillOutlineColor`: 数据区域填充和描边。
+- `sizeMode`: 默认 `RadarSizeMode.FIXED`，使用主题的 `width` / `height`；`NATURAL` 根据网格、数据描边、刻度和轴标签的完整边界测量，忽略固定宽高并计算绘制偏移，不改变半径、字体或标签距离。
+- `naturalPadding`: 自然尺寸模式在内容测量边界四周额外增加的等距留白，默认 `0f`。测量本身包含描边的安全边界及文字栅格化所需的一个像素抗锯齿余量；不需要调用方计算字体基线或额外设置画布高度。需要非对称留白时，可通过元素所在容器的 `Modifier.padding` 配置。
 
 ```kotlin
 radar(
@@ -749,6 +752,36 @@ fun contributionRate(count: Int): Float =
 对应关系为 `0 -> 0f`、`1 -> 0.2f`、`10 -> 0.4f`、`100 -> 0.6f`、`1k -> 0.8f`、`10k -> 1f`。网格第 `i` 层的半径仍为 `radius * i / gridCount`。
 
 2.8.0 的比例语义以最内圈为起点。若需要保持旧有**正数**形状，应把旧合法比例转换为 `1f / gridCount + (1f - 1f / gridCount) * oldRate`（适用于 `gridCount > 0`）；真实零值单独传入 `0f`。旧调用方以 `log10(count) / 4` 表示正数、负数表示零值时，应统一改用上面的计数公式，不能仅把旧负数替换为零。
+
+#### 自然尺寸与瀑布流
+
+`radar` 会在测量阶段使用与绘制相同的真实字体和标签定位策略计算尺寸，可直接作为 `waterfall` 的子元素。列宽应能容纳该半径及标签的自然宽度；自然模式不会为适应狭窄列宽而缩放或裁切内容。
+
+以下 `contributions` 为调用方已有的五轴非负计数，按 Commit、Issue、PR、Review、Repo 顺序提供；`fontFamily` 为已注册的字体名：
+
+```kotlin
+val ticks = listOf("1", "10", "100", "1k", "10k")
+radar(
+    RadarTheme(
+        width = 320f,
+        height = 280f,
+        radius = 105f,
+        gridCount = ticks.size,
+        gridFontProvider = { ticks[it] },
+        gridFontFamily = fontFamily,
+        labelFontFamily = fontFamily,
+        labelFontSize = 14f,
+        labelOuterLength = 20f,
+        labelFixPolicy = RadarFixPolicy.NONE,
+        sizeMode = RadarSizeMode.NATURAL,
+        naturalPadding = 8f
+    ),
+    contributions.map { (label, count) -> label to contributionRate(count) }
+)
+```
+
+需要固定画布时显式设置 `sizeMode = RadarSizeMode.FIXED`，由 `width` / `height` 决定尺寸和中心位置；固定模式不会收紧留白。升级后应重新编译使用 `RadarTheme`、`LineChartTheme` 的调用模块。
+
 
 ### 关系图
 

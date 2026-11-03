@@ -17,6 +17,7 @@ import top.e404.tavolo.draw.compose.Modifier
 import top.e404.tavolo.draw.compose.padding
 import top.e404.tavolo.draw.compose.render
 import top.e404.tavolo.draw.compose.charts.RadarFixPolicy
+import top.e404.tavolo.draw.compose.charts.RadarSizeMode
 import top.e404.tavolo.draw.compose.charts.RadarTheme
 import top.e404.tavolo.draw.compose.charts.radar
 import top.e404.tavolo.draw.compose.charts.drawRadarChart
@@ -154,6 +155,154 @@ class ComposeRadarGeometryTest {
         assertEquals(Color.BLUE, singleNonZero.getColor(25, 50))
         assertEquals(0, Color.getA(singleNonZero.getColor(65, 50)))
         assertEquals(0, Color.getA(singleNonZero.getColor(50, 35)))
+    }
+
+    @Test
+    fun naturalModeKeepsRadiusAndLabelsWithinBoundsAcrossAxesAndPolicies() {
+        val systemFont = FontManager.systemFamilies().first()
+        for (policy in RadarFixPolicy.entries) {
+            for (fontSize in listOf(14f, 31f)) for (data in listOf(
+                listOf("A" to 0.2f, "Long east label" to 0.8f, "南" to 0.4f),
+                listOf("Long top label" to 0.5f, "Right" to 1f, "Bottom" to 0f, "Long left label" to 0.7f, "Five" to 0.2f)
+            )) {
+                val theme = RadarTheme(
+                    width = 12f,
+                    height = 18f,
+                    radius = 70f,
+                    gridCount = 5,
+                    gridFontFamily = systemFont,
+                    gridFontSize = 19f,
+                    gridItalic = true,
+                    gridScaleX = 1.2f,
+                    labelFontSize = fontSize,
+                    labelFontFamily = systemFont,
+                    labelItalic = true,
+                    labelScaleX = 1.2f,
+                    labelOuterLength = 17f,
+                    labelFixPolicy = policy,
+                    sizeMode = RadarSizeMode.NATURAL,
+                    naturalPadding = 0f
+                )
+                val image = renderRadar(theme, data)
+                val reference = renderRadar(theme.copy(naturalPadding = 51f), data)
+                assertEquals(102, reference.width - image.width, "自然留白左右各增加 51px，策略=$policy")
+                assertEquals(102, reference.height - image.height, "自然留白上下各增加 51px，策略=$policy")
+                val bitmap = image.toBitmap()
+                val referenceBitmap = reference.toBitmap()
+                var minX = image.width
+                var minY = image.height
+                var maxX = -1
+                var maxY = -1
+                for (y in 0 until image.height) for (x in 0 until image.width) {
+                    if (Color.getA(bitmap.getColor(x, y)) == 0) continue
+                    minX = minOf(minX, x)
+                    minY = minOf(minY, y)
+                    maxX = maxOf(maxX, x)
+                    maxY = maxOf(maxY, y)
+                }
+                // 默认 2px 数据描边的 miter 包络最多预留 4px，文字还包含 1px 抗锯齿余量。
+                assertTrue(minX in 0..5 && minY in 0..5, "自然布局不能保留无依据的左侧或顶部空白")
+                assertTrue(image.width - 1 - maxX in 0..5 && image.height - 1 - maxY in 0..5, "自然布局不能保留无依据的右侧或底部空白")
+                var outline: List<Point?>? = null
+                val recorder = RecordingDrawCanvas()
+                val canvas = object : DrawCanvas by recorder {
+                    override fun drawPath(path: Path, paint: Paint) {
+                        if (outline == null) outline = path.points.toList()
+                        recorder.drawPath(path, paint)
+                    }
+                }
+                drawRadarChart(canvas, 0f, 0f, data, theme)
+                val first = outline!![0]!!
+                val second = outline!![1]!!
+                val dx = first.x - second.x
+                val dy = first.y - second.y
+                val actualEdge = kotlin.math.sqrt(dx * dx + dy * dy)
+                val expectedEdge = 2 * theme.radius * kotlin.math.sin(Math.PI / data.size)
+                assertTrue(kotlin.math.abs(actualEdge - expectedEdge) < 0.0001, "自然测量不能缩放指定半径")
+                for (y in 0 until reference.height) {
+                    for (x in 0 until reference.width) {
+                        if (x < 51 || y < 51 || x >= image.width + 51 || y >= image.height + 51) {
+                            assertEquals(0, Color.getA(referenceBitmap.getColor(x, y)), "自然边界外不能还有被裁掉的内容：策略=$policy，字号=$fontSize，轴数=${data.size}，字体=$systemFont，尺寸=${image.width}×${image.height}，参考像素=($x,$y)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun naturalMeasurementFlowsIntoWaterfallPlacementWithoutShrinkingRadius() {
+        val theme = RadarTheme(
+            width = 1f,
+            height = 1f,
+            radius = 90f,
+            labelFontSize = 28f,
+            labelFontFamily = FontManager.systemFamilies().first(),
+            labelFixPolicy = RadarFixPolicy.RATED_FIX,
+            sizeMode = RadarSizeMode.NATURAL,
+            naturalPadding = 12f
+        )
+        val waterfall = WaterfallLayout(columns = 1, width = 900f)
+        waterfall.radar(theme, listOf("North long" to 0.8f, "East" to 0.4f, "South" to 1f))
+        waterfall.add(CanvasElement(50f, 20f) { _ -> })
+        waterfall.measure(MeasureContext())
+        waterfall.layout(0f, 0f)
+        val radarElement = waterfall.children[0]
+        val nextCard = waterfall.children[1]
+
+        assertTrue(radarElement.width < waterfall.columnWidth)
+        assertTrue(radarElement.height > 180f)
+        assertEquals(radarElement.height, nextCard.y)
+    }
+
+    @Test
+    fun fixedTiltLabelsKeepTheirOutsidePositionInOffsetContainers() {
+        val root = Column().apply { modifier = Modifier.padding(20f) }
+        val image = render(root = root) {
+            radar(
+                RadarTheme(
+                    width = 160f,
+                    height = 160f,
+                    radius = 35f,
+                    labelOuterLength = 15f,
+                    labelFontFamily = FontManager.systemFamilies().first(),
+                    labelFontSize = 14f,
+                    labelFontColor = Color.RED,
+                    labelFixPolicy = RadarFixPolicy.TILT,
+                    gridLineColor = Color.TRANSPARENT,
+                    gridFontProvider = { null },
+                    fillColor = Color.TRANSPARENT,
+                    fillOutlineColor = Color.TRANSPARENT
+                ),
+                listOf("" to 0f, "right" to 0f, "" to 0f, "" to 0f)
+            )
+        }
+        val bitmap = image.toBitmap()
+        var left = image.width
+        var right = -1
+        for (y in 0 until image.height) for (x in 0 until image.width) {
+            if (Color.getA(bitmap.getColor(x, y)) == 0) continue
+            left = minOf(left, x)
+            right = maxOf(right, x)
+        }
+        assertTrue(left >= 149, "固定模式的右侧 TILT 标签应保留圆心 100、半径 35 和标签外距 15 的位置")
+        assertTrue(right >= left && right < image.width, "右侧标签应完整绘制在固定画布内")
+    }
+
+    @Test
+    fun fixedModeRetainsConfiguredCanvasDimensions() {
+        val theme = RadarTheme(
+            width = 180f,
+            height = 120f,
+            radius = 70f,
+            gridCount = 5,
+            sizeMode = RadarSizeMode.FIXED
+        )
+
+        val image = renderRadar(theme, listOf("north" to 1f, "east" to 0.5f, "south" to 0.7f))
+
+        assertEquals(180, image.width)
+        assertEquals(120, image.height)
     }
 
     private fun renderRadar(theme: RadarTheme, data: List<Pair<String, Float>>) = render(
