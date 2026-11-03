@@ -45,6 +45,10 @@ data class LineChartTheme(
     val yMax: Float? = null,
     val xLabelFormatter: (Float) -> String = { formatChartNumber(it) },
     val yLabelFormatter: (Float) -> String = { formatChartNumber(it) },
+    /** 是否绘制屏幕水平方向的网格线，不影响纵轴刻度标签。 */
+    val showHorizontalGrid: Boolean = true,
+    /** 是否绘制屏幕竖直方向的网格线，不影响横轴刻度标签。 */
+    val showVerticalGrid: Boolean = true,
 )
 
 fun UiElement.lineChart(theme: LineChartTheme, series: List<LineSeries>) = add(
@@ -133,7 +137,9 @@ private fun drawLineChartAxes(
 
     yScale.ticks(theme.yTickCount).forEach { tick ->
         val y = yScale.map(tick)
-        canvas.drawLine(plotLeft, y, plotRight, y, gridPaint)
+        if (theme.showHorizontalGrid) {
+            canvas.drawLine(plotLeft, y, plotRight, y, gridPaint)
+        }
         val label = theme.yLabelFormatter(tick)
         val measured = measureChartTextBox(label, theme.axis.labelTextStyle, measureContext)
         canvas.drawTextLine(
@@ -146,7 +152,9 @@ private fun drawLineChartAxes(
 
     xScale.ticks(theme.xTickCount).forEach { tick ->
         val x = xScale.map(tick)
-        canvas.drawLine(x, plotTop, x, plotBottom, gridPaint)
+        if (theme.showVerticalGrid) {
+            canvas.drawLine(x, plotTop, x, plotBottom, gridPaint)
+        }
         val label = theme.xLabelFormatter(tick)
         val measured = measureChartTextBox(label, theme.axis.labelTextStyle, measureContext)
         canvas.drawTextLine(

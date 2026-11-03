@@ -377,6 +377,7 @@ chartContainer(
 - `includeZeroY`: 自动计算 y 轴范围时是否包含 0。
 - `xTickCount` / `yTickCount`: 刻度段数。
 - `xLabelFormatter` / `yLabelFormatter`: 轴标签格式化。
+- `showHorizontalGrid` / `showVerticalGrid`: 分别控制屏幕水平／竖直方向的网格线，默认均为 `true`。开关只影响参考线，不改变刻度数量、数字标签、坐标轴、数据位置、填充或图例；这两个配置仅属于折线图，不放在共用 `AxisTheme` 中。
 - `maxPointsPerSeries`: 数据抽样上限，避免超长数据压缩成一团。
 
 ```kotlin
@@ -419,6 +420,14 @@ val series = listOf(
 
 lineChart(lineTheme, series)
 ```
+
+只保留水平参考线：
+
+```kotlin
+lineChart(lineTheme.copy(showVerticalGrid = false), series)
+```
+
+设置 `showHorizontalGrid = false` 可独立隐藏水平网格；两个选项同时关闭时，坐标轴和轴标签仍然保留。
 
 ### 饼图和 Donut
 
