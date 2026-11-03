@@ -201,6 +201,10 @@ abstract class BaseElement : UiElement {
         val antiAlias = antiAlias()
         var bounds = Bounds(x, y, width, height)
         var saveCount = 0
+        var lastCanvasSaveIsClip = false
+        var lastClipBounds: Bounds? = null
+        var lastClipShape: Shape? = null
+        var lastClipPath: Path? = null
         for (mod in modifier.toList()) {
             when (mod) {
                 is Padding -> bounds = bounds.inset(mod.asInsets())
@@ -213,6 +217,7 @@ abstract class BaseElement : UiElement {
                     context.canvas.rotate(mod.degrees)
                     context.canvas.translate(-pivotX, -pivotY)
                     saveCount += 1
+                    lastCanvasSaveIsClip = false
                 }
                 is Background -> {
                     val paint = Paint().apply { color = mod.color; isAntiAlias = antiAlias.enabled }
@@ -220,7 +225,20 @@ abstract class BaseElement : UiElement {
                 }
                 is BackgroundImage -> drawBackgroundImage(context, bounds, mod, antiAlias)
                 is Border -> {
-                    drawBorder(context, bounds, mod, antiAlias)
+                    val matchingClip = lastClipPath != null &&
+                        lastCanvasSaveIsClip &&
+                        mod.shape != null &&
+                        mod.shape == lastClipShape &&
+                        bounds == lastClipBounds
+                    if (matchingClip) {
+                        // 本地同轮廓裁剪仍保留给后续内容，但边框不应再次与它相乘抗锯齿覆盖率。
+                        context.canvas.restore()
+                        drawBorder(context, bounds, mod, antiAlias)
+                        context.canvas.save()
+                        context.canvas.clipPath(lastClipPath!!, antiAlias.enabled)
+                    } else {
+                        drawBorder(context, bounds, mod, antiAlias)
+                    }
                     bounds = bounds.inset(mod.asInsets())
                 }
                 is Clip -> {
@@ -229,6 +247,10 @@ abstract class BaseElement : UiElement {
                     context.canvas.save()
                     context.canvas.clipPath(clipPath, antiAlias.enabled)
                     saveCount += 1
+                    lastCanvasSaveIsClip = true
+                    lastClipBounds = bounds
+                    lastClipShape = mod.shape
+                    lastClipPath = clipPath
                 }
             }
         }
@@ -340,11 +362,12 @@ abstract class BaseElement : UiElement {
         val pathHeight = (bounds.height - strokeWidth).coerceAtLeast(0f)
         if (pathWidth <= 0f || pathHeight <= 0f) return
         // shape 描述外轮廓；描边路径位于边框中心，圆角半径也要随半个描边宽度向内缩进。
-        val shape = when (val outerShape = border.shape!!) {
-            is Shape.RoundedRect -> Shape.RoundedRect(
-                (minOf(outerShape.radius, bounds.width / 2f, bounds.height / 2f) - strokeWidth / 2f)
-                    .coerceAtLeast(0f)
-            )
+        val outerShape = border.shape!!
+        val outerRadius = if (outerShape is Shape.RoundedRect) {
+            minOf(outerShape.radius, bounds.width / 2f, bounds.height / 2f).coerceAtLeast(0f)
+        } else 0f
+        val shape = when (outerShape) {
+            is Shape.RoundedRect -> Shape.RoundedRect((outerRadius - strokeWidth / 2f).coerceAtLeast(0f))
             else -> outerShape
         }
         val path = shape.createPath(pathWidth, pathHeight).apply {
@@ -357,7 +380,23 @@ abstract class BaseElement : UiElement {
             isAntiAlias = antiAlias.enabled
             applyStrokeStyle(border.strokeStyle)
         }
-        context.canvas.drawPath(path, paint)
+        if (outerRadius > 0f && outerRadius <= strokeWidth / 2f) {
+            // 中心圆角退化后，描边连接无法表达指定的外圆角；在矢量层面求交，边缘只栅格化一次。
+            PathUtils.fillPathWithPaint(path, paint).use { stroke ->
+                outerShape.createPath(bounds.width, bounds.height).use { outer ->
+                    outer.transform(Matrix33.makeTranslate(bounds.x, bounds.y))
+                    val outline = Path.makeCombining(stroke, outer, PathOp.INTERSECT)
+                        ?: error("无法构造圆角边框轮廓")
+                    outline.use {
+                        paint.mode = PaintMode.FILL
+                        paint.pathEffect = null
+                        context.canvas.drawPath(it, paint)
+                    }
+                }
+            }
+        } else {
+            context.canvas.drawPath(path, paint)
+        }
     }
 
     /**
