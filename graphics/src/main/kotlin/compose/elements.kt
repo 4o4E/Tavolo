@@ -749,7 +749,8 @@ class Text(
         val backgroundPaddingVertical: Float,
         val fontWeight: Int?,
         val italic: Boolean,
-        val letterSpacing: Float
+        val letterSpacing: Float,
+        val strikethrough: Boolean
     ) {
         val hasBackground: Boolean
             get() = backgroundColor != null || (backgroundBorderColor != null && backgroundBorderWidth > 0f)
@@ -876,7 +877,8 @@ class Text(
         backgroundPaddingVertical = style.backgroundPaddingVertical?.coerceAtLeast(0f) ?: 0f,
         fontWeight = style.fontWeight ?: effectiveFontWeight,
         italic = style.italic ?: effectiveItalic,
-        letterSpacing = style.letterSpacing ?: effectiveLetterSpacing
+        letterSpacing = style.letterSpacing ?: effectiveLetterSpacing,
+        strikethrough = style.strikethrough ?: false
     )
 
     private fun mergedSpanStyleForCluster(cluster: GraphemeCluster): TextSpanStyle {
@@ -1795,6 +1797,9 @@ class Text(
         x: Float,
         y: Float
     ) {
+        if (fragment.style.strikethrough) {
+            drawSpanStrike(context, fragment.style, x, y - fragment.style.fontSize * 0.3f, fragment.width)
+        }
         if (fragment.useParagraphFallback) {
             drawParagraphFragment(context, fragment, x, y)
             return
@@ -1842,6 +1847,7 @@ class Text(
             drawParagraphSpanBackgrounds(context, layout, drawX, drawY)
             drawParagraphUnderlines(context, layout, drawX, drawY)
             context.canvas.drawParagraph(layout.paragraph, drawX, drawY)
+            drawParagraphStrikes(context, layout, drawX, drawY)
             return
         }
         context.canvas.save()
@@ -1851,8 +1857,34 @@ class Text(
             drawParagraphSpanBackgrounds(context, layout, 0f, 0f)
             drawParagraphUnderlines(context, layout, 0f, 0f)
             context.canvas.drawParagraph(layout.paragraph, 0f, 0f)
+            drawParagraphStrikes(context, layout, 0f, 0f)
         } finally {
             context.canvas.restore()
+        }
+    }
+
+    private fun drawSpanStrike(
+        context: DrawContext,
+        style: ResolvedTextSpanStyle,
+        x: Float,
+        y: Float,
+        width: Float
+    ) {
+        Paint().use { strike ->
+            strike.color = style.textColor
+            strike.strokeWidth = (style.fontSize / 16f).coerceAtLeast(1f)
+            strike.isAntiAlias = true
+            context.canvas.drawLine(x, y, x + width, y, strike)
+        }
+    }
+
+    private fun drawParagraphStrikes(context: DrawContext, layout: ParagraphTextLayout, x: Float, y: Float) {
+        for (run in paragraphStyleRuns()) {
+            if (!run.style.strikethrough) continue
+            for (box in layout.paragraph.getRectsForRange(run.start, run.end, RectHeightMode.TIGHT, RectWidthMode.TIGHT)) {
+                val rect = box.rect
+                drawSpanStrike(context, run.style, x + rect.left, y + (rect.top + rect.bottom) / 2f, rect.width)
+            }
         }
     }
 

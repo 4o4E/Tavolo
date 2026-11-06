@@ -170,7 +170,7 @@ text(
 )
 ```
 
-`TextSpanStyle` 当前支持字符级的 `fontSize`、`textColor`、`fontFamily`、`backgroundColor`、`backgroundBorderColor`、`backgroundBorderWidth`、`backgroundRadius`、`backgroundPaddingHorizontal`、`backgroundPaddingVertical`、`fontWeight`、`italic` 和 `letterSpacing`。`lineHeight`、`overflow`、`underline` 仍属于整体 `Text` 语义，不进入行内 span。
+`TextSpanStyle` 当前支持字符级的 `fontSize`、`textColor`、`fontFamily`、`backgroundColor`、`backgroundBorderColor`、`backgroundBorderWidth`、`backgroundRadius`、`backgroundPaddingHorizontal`、`backgroundPaddingVertical`、`fontWeight`、`italic`、`letterSpacing` 和 `strikethrough`。删除线可与其他行内样式叠加，并支持原生段落与逐片段绘制两条路径。`lineHeight`、`overflow`、`underline` 仍属于整体 `Text` 语义，不进入行内 span。
 
 ## 文本布局
 

@@ -14,7 +14,7 @@ import top.e404.tavolo.util.FontManager
 import java.io.File
 
 object ManualTestSupport {
-    val uiFont: String = FontManager.registerSystem("manual-compose-ui", "Microsoft YaHei")
+    val uiFont: String = FontManager.registerSystem("manual-compose-ui", "Noto Sans SC")
     val monoFont: String = FontManager.registerSystem("manual-compose-mono", "Consolas")
 
     fun saveCompose(name: String, content: Composable): Column {

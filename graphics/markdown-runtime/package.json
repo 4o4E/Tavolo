@@ -1,0 +1,14 @@
+{
+  "name": "@tavolo/markdown-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tavolo 的离线 MathJax、Mermaid 与代码高亮适配器",
+  "engines": { "node": ">=22.13.0" },
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "12.2.0",
+    "puppeteer": "25.0.4",
+    "mathjax-full": "3.2.2",
+    "highlight.js": "11.12.0"
+  }
+}

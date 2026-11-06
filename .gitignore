@@ -8,3 +8,4 @@ jar
 http-server/.env
 AGENTS.local.md
 .workspace/
+node_modules/

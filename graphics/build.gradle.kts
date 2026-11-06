@@ -6,6 +6,15 @@ plugins {
 dependencies {
     api(project(":common"))
     implementation("com.ibm.icu:icu4j:${Versions.ICU4J}")
+    implementation("org.commonmark:commonmark:${Versions.COMMONMARK}")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:${Versions.COMMONMARK}")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:${Versions.COMMONMARK}")
+    implementation("org.commonmark:commonmark-ext-task-list-items:${Versions.COMMONMARK}")
+    implementation("org.commonmark:commonmark-ext-gfm-alerts:${Versions.COMMONMARK}")
+    implementation("org.commonmark:commonmark-ext-autolink:${Versions.COMMONMARK}")
+    implementation("org.commonmark:commonmark-ext-footnotes:${Versions.COMMONMARK}")
+    implementation("org.jsoup:jsoup:1.22.1")
+    implementation(kotlinx("serialization-json", Versions.KOTLINX_SERIALIZATION))
     // skiko
     api(skiko("windows-x64"))
     api(skiko("linux-x64"))
@@ -22,7 +31,6 @@ tasks.withType<Jar>().configureEach {
 
 val manualTest by sourceSets.creating {
     java.srcDir("src/manualTest/kotlin")
-    resources.srcDir("src/manualTest/resources")
     compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
     runtimeClasspath += output + compileClasspath
 }
@@ -52,6 +60,7 @@ tasks.register<Test>("manualTest") {
     group = "verification"
     testClassesDirs = manualTest.output.classesDirs
     classpath = manualTest.runtimeClasspath
+    inputs.files("markdown-runtime/worker.mjs", "markdown-runtime/package.json", "markdown-runtime/package-lock.json")
     val runDir = rootDir.resolve("run")
     workingDir = runDir
     doFirst {
