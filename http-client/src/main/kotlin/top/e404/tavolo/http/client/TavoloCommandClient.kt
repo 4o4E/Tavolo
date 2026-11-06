@@ -25,6 +25,8 @@ import top.e404.tavolo.http.client.dto.HealthResponse
 import top.e404.tavolo.http.client.request.ExecuteCommandRequest
 import top.e404.tavolo.http.client.request.ExecuteRequest
 import top.e404.tavolo.http.client.request.ExecutedImage
+import top.e404.tavolo.http.client.request.RenderMarkdownRequest
+import top.e404.tavolo.http.client.request.RenderChartRequest
 import java.io.Closeable
 
 class TavoloCommandClient(
@@ -82,6 +84,18 @@ class TavoloCommandClient(
                 response.toExecutedImage()
             }
         }
+
+    suspend fun renderMarkdown(request: RenderMarkdownRequest): ExecutedImage =
+        httpClient.post(config.resolve("/render/markdown")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.toExecutedImage()
+
+    suspend fun renderChart(request: RenderChartRequest): ExecutedImage =
+        httpClient.post(config.resolve("/render/chart")) {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.toExecutedImage()
 
     override fun close() {
         httpClient.close()

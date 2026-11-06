@@ -6,6 +6,8 @@ object Versions {
     const val KOTLINX_SERIALIZATION = "1.9.0"
     const val SKIKO = "0.9.30"
     const val KTOR = "2.3.13"
+    const val COMMONMARK = "0.32.0"
+    const val HIGHLIGHTS = "1.0.0"
 }
 
 fun kotlinx(id: String, version: String = Versions.KOTLIN) = "org.jetbrains.kotlinx:kotlinx-$id:$version"

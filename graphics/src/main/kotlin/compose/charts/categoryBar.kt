@@ -43,7 +43,9 @@ data class CategoryBarTheme(
     val valueLabelTextStyle: ChartTextStyle = ChartTextStyle(11f, Color.makeRGB(56, 64, 76)),
     val yMin: Float? = null,
     val yMax: Float? = null,
-    val yLabelFormatter: (Float) -> String = { formatChartNumber(it) }
+    val yLabelFormatter: (Float) -> String = { formatChartNumber(it) },
+    /** 关闭时仅绘制数据和图例，由嵌入容器负责坐标轴与网格。 */
+    val showAxes: Boolean = true
 )
 
 fun UiElement.categoryBarChart(theme: CategoryBarTheme, data: CategoryBarData) = add(
@@ -93,7 +95,9 @@ fun drawCategoryBarChart(
         rangeMax = plotTop
     )
 
-    drawBarChartAxes(canvas, plotLeft, plotTop, plotRight, plotBottom, data.categories, yScale, theme, measureContext)
+    if (theme.showAxes) {
+        drawBarChartAxes(canvas, plotLeft, plotTop, plotRight, plotBottom, data.categories, yScale, theme, measureContext)
+    }
     when (theme.mode) {
         BarChartMode.GROUPED -> drawGroupedBars(canvas, plotLeft, plotBottom, plotWidth, data.categories, series, yScale, theme, measureContext)
         BarChartMode.STACKED -> drawStackedBars(canvas, plotLeft, plotBottom, plotWidth, data.categories, series, yScale, theme, measureContext)

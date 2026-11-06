@@ -12,6 +12,7 @@ import kotlinx.serialization.SerializationException
 import top.e404.tavolo.http.server.dto.ErrorResponse
 import top.e404.tavolo.http.server.service.BadExecuteRequestException
 import top.e404.tavolo.http.server.service.CommandNotFoundException
+import top.e404.tavolo.http.server.service.BadRenderRequestException
 import top.e404.tavolo.pipeline.HandlerPipelineCommandNotFoundException
 import top.e404.tavolo.pipeline.HandlerPipelineStepException
 import top.e404.tavolo.pipeline.HandlerPipelineValidationException
@@ -33,6 +34,9 @@ fun Application.configureErrorHandling() {
         }
         exception(BadExecuteRequestException::class) { call, cause ->
             call.respondError(HttpStatusCode.BadRequest, cause.message ?: "请求格式错误")
+        }
+        exception(BadRenderRequestException::class) { call, cause ->
+            call.respondError(HttpStatusCode.BadRequest, cause.message ?: "渲染参数错误")
         }
         exception(BadRequestException::class) { call, cause ->
             call.respondError(HttpStatusCode.BadRequest, cause.message ?: "请求格式错误")

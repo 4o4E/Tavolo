@@ -13,10 +13,13 @@ import top.e404.tavolo.http.server.route.executeRoutes
 import top.e404.tavolo.http.server.route.healthRoutes
 import top.e404.tavolo.http.server.service.CommandService
 import top.e404.tavolo.http.server.service.CommandExecuteService
+import top.e404.tavolo.http.server.route.renderRoutes
+import top.e404.tavolo.http.server.service.RenderService
 
 fun Application.tavoloModule(
     commandService: CommandService = CommandService(),
     executeService: CommandExecuteService = CommandExecuteService(),
+    renderService: RenderService = RenderService(),
 ) {
     install(ContentNegotiation) {
         json(Json {
@@ -32,5 +35,6 @@ fun Application.tavoloModule(
         healthRoutes()
         commandRoutes(commandService)
         executeRoutes(executeService)
+        renderRoutes(renderService)
     }
 }

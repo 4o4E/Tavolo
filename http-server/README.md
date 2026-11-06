@@ -1,6 +1,6 @@
 # Tavolo HTTP Server
 
-HTTP 服务用于暴露项目中的 handler / generator 指令能力，默认监听 `http://127.0.0.1:8080`。
+HTTP 服务暴露 handler／generator 指令及 Markdown／结构化图表 PNG 渲染，默认监听 `http://127.0.0.1:8080`。
 
 ## 运行前提
 
@@ -59,3 +59,12 @@ ASSETS_DIR=../assets
 docker build -f http-server/Dockerfile -t tavolo-http-server:latest .
 docker run --rm -p 8080:8080 -e TAVOLO_ASSETS_DIR=/app/assets -v "$(pwd)/assets:/app/assets:ro" tavolo-http-server:latest
 ```
+
+## Markdown 与结构化图表
+
+- `POST /render/markdown`：JSON 简单 Markdown 文档、阅读宽度、主题和显式 Base64 图片映射；复杂文档、Mermaid 与 LaTeX 由外部渲染。
+- `POST /render/chart`：JSON 图表模型、独立序列、坐标轴和主题。
+- 成功直接返回 `image/png`，无 Node.js／浏览器运行环境要求，Java 运行基线为 11。
+- 字体由部署环境提供；`style.fontFamily`／`codeFontFamily` 使用已安装 family 或应用注册的别名。
+
+完整 JSON 示例、六类图表数据字段、图片资源规则、错误响应及 Kotlin 客户端见 [Markdown 与结构化图表](../docs/Markdown与结构化图表.md#http-json-与客户端)。指令资源目录仍按上文配置。

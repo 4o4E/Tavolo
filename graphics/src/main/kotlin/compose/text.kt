@@ -67,7 +67,8 @@ data class TextSpanStyle(
     val backgroundPaddingVertical: Float? = null,
     val fontWeight: Int? = null,
     val italic: Boolean? = null,
-    val letterSpacing: Float? = null
+    val letterSpacing: Float? = null,
+    val strikethrough: Boolean? = null
 ) {
     fun merge(other: TextSpanStyle): TextSpanStyle = TextSpanStyle(
         fontSize = other.fontSize ?: fontSize,
@@ -81,7 +82,8 @@ data class TextSpanStyle(
         backgroundPaddingVertical = other.backgroundPaddingVertical ?: backgroundPaddingVertical,
         fontWeight = other.fontWeight ?: fontWeight,
         italic = other.italic ?: italic,
-        letterSpacing = other.letterSpacing ?: letterSpacing
+        letterSpacing = other.letterSpacing ?: letterSpacing,
+        strikethrough = other.strikethrough ?: strikethrough
     )
 }
 

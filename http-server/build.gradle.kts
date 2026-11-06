@@ -16,6 +16,7 @@ val serverReleaseVersion = providers.gradleProperty("releaseVersion")
 dependencies {
     implementation(project(":command-framework"))
     implementation(project(":image-commands"))
+    implementation(project(":graphics"))
 
     runtimeOnly(skiko("windows-x64"))
     runtimeOnly(skiko("linux-x64"))

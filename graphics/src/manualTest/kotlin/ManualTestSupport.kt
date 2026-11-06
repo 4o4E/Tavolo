@@ -14,7 +14,7 @@ import top.e404.tavolo.util.FontManager
 import java.io.File
 
 object ManualTestSupport {
-    val uiFont: String = FontManager.registerSystem("manual-compose-ui", "Microsoft YaHei")
+    val uiFont: String = FontManager.registerSystem("manual-compose-ui", "Noto Sans SC")
     val monoFont: String = FontManager.registerSystem("manual-compose-mono", "Consolas")
 
     fun saveCompose(name: String, content: Composable): Column {
@@ -30,13 +30,22 @@ object ManualTestSupport {
         println("已输出: ${file.absolutePath}")
     }
 
+    private fun hsv(hue: Float, saturation: Float, value: Float): Int {
+        fun channel(offset: Float): Int {
+            val k = (offset + hue / 60f) % 6f
+            val component = value * (1f - saturation * maxOf(0f, minOf(k, 4f - k, 1f)))
+            return (component * 255f + 0.5f).toInt()
+        }
+        return Color.makeRGB(channel(5f), channel(3f), channel(1f))
+    }
+
     fun drawnAvatar(index: Int, width: Int = 64, height: Int = 64): Image {
         return Surface.makeRasterN32Premul(width, height).use { surface ->
             val canvas = surface.canvas
             val hue = (index * 37) % 360
-            val bg = java.awt.Color.HSBtoRGB(hue / 360f, 0.18f, 0.95f) or (0xff shl 24)
-            val primary = java.awt.Color.HSBtoRGB(hue / 360f, 0.72f, 0.78f) or (0xff shl 24)
-            val secondary = java.awt.Color.HSBtoRGB(((hue + 32) % 360) / 360f, 0.62f, 0.9f) or (0xff shl 24)
+            val bg = hsv(hue.toFloat(), 0.18f, 0.95f)
+            val primary = hsv(hue.toFloat(), 0.72f, 0.78f)
+            val secondary = hsv(((hue + 32) % 360).toFloat(), 0.62f, 0.9f)
 
             canvas.clear(bg)
             val paint = Paint().apply {
