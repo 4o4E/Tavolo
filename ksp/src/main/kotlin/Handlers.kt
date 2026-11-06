@@ -4,6 +4,7 @@ import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSFile
 import top.e404.tavolo.annotation.ImageHandler
 import top.e404.tavolo.annotation.ImageGenerator
 
@@ -18,11 +19,13 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
     private val generatorSignName = ImageGenerator::class.java.name
     private val handlers = linkedMapOf<String, String>()
     private val generators = linkedMapOf<String, String>()
+    private val sourceFiles = linkedSetOf<KSFile>()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         resolver.getSymbolsWithAnnotation(handlerSignName)
             .filterIsInstance<KSClassDeclaration>()
             .forEach { declaration ->
+                sourceFiles += declaration.containingFile!!
                 val id = declaration.requiredId(handlerSignName)
                 val qualifiedName = declaration.qualifiedName!!.asString()
                 handlers.put(id, qualifiedName)?.takeIf { it != qualifiedName }?.let {
@@ -32,6 +35,7 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
         resolver.getSymbolsWithAnnotation(generatorSignName)
             .filterIsInstance<KSClassDeclaration>()
             .forEach { declaration ->
+                sourceFiles += declaration.containingFile!!
                 val id = declaration.requiredId(generatorSignName)
                 val qualifiedName = declaration.qualifiedName!!.asString()
                 generators.put(id, qualifiedName)?.takeIf { it != qualifiedName }?.let {
@@ -46,17 +50,14 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
             logger.warn("skip empty command contribution")
             return
         }
-        val stream = try {
-            codeGenerator.createNewFile(
-                dependencies = Dependencies(true),
-                packageName = contributionPackage,
-                fileName = contributionClass,
-                extensionName = "kt"
-            )
-        } catch (e: Exception) {
-            logger.warn("skip exists file ${contributionPackage.replace('.', '/')}/$contributionClass.kt")
-            return
-        }
+        // 聚合注册表和服务描述关联所有注解源文件，使增量构建重新收集完整注册项。
+        val dependencies = Dependencies(true, *sourceFiles.toTypedArray())
+        val stream = codeGenerator.createNewFile(
+            dependencies = dependencies,
+            packageName = contributionPackage,
+            fileName = contributionClass,
+            extensionName = "kt"
+        )
         logger.warn("process ${handlers.size} handlers, ${generators.size} generators")
         stream.bufferedWriter().use { bw ->
             bw.appendLine("package $contributionPackage").appendLine()
@@ -86,21 +87,16 @@ class FramesHandlerProcessor(environment: SymbolProcessorEnvironment) : SymbolPr
             bw.appendLine("    )")
             bw.appendLine("}")
         }
-        writeServiceFile()
+        writeServiceFile(dependencies)
     }
 
-    private fun writeServiceFile() {
+    private fun writeServiceFile(dependencies: Dependencies) {
         val servicePath = "META-INF/services/top.e404.tavolo.registry.CommandContribution"
-        val serviceStream = try {
-            codeGenerator.createNewFileByPath(
-                dependencies = Dependencies(true),
-                path = servicePath,
-                extensionName = ""
-            )
-        } catch (e: Exception) {
-            logger.warn("skip exists file $servicePath")
-            return
-        }
+        val serviceStream = codeGenerator.createNewFileByPath(
+            dependencies = dependencies,
+            path = servicePath,
+            extensionName = ""
+        )
         serviceStream.bufferedWriter().use { bw ->
             bw.append(contributionPackage).append('.').appendLine(contributionClass)
         }

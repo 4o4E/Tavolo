@@ -72,11 +72,28 @@ fun render(
     measureContext: MeasureContext = MeasureContext(),
     snapRootSizeToPixel: Boolean,
     content: Composable
+): Image = drawPreparedTree(prepareRenderTree(root, measureContext, snapRootSizeToPixel, content), backgroundColor, measureContext, 1f)
+
+/** 布局仍使用逻辑尺寸，直接在高像素密度画布上绘制，不缩放已经生成的位图。 */
+fun render(
+    backgroundColor: Int = Color.TRANSPARENT,
+    root: UiElement = Column(),
+    measureContext: MeasureContext = MeasureContext(),
+    pixelRatio: Float,
+    content: Composable
 ): Image {
-    val prepared = prepareRenderTree(root, measureContext, snapRootSizeToPixel, content)
-    return Surface.makeRasterN32Premul(prepared.width, prepared.height).use { surface ->
+    require(pixelRatio.isFinite() && pixelRatio > 0f) { "输出像素倍率必须为有限正数" }
+    return drawPreparedTree(prepareRenderTree(root, measureContext, true, content), backgroundColor, measureContext, pixelRatio)
+}
+
+private fun drawPreparedTree(prepared: PreparedRenderTree, backgroundColor: Int, measureContext: MeasureContext, pixelRatio: Float): Image {
+    val width = ceil(prepared.width.toDouble() * pixelRatio)
+    val height = ceil(prepared.height.toDouble() * pixelRatio)
+    require(width <= Int.MAX_VALUE && height <= Int.MAX_VALUE) { "输出像素尺寸超出支持范围" }
+    return Surface.makeRasterN32Premul(width.toInt(), height.toInt()).use { surface ->
         val drawContext = DrawContext(SkiaDrawCanvas(surface.canvas), measureContext)
         drawContext.canvas.clear(backgroundColor)
+        drawContext.canvas.scale(pixelRatio, pixelRatio)
         prepared.root.draw(drawContext)
         surface.makeImageSnapshot()
     }

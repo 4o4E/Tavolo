@@ -19,6 +19,19 @@ dependencies {
 - `top.e404.tavolo.draw.render3d`: CPU 3D 渲染相关类型和渲染函数。
 - `top.e404.tavolo.draw.element`: 旧版绘图元素，已废弃，不建议新增使用。
 
+## Markdown 与结构化图表
+
+通用入口可直接嵌入 Compose 布局，也可独立返回 `Image` 或 PNG 字节：
+
+- Markdown：`markdown`、`renderMarkdown`、`renderMarkdownPng`，提供 CommonMark/GFM、任务列表、Alerts、脚注、静态 HTML 子集与代码高亮；图片通过调用方解析 lambda 提供。复杂 Markdown 应由外部渲染，Tavolo 不提供 Mermaid／LaTeX 专用渲染。
+- 图表：`structuredChart`、`renderChart`、`renderChartPng`，支持折线、分类柱状、饼图、环形图和雷达图；时间序列使用整数毫秒输入，保留多曲线与缺失点。
+- 图例默认横向排列并自动换行，可切换纵向；横轴提供数值／时间／分类配置、范围、间隔、格式化、旋转与部件样式。
+- Markdown 独立输出默认采用 2 倍像素密度，宽度仍以逻辑像素传入；可用 `pixelRatio = 1f` 返回原始像素尺寸。嵌入时可在外层使用 `render(pixelRatio = 2f)`。
+
+完整 API、资源策略、库调用、HTTP JSON 接口和离线验收见 [Markdown 与结构化图表](../docs/Markdown与结构化图表.md)。
+
+简单 Markdown 与图表使用 JVM／Skiko 原生执行链，无 Node.js 或浏览器部署要求。Java 运行基线为 11，第三方渲染依赖从 Maven Central 解析；字体、资源规则、HTTP JSON 接口和静态输出边界见上述文档。
+
 ## 测试分层
 
 - `./gradlew :graphics:test` 只运行稳定单元测试，应使用断言验证布局、测量和绘制命令，不依赖人工查看图片。
@@ -383,6 +396,7 @@ chartContainer(
 - `xLabelFormatter` / `yLabelFormatter`: 轴标签格式化。
 - `showHorizontalGrid` / `showVerticalGrid`: 分别控制屏幕水平／竖直方向的网格线，默认均为 `true`。开关只影响参考线，不改变刻度数量、数字标签、坐标轴、数据位置、填充或图例；这两个配置仅属于折线图，不放在共用 `AxisTheme` 中。
 - `maxPointsPerSeries`: 数据抽样上限，避免超长数据压缩成一团。
+- `showAxes`: 默认 `true`；设为 `false` 时不绘制坐标轴、刻度标签与网格，供外部布局接管。数据与图例仍然保留。
 
 ```kotlin
 val lineTheme = LineChartTheme(
@@ -644,6 +658,7 @@ drilldownPieChart(
 - `showValueLabels`: 是否显示数值标签。
 - `categoryLabelEvery`: 分类很多时每隔几个分类显示一个标签。
 - `yMin` / `yMax`: 固定数值轴范围。
+- `showAxes`: 默认 `true`；关闭时由外部布局接管坐标轴、刻度标签与网格，不影响柱状数据与图例。
 
 ```kotlin
 val barData = CategoryBarData(

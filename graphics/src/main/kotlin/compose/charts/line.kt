@@ -49,6 +49,8 @@ data class LineChartTheme(
     val showHorizontalGrid: Boolean = true,
     /** 是否绘制屏幕竖直方向的网格线，不影响横轴刻度标签。 */
     val showVerticalGrid: Boolean = true,
+    /** 关闭时仅绘制数据和图例，由嵌入容器负责坐标轴与网格。 */
+    val showAxes: Boolean = true,
 )
 
 fun UiElement.lineChart(theme: LineChartTheme, series: List<LineSeries>) = add(
@@ -112,7 +114,9 @@ fun drawLineChart(
         rangeMax = plotTop
     )
 
-    drawLineChartAxes(canvas, plotLeft, plotTop, plotRight, plotBottom, xScale, yScale, theme, measureContext)
+    if (theme.showAxes) {
+        drawLineChartAxes(canvas, plotLeft, plotTop, plotRight, plotBottom, xScale, yScale, theme, measureContext)
+    }
     val zeroY = yScale.map(0f).coerceIn(plotTop, plotBottom)
     resolvedSeries.forEach { item ->
         drawLineSeries(canvas, item, xScale, yScale, theme, zeroY)

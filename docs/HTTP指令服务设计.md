@@ -1,6 +1,6 @@
 # HTTP 指令服务设计
 
-本文档描述 `http-server` 和 `http-client` 模块当前对 Tavolo 指令能力的 HTTP 暴露方式。
+本文档描述 `http-server` 和 `http-client` 当前的指令执行及原生文档／图表渲染接口。
 
 ## 设计目标
 
@@ -22,12 +22,15 @@ http-server/src/main/kotlin/top/e404/tavolo/http/server/
     HealthRoutes.kt
     CommandRoutes.kt
     ExecuteRoutes.kt
+    RenderRoutes.kt
   service/
     CommandService.kt
     CommandExecuteService.kt
+    RenderService.kt
   dto/
     CommandDtos.kt
     ExecuteDtos.kt
+    RenderRequests.kt
 ```
 
 `ServerApplication` 安装 JSON、压缩、调用日志和错误处理插件，并注册路由。
@@ -113,6 +116,10 @@ http-server/src/main/kotlin/top/e404/tavolo/http/server/
 
 - handler：接受 multipart 请求，字段同 `/handlers/{id}/execute`。
 - generator：接受 JSON 请求，字段同 `/generators/{id}/execute`。
+
+### POST /render/markdown 与 POST /render/chart
+
+两个入口直接接收类型化 JSON，调用 `graphics` 原生渲染并返回 PNG，不经过指令字符串参数。Markdown 支持显式 Base64 图片映射；图表通过 `data.type` 区分数值折线、时间折线、分类柱状、饼图、环形图和雷达图。新接口拒绝未知字段，参数错误返回 400，非预期执行错误返回 500。完整协议和客户端方法见 [Markdown 与结构化图表](Markdown与结构化图表.md#http-json-与客户端)。
 
 ### POST /pipelines/execute
 
